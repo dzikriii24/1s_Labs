@@ -16,7 +16,7 @@ const navigation = [
 export const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { theme, toggleTheme } = useTheme()
+  const { theme, toggleTheme } = useTheme() 
 
   useEffect(() => {
     const handleScroll = () => {

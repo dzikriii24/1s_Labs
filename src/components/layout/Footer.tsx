@@ -2,18 +2,9 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { Github, Twitter, Linkedin, Mail, ArrowUp } from 'lucide-react'
 
-const socialLinks = [
-  { icon: Github, href: '#', label: 'GitHub' },
-  { icon: Twitter, href: '#', label: 'Twitter' },
-  { icon: Linkedin, href: '#', label: 'LinkedIn' },
-  { icon: Mail, href: '#', label: 'Email' },
-]
 
 const footerLinks = {
-  Services: ['Web Development', 'Mobile Apps', 'UI/UX Design', 'Cloud Solutions'],
-  Company: ['About Us', 'Our Team', 'Careers', 'Contact'],
-  Resources: ['Blog', 'Case Studies', 'Documentation', 'Support'],
-  Legal: ['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'GDPR']
+  Services: ['Web Development', 'Mobile Apps', 'UI/UX Design'],
 }
 
 export const Footer: React.FC = () => {
@@ -40,25 +31,7 @@ export const Footer: React.FC = () => {
               <p className="text-neutral-600 dark:text-neutral-400 mb-6 max-w-md">
                 Custom digital solutions with maximum quality, minimum cost, and lifetime use. Let's build something amazing together.
               </p>
-              <div className="flex space-x-3">
-                {socialLinks.map((social, index) => {
-                  const Icon = social.icon;
-                  return (
-                    <motion.a
-                      key={index}
-                      href={social.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      whileHover={{ scale: 1.1, y: -2 }}
-                      whileTap={{ scale: 0.9 }}
-                      className="w-10 h-10 bg-neutral-200 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-all duration-300 border border-neutral-300 dark:border-neutral-700"
-                      aria-label={social.label}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </motion.a>
-                  );
-                })}
-              </div>
+             
             </motion.div>
           </div>
 

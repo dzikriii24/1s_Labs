@@ -21,8 +21,8 @@ const contactMethods = [
   {
     icon: Instagram,
     title: 'Instagram',
-    handle: '@1s.labs',
-    href: 'https://instagram.com/1s.labs', // Ganti dengan username Instagram-mu
+    handle: '@1slabs.id',
+    href: 'https://instagram.com/1slabs.id', // Ganti dengan username Instagram-mu
     cta: 'Follow for Updates'
   }
 ];

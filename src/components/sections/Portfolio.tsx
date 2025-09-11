@@ -7,18 +7,113 @@ import { Button } from '../ui/Button'
 const categories = ['All', 'Web Development', 'Mobile Apps', 'UI/UX Design', 'E-commerce']
 
 const projects = [
+  // --- Proyek dari Dzikri (Format Disesuaikan) ---
   {
     id: 1,
+    title: "KampEase",
+    category: 'Web Development',
+    description: "A web-based platform designed to simplify campus navigation and enhance the daily experience of students, staff, and visitors.",
+    image: "https://images.pexels.com/photos/33314541/pexels-photo-33314541.jpeg",
+    technologies: ["PHP", "MySQL", "OpenStreetMaps API", "Javascript"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/KampEase"
+  },
+  {
+    id: 2,
+    title: "Sea Salon",
+    category: 'Web Development',
+    description: "A web-based application designed to help customers book salon services online easily, quickly, and flexibly.",
+    image: "https://images.pexels.com/photos/33314756/pexels-photo-33314756.jpeg",
+    technologies: ["PHP", "MySQL", "JavaScript", "Tailwind"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/seasalon2"
+  },
+  {
+    id: 3,
+    title: "Canteen Go",
+    category: 'Web Development',
+    description: "A digital web platform to support the sale and promotion of local food products, especially from small and medium enterprises (UMKM).",
+    image: "https://images.pexels.com/photos/33315015/pexels-photo-33315015.jpeg",
+    technologies: ["PHP", "PHP Library", "JavaScript", "Tailwind", "MySQL"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/CanteenGo_code"
+  },
+  {
+    id: 4,
+    title: "Smart POS System",
+    category: 'Desktop App',
+    description: "A lightweight and user-friendly cashier app to simplify sales, manage inventory, and generate real-time reports.",
+    image: "https://images.pexels.com/photos/33319037/pexels-photo-33319037.jpeg",
+    technologies: ["Java", "Java Swing"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/supermarketGUI"
+  },
+  {
+    id: 5,
+    title: "Smart Laundry App",
+    category: 'Web Development',
+    description: "A lightweight app to simplify order recording, track laundry progress, and manage customer data efficiently.",
+    image: "https://images.pexels.com/photos/33319538/pexels-photo-33319538.jpeg",
+    technologies: ["Java", "Spring Boot", "MySQL", "H2 Database"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/SpringBoot"
+  },
+  {
+    id: 6,
+    title: "Digital Wedding Invitation",
+    category: 'Web Development',
+    description: "An elegant, personal, and practical way to invite guests, manage RSVPs, and share your love story online.",
+    image: "https://images.pexels.com/photos/33319918/pexels-photo-33319918.jpeg",
+    technologies: ["HTML", "SASS", "JavaScript", "Tailwind"],
+    liveUrl: "https://dzikriii24.github.io/1sUndangan/",
+    githubUrl: "#"
+  },
+  {
+    id: 7,
+    title: "Tanduria",
+    category: 'IoT & Web App',
+    description: "An accessible smart farming solution with field monitoring, weather prediction, and IoT-based smart irrigation.",
+    image: "https://images.pexels.com/photos/33320664/pexels-photo-33320664.jpeg",
+    technologies: ["PHP", "Flask", "API Development", "MySQL", "IoT"],
+    liveUrl: '#',
+    githubUrl: "https://github.com/dzikriii24/tanduria"
+  },
+  
+  // --- Proyek Baru Ditambahkan ---
+  {
+    id: 8,
+    title: 'Cafe Menu & Order System',
+    category: 'Web Development',
+    description: 'A digital menu system for cafes and restaurants, complete with a real-time order management dashboard for the kitchen.',
+    image: 'https://i.pinimg.com/736x/54/af/46/54af46b48f2400b14b9d89e85c946123.jpg',
+    technologies: ['React', 'Node.js', 'Socket.IO', 'PostgreSQL'],
+    liveUrl: '#',
+    githubUrl: '#'
+  },
+  {
+    id: 9,
+    title: 'Modern Company Profile',
+    category: 'Web Development',
+    description: 'A sleek, professional, and fully responsive website to build a strong online presence and attract potential clients.',
+    image: 'https://i.pinimg.com/1200x/42/de/a5/42dea5d2f6078cd11c59b879f3b1b020.jpg',
+    technologies: ['Next.js', 'Tailwind CSS', 'Framer Motion', 'Headless CMS'],
+    liveUrl: '#',
+    githubUrl: '#'
+  },
+
+  // --- Proyek dari Data Awal ---
+  {
+    id: 10,
     title: 'E-commerce Platform',
     category: 'E-commerce',
     description: 'Modern e-commerce solution with advanced features and seamless user experience.',
-    image: 'https://images.pexels.com/photos/230544/pexels-photo-230544.jpeg?auto=compress&cs=tinysrgb&w=800',
+    image: 'https://images.pexels.com/photos/7667442/pexels-photo-7667442.jpeg',
     technologies: ['React', 'Node.js', 'MongoDB', 'Stripe'],
     liveUrl: '#',
     githubUrl: '#'
   },
   {
-    id: 2,
+    id: 11,
     title: 'Healthcare Mobile App',
     category: 'Mobile Apps',
     description: 'Comprehensive healthcare management app with appointment booking and telemedicine.',
@@ -28,7 +123,7 @@ const projects = [
     githubUrl: '#'
   },
   {
-    id: 3,
+    id: 12,
     title: 'Financial Dashboard',
     category: 'Web Development',
     description: 'Real-time financial analytics dashboard with advanced data visualization.',
@@ -38,17 +133,17 @@ const projects = [
     githubUrl: '#'
   },
   {
-    id: 4,
+    id: 13,
     title: 'Restaurant Brand Identity',
     category: 'UI/UX Design',
     description: 'Complete brand identity and digital experience for premium restaurant chain.',
     image: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800',
-    technologies: ['Figma', 'Adobe Creative Suite', 'Prototyping'],
+    technologies: ['Figma', 'Adobe Suite', 'Prototyping'],
     liveUrl: '#',
     githubUrl: '#'
   },
   {
-    id: 5,
+    id: 14,
     title: 'Learning Management System',
     category: 'Web Development',
     description: 'Comprehensive LMS with video streaming, assessments, and progress tracking.',
@@ -58,7 +153,7 @@ const projects = [
     githubUrl: '#'
   },
   {
-    id: 6,
+    id: 15,
     title: 'Fitness Tracking App',
     category: 'Mobile Apps',
     description: 'Social fitness app with workout tracking, challenges, and community features.',
@@ -67,7 +162,8 @@ const projects = [
     liveUrl: '#',
     githubUrl: '#'
   }
-]
+];
+
 
 export const Portfolio: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All')

@@ -8,7 +8,8 @@ import { Portfolio } from './components/sections/Portfolio'
 import { Contact } from './components/sections/Contact'
 import { Footer } from './components/layout/Footer'
 import { HeroParallax } from "./components/layout/hero-paralax"
-
+import { AccordionDemo } from './components/sections/Faq'
+import { VideoText } from './components/ui/video-text'
 function App() {
   return (
 
@@ -22,6 +23,23 @@ function App() {
           <About />
           <Services />
           <Portfolio />
+
+          <VideoText
+            src="https://www.pexels.com/download/video/3125427/"
+            fontSize={10}
+            fontWeight={800}
+            fontFamily="inter, sans-serif"
+            className="w-full h-[20vh] text-left" // Example: full width, 50% viewport height
+            autoPlay
+            muted
+            loop
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+          >
+            FAQ
+          </VideoText>
+          <AccordionDemo />
           <Contact />
         </main>
         <Footer />
@@ -35,43 +53,43 @@ function App() {
 
 export const products = [
   {
-    title: "Moonbeam",
-    link: "https://gomoonbeam.com",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/moonbeam.png",
+    title: "KampEase",
+    link: "https://github.com/dzikriii24/KampEase",
+    thumbnail: "https://images.pexels.com/photos/33314541/pexels-photo-33314541.jpeg",
   },
   {
-    title: "Cursor",
-    link: "https://cursor.so",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/cursor.png",
+    title: "Sea Salon",
+    link: "https://github.com/dzikriii24/seasalon2",
+    thumbnail: "https://images.pexels.com/photos/33314756/pexels-photo-33314756.jpeg",
   },
   {
-    title: "Rogue",
-    link: "https://userogue.com",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/rogue.png",
-  },
-
-  {
-    title: "Editorially",
-    link: "https://editorially.org",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/editorially.png",
+    title: "Canteen Go",
+    link: "https://github.com/dzikriii24/CanteenGo_code",
+    thumbnail: "https://images.pexels.com/photos/33315015/pexels-photo-33315015.jpeg",
   },
   {
-    title: "Editrix AI",
-    link: "https://editrix.ai",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/editrix.png",
+    title: "Smart POS System",
+    link: "https://github.com/dzikriii24/supermarketGUI",
+    thumbnail: "https://images.pexels.com/photos/33319037/pexels-photo-33319037.jpeg",
   },
   {
-    title: "Pixel Perfect",
-    link: "https://app.pixelperfect.quest",
-    thumbnail:
-      "https://aceternity.com/images/products/thumbnails/new/pixelperfect.png",
+    title: "Smart Laundry App",
+    link: "https://github.com/dzikriii24/SpringBoot",
+    thumbnail: "https://images.pexels.com/photos/33319538/pexels-photo-33319538.jpeg",
+  },
+  {
+    title: "Digital Wedding Invitation",
+    link: "https://dzikriii24.github.io/1sUndangan/",
+    thumbnail: "https://images.pexels.com/photos/33319918/pexels-photo-33319918.jpeg",
+  },
+  {
+    title: "Tanduria",
+    link: "https://github.com/dzikriii24/tanduria",
+    thumbnail: "https://images.pexels.com/photos/33320664/pexels-photo-33320664.jpeg",
   },
 ];
+
+
 
 
 export default App
