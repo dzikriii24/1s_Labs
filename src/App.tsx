@@ -58,16 +58,6 @@ export const products = [
     thumbnail: "https://images.pexels.com/photos/33314541/pexels-photo-33314541.jpeg",
   },
   {
-    title: "Sea Salon",
-    link: "https://github.com/dzikriii24/seasalon2",
-    thumbnail: "https://images.pexels.com/photos/33314756/pexels-photo-33314756.jpeg",
-  },
-  {
-    title: "Canteen Go",
-    link: "https://github.com/dzikriii24/CanteenGo_code",
-    thumbnail: "https://images.pexels.com/photos/33315015/pexels-photo-33315015.jpeg",
-  },
-  {
     title: "Smart POS System",
     link: "https://github.com/dzikriii24/supermarketGUI",
     thumbnail: "https://images.pexels.com/photos/33319037/pexels-photo-33319037.jpeg",
@@ -76,11 +66,6 @@ export const products = [
     title: "Smart Laundry App",
     link: "https://github.com/dzikriii24/SpringBoot",
     thumbnail: "https://images.pexels.com/photos/33319538/pexels-photo-33319538.jpeg",
-  },
-  {
-    title: "Digital Wedding Invitation",
-    link: "https://dzikriii24.github.io/1sUndangan/",
-    thumbnail: "https://images.pexels.com/photos/33319918/pexels-photo-33319918.jpeg",
   },
   {
     title: "Tanduria",
