@@ -78,17 +78,17 @@ const projects = [
     liveUrl: '#',
     githubUrl: "https://github.com/dzikriii24/tanduria"
   },
-  
+
   // --- Proyek Baru Ditambahkan ---
   {
     id: 8,
-    title: 'Cafe Menu & Order System',
+    title: 'M E N U',
     category: 'Web Development',
     description: 'A digital menu system for cafes and restaurants, complete with a real-time order management dashboard for the kitchen.',
     image: 'https://i.pinimg.com/736x/54/af/46/54af46b48f2400b14b9d89e85c946123.jpg',
-    technologies: ['React', 'Node.js', 'Socket.IO', 'PostgreSQL'],
+    technologies: ['PHP', 'Supabase', 'Javascript', 'Midtrans', "Tailwind"],
     liveUrl: '#',
-    githubUrl: '#'
+    githubUrl: 'https://menu1s.my.canva.site/'
   },
   {
     id: 9,
@@ -98,7 +98,7 @@ const projects = [
     image: 'https://i.pinimg.com/1200x/42/de/a5/42dea5d2f6078cd11c59b879f3b1b020.jpg',
     technologies: ['Next.js', 'Tailwind CSS', 'Framer Motion', 'Headless CMS'],
     liveUrl: '#',
-    githubUrl: '#'
+    githubUrl: 'https://1s-labs.vercel.app/'
   },
 
   // --- Proyek dari Data Awal ---
@@ -168,8 +168,8 @@ const projects = [
 export const Portfolio: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All')
 
-  const filteredProjects = activeCategory === 'All' 
-    ? projects 
+  const filteredProjects = activeCategory === 'All'
+    ? projects
     : projects.filter(project => project.category === activeCategory)
 
   return (
@@ -228,38 +228,42 @@ export const Portfolio: React.FC = () => {
                 transition={{ duration: 0.8, delay: index * 0.1 }}
               >
                 <Card className="overflow-hidden group">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={project.image}
-                      alt={project.title}
-                      className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-4">
+                  <a href={project.githubUrl} target='blank'>
+                    <div className="relative overflow-hidden">
+
+                      <img
+                        src={project.image}
+                        alt={project.title}
+                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-4">
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    <div className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-2">
-                      {project.category}
+
+                    <div className="p-6">
+                      <div className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-2">
+                        {project.category}
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                        {project.title}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        {project.description}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+                        {project.technologies.map((tech, techIndex) => (
+                          <span
+                            key={techIndex}
+                            className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded-full"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-                      {project.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
-                      {project.description}
-                    </p>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {project.technologies.map((tech, techIndex) => (
-                        <span
-                          key={techIndex}
-                          className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded-full"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  </a>
+
                 </Card>
               </motion.div>
             ))}
