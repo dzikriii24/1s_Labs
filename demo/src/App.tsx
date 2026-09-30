@@ -10,9 +10,11 @@ import { Footer } from './components/layout/Footer'
 import { HeroParallax } from "./components/layout/hero-paralax"
 import { AccordionDemo } from './components/sections/Faq'
 import { VideoText } from './components/ui/video-text'
+import { LanguageProvider } from './contexts/LanguageContext'
+
 function App() {
   return (
-
+    <LanguageProvider>
     <HelmetProvider>
 
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300 py-4 px-4 sm:px-8">
@@ -48,6 +50,7 @@ function App() {
         </div>
       </div>
     </HelmetProvider>
+    </LanguageProvider>
   )
 }
 

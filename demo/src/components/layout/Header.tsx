@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Sun, Moon } from 'lucide-react'
-import { useTheme } from '../../hooks/useTheme'
+import { Menu, X } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { ThemeTogglerButton } from '../ui/ThemeTogglerButton'
 import { cn } from '../../lib/utils'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 const navigation = [
   { name: 'Home', href: '#home' },
@@ -16,7 +17,7 @@ const navigation = [
 export const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { theme, toggleTheme } = useTheme() 
+  const { language, setLanguage, t } = useLanguage()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,13 +46,27 @@ export const Header: React.FC = () => {
         isScrolled ? 'py-2 rounded-[2rem] shadow-sm mt-4' : 'py-4 rounded-b-[2rem]'
       )}
     >
-      {/* Lekukan (Inverted Corners) Pixel-Perfect using SVG */}
-      <svg className={cn("absolute top-0 -left-6 w-6 h-6 text-white dark:text-gray-900 pointer-events-none transition-opacity duration-300", isScrolled ? "opacity-0" : "opacity-100")} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M24 24 C 24 10.745 13.255 0 0 0 H 24 V 24 Z" fill="currentColor"/>
-      </svg>
-      <svg className={cn("absolute top-0 -right-6 w-6 h-6 text-white dark:text-gray-900 pointer-events-none transition-opacity duration-300", isScrolled ? "opacity-0" : "opacity-100")} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 24 C 0 10.745 10.745 0 24 0 H 0 V 24 Z" fill="currentColor"/>
-      </svg>
+      {/* Lekukan (Inverted Corners) using CSS Masks for perfect transition sync */}
+      <div 
+        className={cn(
+          "absolute top-0 -left-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          isScrolled ? "opacity-0" : "opacity-100"
+        )}
+        style={{
+          WebkitMaskImage: 'radial-gradient(circle at 0% 100%, transparent 23.5px, black 24px)',
+          maskImage: 'radial-gradient(circle at 0% 100%, transparent 23.5px, black 24px)'
+        }}
+      />
+      <div 
+        className={cn(
+          "absolute top-0 -right-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          isScrolled ? "opacity-0" : "opacity-100"
+        )}
+        style={{
+          WebkitMaskImage: 'radial-gradient(circle at 100% 100%, transparent 23.5px, black 24px)',
+          maskImage: 'radial-gradient(circle at 100% 100%, transparent 23.5px, black 24px)'
+        }}
+      />
 
       <nav className="px-6 sm:px-8">
         <div className="flex justify-between items-center h-12">
@@ -77,40 +92,44 @@ export const Header: React.FC = () => {
                   onClick={() => scrollToSection(item.href)}
                   className="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-sm font-medium transition-colors duration-200"
                 >
-                  {item.name}
+                  {t(`nav.${item.name.toLowerCase()}`)}
                 </motion.button>
               ))}
-              <div className="flex items-center text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-sm font-medium cursor-pointer transition-colors duration-200">
-                Pages <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
             </div>
           </div>
 
           {/* Right side buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={toggleTheme}
-              className="p-2 rounded-full"
+              onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
+              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-10"
             >
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              {language}
             </Button>
-            <button className="bg-[#1A1A1A] hover:bg-black text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm">
-                Get Started
-            </button>
+            <ThemeTogglerButton direction="btt" />
+            <a 
+              href="https://wa.me/6285156296580" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-[#1A1A1A] hover:bg-black text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm ml-2"
+            >
+                {t('nav.bookNow')}
+            </a>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center space-x-2">
+          <div className="md:hidden flex items-center space-x-1">
              <Button
               variant="ghost"
               size="sm"
-              onClick={toggleTheme}
-              className="p-2 rounded-full"
+              onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
+              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-10"
             >
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              {language}
             </Button>
+             <ThemeTogglerButton direction="btt" />
             <Button
               variant="ghost"
               size="sm"
@@ -138,16 +157,21 @@ export const Header: React.FC = () => {
                     onClick={() => scrollToSection(item.href)}
                     className="block w-full text-left px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
                   >
-                    {item.name}
+                    {t(`nav.${item.name.toLowerCase()}`)}
                   </button>
                 ))}
                  <button className="block w-full text-left px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200">
-                    Pages
+                    {t('nav.pages')}
                   </button>
                   <div className="pt-4 px-4">
-                     <button className="w-full bg-[#1A1A1A] hover:bg-black text-white px-6 py-3 rounded-full text-sm font-medium transition-all text-center">
-                        Get Started
-                    </button>
+                     <a 
+                        href="https://wa.me/6285156296580" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block w-full bg-[#1A1A1A] hover:bg-black text-white px-6 py-3 rounded-full text-sm font-medium transition-all text-center"
+                      >
+                        {t('nav.bookNow')}
+                    </a>
                   </div>
               </div>
             </motion.div>
