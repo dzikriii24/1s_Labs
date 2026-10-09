@@ -2,6 +2,7 @@ import React from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { Header } from './components/layout/Header'
 import { Hero } from './components/sections/Hero'
+import { Stats } from './components/sections/Stats'
 import { About } from './components/sections/About'
 import { Services } from './components/sections/Services'
 import { Portfolio } from './components/sections/Portfolio'
@@ -21,32 +22,49 @@ function App() {
         <Header />
         
         {/* Kontainer utama digeser ke atas pakai -mt-[80px] agar pas dengan tinggi Header */}
-        <div className="max-w-[1400px] mx-auto bg-gray-50 dark:bg-gray-800 min-h-screen rounded-[2rem] shadow-xl overflow-hidden relative border border-gray-200 dark:border-gray-700 -mt-[80px]">
-          <main>
-            <HeroParallax />
-            <About />
-            <Services />
-            <Portfolio />
+        <div className="max-w-[1400px] mx-auto min-h-screen relative -mt-[80px]">
+          <main className="flex flex-col gap-6">
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <HeroParallax />
+            </div>
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <Stats />
+            </div>
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <About />
+            </div>
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <Services />
+            </div>
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <Portfolio />
+            </div>
 
-            <VideoText
-              src="https://www.pexels.com/download/video/3125427/"
-              fontSize={10}
-              fontWeight={800}
-              fontFamily="inter, sans-serif"
-              className="w-full h-[20vh] text-left" // Example: full width, 50% viewport height
-              autoPlay
-              muted
-              loop
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            >
-              FAQ
-            </VideoText>
-            <AccordionDemo />
-            <Contact />
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <VideoText
+                src="https://www.pexels.com/download/video/3125427/"
+                fontSize={10}
+                fontWeight={800}
+                fontFamily="inter, sans-serif"
+                className="w-full h-[20vh] text-left" // Example: full width, 50% viewport height
+                autoPlay
+                muted
+                loop
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+              >
+                FAQ
+              </VideoText>
+              <AccordionDemo />
+            </div>
+            <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <Contact />
+            </div>
           </main>
-          <Footer />
+          <div className="mt-6 rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Footer />
+          </div>
         </div>
       </div>
     </HelmetProvider>

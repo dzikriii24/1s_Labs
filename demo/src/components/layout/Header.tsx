@@ -41,9 +41,10 @@ export const Header: React.FC = () => {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       className={cn(
-        'sticky top-0 z-50 transition-all duration-300 mx-auto w-full max-w-[1000px] relative',
-        'bg-white dark:bg-gray-900',
-        isScrolled ? 'py-2 rounded-[2rem] shadow-sm mt-4' : 'py-4 rounded-b-[2rem]'
+        'sticky z-50 transition-all duration-300 mx-auto w-full max-w-[1000px]',
+        isScrolled 
+          ? 'top-4 py-2 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white/20 dark:bg-gray-900/20 backdrop-blur-lg border border-white/60 dark:border-white/10' 
+          : 'top-0 py-4 rounded-b-[2rem] bg-white dark:bg-gray-900'
       )}
     >
       {/* Lekukan (Inverted Corners) using CSS Masks for perfect transition sync */}
