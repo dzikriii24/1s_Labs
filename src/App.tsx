@@ -1,80 +1,116 @@
 import React from 'react'
 import { HelmetProvider } from 'react-helmet-async'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Header } from './components/layout/Header'
-import { Hero } from './components/sections/Hero'
+import { Stats } from './components/sections/Stats'
 import { About } from './components/sections/About'
 import { Services } from './components/sections/Services'
+import { Hosting } from './components/sections/Hosting'
 import { Portfolio } from './components/sections/Portfolio'
+import { ExperiencePartners } from './components/sections/ExperiencePartners'
 import { Contact } from './components/sections/Contact'
 import { Footer } from './components/layout/Footer'
 import { HeroParallax } from "./components/layout/hero-paralax"
 import { AccordionDemo } from './components/sections/Faq'
 import { VideoText } from './components/ui/video-text'
-function App() {
+import { LanguageProvider } from './contexts/LanguageContext'
+import { ServiceLandingPage } from './pages/ServiceLandingPage'
+
+// Automatically scrolls to top on route change unless an anchor hash is present
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+  React.useEffect(() => {
+    if (!hash) {
+      window.scrollTo(0, 0)
+    }
+  }, [pathname, hash])
+  return null
+}
+
+function HomePage() {
   return (
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300 py-4 px-4 sm:px-8">
+      <Header />
+      
+      {/* Main content wrapper shifted slightly up to integrate seamlessly with sticky header */}
+      <div className="max-w-[1400px] mx-auto min-h-screen relative -mt-[80px]">
+        <main className="flex flex-col gap-6">
+          
+          {/* Hero Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <HeroParallax />
+          </div>
 
-    <HelmetProvider>
+          {/* Stats Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Stats />
+          </div>
 
-      <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
+          {/* About & Pay Once Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <About />
+          </div>
 
-        <Header />
-        <main>
-          <HeroParallax products={products} />
-          <About />
-          <Services />
-          <Portfolio />
+          {/* Comprehensive IT Services Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Services />
+          </div>
 
-          <VideoText
-            src="https://www.pexels.com/download/video/3125427/"
-            fontSize={10}
-            fontWeight={800}
-            fontFamily="inter, sans-serif"
-            className="w-full h-[20vh] text-left" // Example: full width, 50% viewport height
-            autoPlay
-            muted
-            loop
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-          >
-            FAQ
-          </VideoText>
-          <AccordionDemo />
-          <Contact />
+          {/* Dedicated Commercial Hosting Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Hosting />
+          </div>
+
+          {/* Verified Real Portfolio Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Portfolio />
+          </div>
+
+          {/* Company Experience, Enterprise Clients & Tech Ecosystem (Kim Holiday safely omitted) */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <ExperiencePartners />
+          </div>
+
+          {/* FAQ Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <AccordionDemo />
+          </div>
+
+          {/* Contact Section */}
+          <div className="rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <Contact />
+          </div>
+
         </main>
-        <Footer />
+
+        {/* Footer */}
+        <div className="mt-6 rounded-[2rem] overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <Footer />
+        </div>
+
       </div>
-    </HelmetProvider>
+    </div>
   )
 }
 
-
-
-
-export const products = [
-  {
-    title: "KampEase",
-    link: "https://github.com/dzikriii24/KampEase",
-    thumbnail: "https://images.pexels.com/photos/33314541/pexels-photo-33314541.jpeg",
-  },
-  {
-    title: "Smart POS System",
-    link: "https://github.com/dzikriii24/supermarketGUI",
-    thumbnail: "https://images.pexels.com/photos/33319037/pexels-photo-33319037.jpeg",
-  },
-  {
-    title: "Smart Laundry App",
-    link: "https://github.com/dzikriii24/SpringBoot",
-    thumbnail: "https://images.pexels.com/photos/33319538/pexels-photo-33319538.jpeg",
-  },
-  {
-    title: "Tanduria",
-    link: "https://github.com/dzikriii24/tanduria",
-    thumbnail: "https://images.pexels.com/photos/33320664/pexels-photo-33320664.jpeg",
-  },
-];
-
-
-
+function App() {
+  return (
+    <LanguageProvider>
+      <HelmetProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/jasa-pembuatan-website" element={<ServiceLandingPage serviceKey="web-dev" />} />
+            <Route path="/software-development" element={<ServiceLandingPage serviceKey="custom-software" />} />
+            <Route path="/it-consulting" element={<ServiceLandingPage serviceKey="it-consulting" />} />
+            <Route path="/hosting" element={<ServiceLandingPage serviceKey="hosting" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </HelmetProvider>
+    </LanguageProvider>
+  )
+}
 
 export default App

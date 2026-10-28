@@ -2,24 +2,47 @@ import { useState, useEffect } from 'react'
 
 export type Theme = 'light' | 'dark'
 
-export const useTheme = () => {
-  const [theme, setTheme] = useState<Theme>(() => {
+class ThemeEmitter extends EventTarget {
+  theme: Theme;
+  constructor() {
+    super();
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme') as Theme
-      return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      this.theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } else {
+      this.theme = 'light';
     }
-    return 'light'
-  })
+  }
+  setTheme(t: Theme) {
+    this.theme = t;
+    localStorage.setItem('theme', t);
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(t);
+    this.dispatchEvent(new Event('change'));
+  }
+}
+
+const themeEmitter = new ThemeEmitter();
+
+// Initialize on load
+if (typeof window !== 'undefined') {
+  const root = window.document.documentElement;
+  root.classList.remove('light', 'dark');
+  root.classList.add(themeEmitter.theme);
+}
+
+export const useTheme = () => {
+  const [theme, setThemeState] = useState<Theme>(themeEmitter.theme)
 
   useEffect(() => {
-    const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
-    root.classList.add(theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    const handler = () => setThemeState(themeEmitter.theme);
+    themeEmitter.addEventListener('change', handler);
+    return () => themeEmitter.removeEventListener('change', handler);
+  }, [])
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+    themeEmitter.setTheme(themeEmitter.theme === 'light' ? 'dark' : 'light');
   }
 
   return { theme, toggleTheme }

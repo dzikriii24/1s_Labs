@@ -29,7 +29,7 @@ interface AccordionProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
-  ({ className, type = "multiple", value, defaultValue = [], onValueChange, children, ...props }, ref) => {
+  ({ className, type = "multiple", collapsible = false, value, defaultValue = [], onValueChange, children, ...props }, ref) => {
     // Always ensure values is an array, even if a single string is passed
     const [values, setValues] = React.useState<string[]>(
       Array.isArray(value) ? value : 
@@ -45,11 +45,18 @@ const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
     }, [value]);
     
     const handleValueChange = React.useCallback((newValues: string[]) => {
-      if (value === undefined) {
-        setValues(newValues);
+      let finalValues = newValues;
+      if (type === "single") {
+        finalValues = newValues.length > 0 ? [newValues[newValues.length - 1]] : [];
+        if (!collapsible && finalValues.length === 0 && values.length > 0) {
+          finalValues = values;
+        }
       }
-      onValueChange?.(newValues);
-    }, [onValueChange, value]);
+      if (value === undefined) {
+        setValues(finalValues);
+      }
+      onValueChange?.(finalValues);
+    }, [onValueChange, value, type, collapsible, values]);
     
     return (
       <AccordionContext.Provider value={{ value: values, onValueChange: handleValueChange }}>
@@ -86,7 +93,7 @@ const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps>(
 );
 AccordionItem.displayName = "AccordionItem";
 
-interface AccordionTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+type AccordionTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerProps>(
   ({ className, children, ...props }, ref) => {
@@ -130,7 +137,7 @@ const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerPro
 );
 AccordionTrigger.displayName = "AccordionTrigger";
 
-interface AccordionContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+type AccordionContentProps = React.HTMLAttributes<HTMLDivElement>;
 
 const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>(
   ({ className, children, ...props }, ref) => {
@@ -145,6 +152,8 @@ const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>
     
     const isOpen = values.includes(itemValue);
     
+    if (!isOpen) return null;
+
     return (
       <div
         ref={ref}

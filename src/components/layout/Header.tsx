@@ -1,125 +1,293 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Sun, Moon } from 'lucide-react'
-import { useTheme } from '../../hooks/useTheme'
+import { Menu, X, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { ThemeTogglerButton } from '../ui/ThemeTogglerButton'
 import { cn } from '../../lib/utils'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 const navigation = [
   { name: 'Home', href: '#home' },
   { name: 'About', href: '#about' },
   { name: 'Services', href: '#services' },
+  { name: 'Hosting', href: '#hosting' },
   { name: 'Portfolio', href: '#portfolio' },
   { name: 'Contact', href: '#contact' },
+]
+
+const serviceLandingLinks = [
+  { name: 'Jasa Pembuatan Website', href: '/jasa-pembuatan-website', desc: 'Company profile & landing page modern' },
+  { name: 'Custom Software Development', href: '/software-development', desc: 'Aplikasi web enterprise, ERP & POS' },
+  { name: 'IT Consulting & Architecture', href: '/it-consulting', desc: 'Audit teknologi & arsitektur sistem' },
+  { name: 'Managed Cloud Hosting', href: '/hosting', desc: 'Hosting cepat NVMe & bantuan setup' },
 ]
 
 export const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { theme, toggleTheme } = useTheme() 
+  const [isServicesDropdownOpen, setIsServicesDropdownOpen] = useState(false)
+  const { language, setLanguage, t } = useLanguage()
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+      setIsScrolled(window.scrollY > 10)
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   const scrollToSection = (href: string) => {
-    const id = href.replace('#', '')
-    const element = document.getElementById(id)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+    setIsMobileMenuOpen(false);
+    setIsServicesDropdownOpen(false);
+    if (window.location.pathname !== '/') {
+      window.location.href = `/${href}`;
+      return;
     }
-    setIsMobileMenuOpen(false)
-  }
+    const id = href.replace('#', '');
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        isScrolled
-          ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-lg'
-          : 'bg-transparent'
+        'sticky z-50 transition-all duration-300 mx-auto w-full max-w-[1000px]',
+        isScrolled 
+          ? 'top-4 py-2 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white/20 dark:bg-gray-900/20 backdrop-blur-lg border border-white/60 dark:border-white/10' 
+          : 'top-0 py-3 sm:py-4 rounded-b-[2rem] bg-white dark:bg-gray-900'
       )}
     >
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+      {/* Lekukan (Inverted Corners) using CSS Masks for perfect transition sync */}
+      <div 
+        className={cn(
+          "absolute top-0 -left-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          isScrolled ? "opacity-0" : "opacity-100"
+        )}
+        style={{
+          WebkitMaskImage: 'radial-gradient(circle at 0% 100%, transparent 23.5px, black 24px)',
+          maskImage: 'radial-gradient(circle at 0% 100%, transparent 23.5px, black 24px)'
+        }}
+      />
+      <div 
+        className={cn(
+          "absolute top-0 -right-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          isScrolled ? "opacity-0" : "opacity-100"
+        )}
+        style={{
+          WebkitMaskImage: 'radial-gradient(circle at 100% 100%, transparent 23.5px, black 24px)',
+          maskImage: 'radial-gradient(circle at 100% 100%, transparent 23.5px, black 24px)'
+        }}
+      />
+
+      <nav className="px-4 sm:px-8">
+        <div className="flex justify-between items-center h-12">
+          {/* Logo with SEO Alt Text and Accessible Link */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex-shrink-0"
+            className="flex-shrink-0 flex items-center"
           >
-            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              <img src="https://image2url.com/images/1757349056783-832654d1-b551-403e-9291-8aff487b3668.png" alt="" className="h-12 flex dark:hidden"/>
-              <img src="https://image2url.com/images/1757349257406-33f427d1-9c4b-43ab-951a-623b6ffade7d.png" alt="" className='h-12 hidden dark:flex' />
-            </div>
+            <a
+              href="/"
+              onClick={(e) => {
+                if (window.location.pathname === '/') {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center"
+              aria-label="1sLabs Home"
+            >
+              <img
+                src="https://image2url.com/images/1757349056783-832654d1-b551-403e-9291-8aff487b3668.png"
+                alt="1sLabs — Jasa Pembuatan Website &amp; IT Consulting"
+                className="h-9 sm:h-12 flex dark:hidden w-auto"
+                width="120"
+                height="48"
+              />
+              <img
+                src="https://image2url.com/images/1757349257406-33f427d1-9c4b-43ab-951a-623b6ffade7d.png"
+                alt="1sLabs — Jasa Pembuatan Website &amp; IT Consulting"
+                className="h-9 sm:h-12 hidden dark:flex w-auto"
+                width="120"
+                height="48"
+              />
+            </a>
           </motion.div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-8">
-              {navigation.map((item) => (
-                <motion.button
-                  key={item.name}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => scrollToSection(item.href)}
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors duration-200"
-                >
-                  {item.name}
-                </motion.button>
-              ))}
+          <div className="hidden md:flex flex-1 justify-center">
+            <div className="flex items-center space-x-7">
+              {navigation.map((item) => {
+                if (item.name === 'Services') {
+                  return (
+                    <div
+                      key={item.name}
+                      className="relative"
+                      onMouseEnter={() => setIsServicesDropdownOpen(true)}
+                      onMouseLeave={() => setIsServicesDropdownOpen(false)}
+                    >
+                      <button
+                        onClick={() => scrollToSection(item.href)}
+                        className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1"
+                      >
+                        {t(`nav.${item.name.toLowerCase()}`)}
+                        <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isServicesDropdownOpen && "rotate-180")} />
+                      </button>
+
+                      <AnimatePresence>
+                        {isServicesDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 p-2 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-800 shadow-2xl z-50 text-left"
+                          >
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100 dark:border-neutral-800/80 mb-1">
+                              Halaman Layanan Khusus
+                            </div>
+                            {serviceLandingLinks.map((link) => (
+                              <a
+                                key={link.href}
+                                href={link.href}
+                                className="block p-2 rounded-xl hover:bg-blue-50/70 dark:hover:bg-blue-950/40 transition-colors group/item"
+                              >
+                                <div className="text-xs font-semibold text-neutral-900 dark:text-white group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400">
+                                  {link.name}
+                                </div>
+                                <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                                  {link.desc}
+                                </div>
+                              </a>
+                            ))}
+                            <div className="mt-1 pt-1 border-t border-neutral-100 dark:border-neutral-800/80">
+                              <button
+                                onClick={() => {
+                                  setIsServicesDropdownOpen(false);
+                                  scrollToSection('#services');
+                                }}
+                                className="w-full text-left p-2 rounded-xl text-[11px] font-medium text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              >
+                                Lihat Semua di Beranda &rarr;
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                }
+
+                return (
+                  <motion.button
+                    key={item.name}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => scrollToSection(item.href)}
+                    className="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer"
+                  >
+                    {t(`nav.${item.name.toLowerCase()}`)}
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Theme Toggle & Mobile Menu */}
-          <div className="flex items-center space-x-4">
+          {/* Right side buttons */}
+          <div className="hidden md:flex items-center space-x-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={toggleTheme}
-              className="p-2"
+              onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
+              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-10 min-w-[40px] min-h-[40px]"
+              aria-label="Ganti Bahasa"
             >
-              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              {language}
             </Button>
+            <ThemeTogglerButton direction="btt" aria-label="Ganti Tema Gelap/Terang" />
+            <a 
+              href="https://wa.me/6285156296580" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-[#1A1A1A] hover:bg-black text-white px-5 py-2.5 rounded-full text-xs font-semibold transition-all shadow-xs ml-2"
+            >
+              {t('nav.bookNow')}
+            </a>
+          </div>
 
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2"
-              >
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </Button>
-            </div>
+          {/* Mobile menu button with 44x44px touch area */}
+          <div className="md:hidden flex items-center space-x-1">
+             <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
+              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center text-xs"
+              aria-label="Ganti Bahasa"
+            >
+              {language}
+            </Button>
+            <ThemeTogglerButton direction="btt" aria-label="Ganti Tema Gelap/Terang" />
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2.5 rounded-xl text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label={isMobileMenuOpen ? "Tutup Menu" : "Buka Menu"}
+            >
+              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation Drawer */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
+              className="md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 mt-3 rounded-2xl overflow-hidden shadow-xl"
             >
-              <div className="px-2 pt-2 pb-3 space-y-1">
+              <div className="pt-2 pb-3 px-2 space-y-1">
                 {navigation.map((item) => (
                   <button
                     key={item.name}
                     onClick={() => scrollToSection(item.href)}
-                    className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors duration-200"
+                    className="block w-full text-left px-3.5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors duration-200 min-h-[42px]"
                   >
-                    {item.name}
+                    {t(`nav.${item.name.toLowerCase()}`)}
                   </button>
                 ))}
+
+                {/* Subpage SEO Links */}
+                <div className="pt-2 pb-1 border-t border-gray-100 dark:border-gray-800">
+                  <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Halaman Layanan Khusus:
+                  </div>
+                  {serviceLandingLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3.5 py-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg"
+                    >
+                      {link.name}
+                    </a>
+                  ))}
+                </div>
+
+                <div className="pt-3 px-2 pb-1">
+                  <a 
+                    href="https://wa.me/6285156296580" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block w-full bg-[#1A1A1A] hover:bg-black text-white px-5 py-3 rounded-full text-xs font-semibold transition-all text-center min-h-[44px] flex items-center justify-center"
+                  >
+                    {t('nav.bookNow')} (WhatsApp)
+                  </a>
+                </div>
               </div>
             </motion.div>
           )}
