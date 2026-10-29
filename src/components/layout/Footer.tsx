@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Github, Linkedin, Mail, ArrowUp } from 'lucide-react';
+import { Mail, Phone, MessageSquare, ArrowUp } from 'lucide-react';
 
 const footerNav = [
   {
@@ -51,38 +51,61 @@ export const Footer: React.FC = () => {
               viewport={{ once: true, amount: 0.5 }}
               transition={{ duration: 0.8 }}
             >
-              <h3 className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-black to-neutral-600 dark:from-white dark:to-neutral-400 mb-2 sm:mb-4 font-['Mori',_sans-serif]">
-                1s Labs
-              </h3>
-              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 mb-4 sm:mb-6 max-w-md leading-relaxed">
+              <a href="/" className="inline-block mb-3 sm:mb-4" aria-label="1sLabs Home">
+                <img
+                  src="https://r0.image2url.com/images/1757349056783-832654d1-b551-403e-9291-8aff487b3668.png"
+                  alt="1sLabs Logo"
+                  className="h-9 sm:h-10 w-auto object-contain flex dark:hidden"
+                />
+                <img
+                  src="https://image2url.com/images/1757349257406-33f427d1-9c4b-43ab-951a-623b6ffade7d.png"
+                  alt="1sLabs Logo"
+                  className="h-9 sm:h-10 w-auto object-contain hidden dark:flex"
+                />
+              </a>
+              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 mb-4 sm:mb-5 max-w-md leading-relaxed">
                 Engineering high-quality web applications, bespoke business software, AI automations, and managed hosting with transparent pricing and full digital ownership.
               </p>
 
-              <div className="flex items-center space-x-3">
+              {/* Direct Contact Info */}
+              <div className="space-y-2 mb-5 text-xs text-neutral-600 dark:text-neutral-400">
                 <a
-                  href="https://github.com/dzikriii24"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:bg-neutral-200 transition-colors"
-                  aria-label="GitHub Profile"
+                  href="mailto:info@1slabs.my.id"
+                  className="flex items-center space-x-2.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
-                  <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <span>info@1slabs.my.id</span>
                 </a>
                 <a
-                  href="https://linkedin.com/in/dzikrirabbani"
+                  href="https://wa.me/6285156296580"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-neutral-200 transition-colors"
-                  aria-label="LinkedIn Profile"
+                  className="flex items-center space-x-2.5 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 >
-                  <Linkedin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <Phone className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <span>+62 851-5629-6580 (Hotline &amp; WhatsApp)</span>
                 </a>
+              </div>
+
+              {/* Quick Actions Buttons */}
+              <div className="flex items-center space-x-2.5">
                 <a
-                  href="mailto:dzikrirabbani2401@gmail.com"
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-red-500 hover:bg-neutral-200 transition-colors"
-                  aria-label="Email Dzikri Rabbani"
+                  href="mailto:info@1slabs.my.id"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                  aria-label="Email 1sLabs"
+                  title="Email: info@1slabs.my.id"
                 >
                   <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </a>
+                <a
+                  href="https://wa.me/6285156296580"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                  aria-label="WhatsApp 1sLabs"
+                  title="WhatsApp: +62 851-5629-6580"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               </div>
             </motion.div>
@@ -126,7 +149,7 @@ export const Footer: React.FC = () => {
           className="border-t border-neutral-200 dark:border-neutral-800 mt-14 pt-8 flex flex-col sm:flex-row justify-between items-center"
         >
           <p className="text-neutral-500 dark:text-neutral-500 text-xs mb-4 sm:mb-0">
-            © {new Date().getFullYear()} 1s Labs &bull; Engineered by Dzikri Rabbani. All rights reserved.
+            © {new Date().getFullYear()} 1sLabs. All rights reserved.
           </p>
           
           <motion.button

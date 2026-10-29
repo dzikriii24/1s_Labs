@@ -105,21 +105,21 @@ export const servicesConfig: Record<string, ServicePageConfig> = {
         category: 'Enterprise Portal',
         role: 'PM & Fullstack Developer',
         tech: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Saffix Event & Talent Platform',
         category: 'Web Application',
         role: 'Fullstack Web Developer',
         tech: ['Next.js', 'Tailwind CSS', 'REST API'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Yuk-Mari UMKM & Event',
         category: 'Community Web Portal',
         role: 'Fullstack Web Developer',
         tech: ['React', 'Tailwind CSS', 'MySQL'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       }
     ],
     faq: [
@@ -196,21 +196,21 @@ export const servicesConfig: Record<string, ServicePageConfig> = {
         category: 'Business Application',
         role: 'Fullstack Developer',
         tech: ['React', 'Node.js', 'PostgreSQL', 'Thermal SDK'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Smart Laundry Tracking System',
         category: 'Operations System',
         role: 'Fullstack Developer',
         tech: ['React', 'Express', 'MySQL', 'WhatsApp API'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'KampEase Campus Management',
         category: 'Education Enterprise',
         role: 'Frontend Developer',
         tech: ['React', 'TypeScript', 'REST API'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       }
     ],
     faq: [
@@ -294,14 +294,14 @@ export const servicesConfig: Record<string, ServicePageConfig> = {
         category: 'System Integration',
         role: 'IT Support & Developer',
         tech: ['PHP', 'MySQL', 'Database Migration', 'API Bridge'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Vocallet AI Architecture',
         category: 'AI Research & Deployment',
         role: 'AI Engineer (Top 15 Nasional)',
         tech: ['Python', 'TensorFlow', 'FastAPI', 'Cloud Server'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       }
     ],
     faq: [
@@ -378,21 +378,21 @@ export const servicesConfig: Record<string, ServicePageConfig> = {
         category: 'Cloud Deployment',
         role: 'Infrastructure Setup',
         tech: ['Linux VPS', 'Nginx', 'SSL', 'PostgreSQL'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Hosting Lazismu Portal',
         category: 'Managed Web Hosting',
         role: 'Server Maintenance',
         tech: ['cPanel', 'MySQL', 'Automated Backup'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       },
       {
         title: 'Menu1s Digital Catalog',
         category: 'Web App Hosting',
         role: 'Deployment & Domain',
         tech: ['Cloud Hosting', 'SSL', 'CDN'],
-        link: 'https://github.com/dzikriii24'
+        link: '/#portfolio'
       }
     ],
     faq: [

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X, ChevronDown, User, Server, ShieldCheck, LogOut, CreditCard } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { ThemeTogglerButton } from '../ui/ThemeTogglerButton'
 import { cn } from '../../lib/utils'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 const navigation = [
   { name: 'Home', href: '#home' },
@@ -26,7 +28,9 @@ export const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isServicesDropdownOpen, setIsServicesDropdownOpen] = useState(false)
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const { language, setLanguage, t } = useLanguage()
+  const { user, logout } = useAuth()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -209,11 +213,117 @@ export const Header: React.FC = () => {
               {language}
             </Button>
             <ThemeTogglerButton direction="btt" aria-label="Ganti Tema Gelap/Terang" />
+
+            {/* Customer / Admin Profile & Portal Dropdown */}
+            {user ? (
+              <div className="relative ml-1">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDropdownOpen(prev => !prev)}
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-xs font-semibold text-gray-800 dark:text-gray-200 cursor-pointer shadow-xs"
+                >
+                  <div className="w-6 h-6 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-[11px] font-bold">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="max-w-[110px] truncate">{user.name || 'Akun'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isProfileDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-60 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl py-2 z-50 text-xs"
+                    >
+                      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+                        <p className="font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
+                        <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
+                        <span className={`mt-1.5 inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          user.role === 'admin'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        }`}>
+                          {user.role === 'admin' ? 'Administrator' : 'Pelanggan 1sLabs'}
+                        </span>
+                      </div>
+
+                      <div className="py-1">
+                        {user.role === 'admin' ? (
+                          <Link
+                            to="/admin"
+                            onClick={() => setIsProfileDropdownOpen(false)}
+                            className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                          >
+                            <ShieldCheck className="w-4 h-4 text-rose-500" />
+                            <span>Dashboard Admin</span>
+                          </Link>
+                        ) : (
+                          <>
+                            <Link
+                              to="/portal?tab=services"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                            >
+                              <Server className="w-4 h-4 text-emerald-500" />
+                              <span>Layanan Hosting Saya</span>
+                            </Link>
+
+                            <Link
+                              to="/portal?tab=orders"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                            >
+                              <CreditCard className="w-4 h-4 text-blue-500" />
+                              <span>Riwayat Pesanan</span>
+                            </Link>
+
+                            <Link
+                              to="/portal?tab=profile"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                            >
+                              <User className="w-4 h-4 text-purple-500" />
+                              <span>Profil Akun & Keamanan</span>
+                            </Link>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="pt-1 border-t border-gray-100 dark:border-gray-800">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            logout();
+                          }}
+                          className="w-full flex items-center space-x-2 px-4 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Keluar / Logout</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black px-4 py-2 rounded-full text-xs font-semibold transition-all shadow-xs ml-1 flex items-center space-x-1"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Masuk</span>
+              </Link>
+            )}
+
             <a 
               href="https://wa.me/6285156296580" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-[#1A1A1A] hover:bg-black text-white px-5 py-2.5 rounded-full text-xs font-semibold transition-all shadow-xs ml-2"
+              className="bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 px-3.5 py-2 rounded-full text-xs font-medium transition-all ml-1"
             >
               {t('nav.bookNow')}
             </a>
@@ -260,6 +370,81 @@ export const Header: React.FC = () => {
                     {t(`nav.${item.name.toLowerCase()}`)}
                   </button>
                 ))}
+
+                {/* Account / Portal Mobile Links */}
+                <div className="pt-2 pb-2 border-t border-gray-100 dark:border-gray-800">
+                  <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Akun & Layanan:
+                  </div>
+                  {user ? (
+                    <div className="space-y-1">
+                      <div className="px-3.5 py-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl mb-1">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
+                        <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+                      </div>
+
+                      {user.role === 'admin' ? (
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>Panel Administrator</span>
+                        </Link>
+                      ) : (
+                        <>
+                          <Link
+                            to="/portal?tab=services"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                          >
+                            <Server className="w-4 h-4 text-emerald-500" />
+                            <span>Layanan Hosting Saya</span>
+                          </Link>
+
+                          <Link
+                            to="/portal?tab=orders"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                          >
+                            <CreditCard className="w-4 h-4 text-blue-500" />
+                            <span>Riwayat Pesanan</span>
+                          </Link>
+
+                          <Link
+                            to="/portal?tab=profile"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                          >
+                            <User className="w-4 h-4 text-purple-500" />
+                            <span>Profil Akun & Keamanan</span>
+                          </Link>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          logout();
+                        }}
+                        className="w-full flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-left cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Keluar / Logout</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3.5 py-2 text-xs font-semibold text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                    >
+                      Masuk ke Portal Hosting
+                    </Link>
+                  )}
+                </div>
 
                 {/* Subpage SEO Links */}
                 <div className="pt-2 pb-1 border-t border-gray-100 dark:border-gray-800">

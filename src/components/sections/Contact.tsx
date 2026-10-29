@@ -26,8 +26,8 @@ const contactMethods: ContactMethod[] = [
     icon: Mail,
     title: 'Email Bisnis',
     badge: 'Inquiries & Proposal',
-    handle: '1slabs.id@gmail.com',
-    href: 'mailto:1slabs.id@gmail.com?subject=Konsultasi%20Proyek%201sLabs',
+    handle: 'info@1slabs.my.id',
+    href: 'mailto:info@1slabs.my.id?subject=Konsultasi%20Proyek%201sLabs',
     cta: 'Kirim Pesan Email'
   },
   {

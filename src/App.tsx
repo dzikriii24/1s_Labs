@@ -14,7 +14,17 @@ import { HeroParallax } from "./components/layout/hero-paralax"
 import { AccordionDemo } from './components/sections/Faq'
 import { VideoText } from './components/ui/video-text'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { AuthProvider } from './contexts/AuthContext'
 import { ServiceLandingPage } from './pages/ServiceLandingPage'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { HostingPlanDetailPage } from './pages/HostingPlanDetailPage'
+import { CheckoutPage } from './pages/CheckoutPage'
+import { PaymentPage } from './pages/PaymentPage'
+import { SetupDomainPage } from './pages/SetupDomainPage'
+import { CustomerPortalPage } from './pages/CustomerPortalPage'
+import { InvoicePage } from './pages/InvoicePage'
+import { AdminDashboardPage } from './pages/AdminDashboardPage'
 
 // Automatically scrolls to top on route change unless an anchor hash is present
 function ScrollToTop() {
@@ -96,19 +106,35 @@ function HomePage() {
 function App() {
   return (
     <LanguageProvider>
-      <HelmetProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/jasa-pembuatan-website" element={<ServiceLandingPage serviceKey="web-dev" />} />
-            <Route path="/software-development" element={<ServiceLandingPage serviceKey="custom-software" />} />
-            <Route path="/it-consulting" element={<ServiceLandingPage serviceKey="it-consulting" />} />
-            <Route path="/hosting" element={<ServiceLandingPage serviceKey="hosting" />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </HelmetProvider>
+      <AuthProvider>
+        <HelmetProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/jasa-pembuatan-website" element={<ServiceLandingPage serviceKey="web-dev" />} />
+              <Route path="/software-development" element={<ServiceLandingPage serviceKey="custom-software" />} />
+              <Route path="/it-consulting" element={<ServiceLandingPage serviceKey="it-consulting" />} />
+              <Route path="/hosting" element={<ServiceLandingPage serviceKey="hosting" />} />
+              
+              {/* Customer & Hosting Platform Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/hosting/plan/:planSlug" element={<HostingPlanDetailPage />} />
+              <Route path="/checkout/:planSlug" element={<CheckoutPage />} />
+              <Route path="/payment/:orderNumber" element={<PaymentPage />} />
+              <Route path="/services/:serviceCode/setup-domain" element={<SetupDomainPage />} />
+              <Route path="/portal" element={<CustomerPortalPage />} />
+              <Route path="/invoice/:invoiceNumber" element={<InvoicePage />} />
+
+              {/* Admin Portal Route */}
+              <Route path="/admin" element={<AdminDashboardPage />} />
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </HelmetProvider>
+      </AuthProvider>
     </LanguageProvider>
   )
 }
