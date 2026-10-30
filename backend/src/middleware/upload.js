@@ -21,11 +21,14 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowedMime.includes(file.mimetype)) {
+  const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  const allowedExt = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (allowedMime.includes(file.mimetype) && allowedExt.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Format file tidak didukung. Harap unggah bukti pembayaran dalam format JPG, PNG, atau WebP.'), false);
+    cb(new Error('Format file tidak didukung. Harap unggah bukti pembayaran dalam format JPG, PNG, WebP, atau PDF.'), false);
   }
 };
 

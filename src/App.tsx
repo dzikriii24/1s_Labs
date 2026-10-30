@@ -25,6 +25,7 @@ import { SetupDomainPage } from './pages/SetupDomainPage'
 import { CustomerPortalPage } from './pages/CustomerPortalPage'
 import { InvoicePage } from './pages/InvoicePage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
+import { VerifyEmailPage } from './pages/VerifyEmailPage'
 
 // Automatically scrolls to top on route change unless an anchor hash is present
 function ScrollToTop() {
@@ -120,6 +121,7 @@ function App() {
               {/* Customer & Hosting Platform Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/hosting/plan/:planSlug" element={<HostingPlanDetailPage />} />
               <Route path="/checkout/:planSlug" element={<CheckoutPage />} />
               <Route path="/payment/:orderNumber" element={<PaymentPage />} />

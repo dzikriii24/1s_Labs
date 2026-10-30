@@ -14,7 +14,9 @@ import {
   Loader2,
   RefreshCw,
   ExternalLink,
-  Info
+  Info,
+  Globe,
+  Server
 } from 'lucide-react';
 import { api, Order, QRISInfo } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -169,43 +171,12 @@ export const PaymentPage: React.FC = () => {
         <div className="mb-6 flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
           <Link to="/portal" className="hover:underline">Customer Portal</Link>
           <span>/</span>
-          <span className="text-gray-900 dark:text-white font-medium">Pembayaran QRIS ({order?.order_number})</span>
+          <span className="text-gray-900 dark:text-white font-medium">
+            {order?.status === 'paid' ? `Detail Pemesanan (${order?.order_number})` : `Pembayaran QRIS (${order?.order_number})`}
+          </span>
         </div>
 
-        {/* Status Notification Banners */}
-        {order?.status === 'paid' && (
-          <div className="mb-8 p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <div>
-                <h2 className="text-base font-bold text-emerald-900 dark:text-emerald-200">
-                  Pembayaran Terverifikasi Lunas
-                </h2>
-                <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                  Pembayaran pesanan ini telah diverifikasi sah oleh admin 1sLabs.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {order.service_code && (
-                <Link
-                  to={`/services/${order.service_code}/setup-domain`}
-                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-sm"
-                >
-                  <span>Konfigurasi Domain</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              )}
-              <Link
-                to="/portal"
-                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 rounded-xl text-xs font-semibold"
-              >
-                Ke Layanan Saya
-              </Link>
-            </div>
-          </div>
-        )}
-
+        {/* Status Notification Banners (Only for Pending / Rejected) */}
         {order?.status === 'pending_verification' && (
           <div className="mb-8 p-6 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-3xl flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -221,7 +192,7 @@ export const PaymentPage: React.FC = () => {
             </div>
             <button
               onClick={loadData}
-              className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition-colors"
+              className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition-colors cursor-pointer"
               title="Perbarui Status"
             >
               <RefreshCw className="w-4 h-4" />
@@ -248,140 +219,365 @@ export const PaymentPage: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: QRIS Visual & Instructions (7 cols) */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
-              <div className="flex items-center justify-between pb-6 border-b border-gray-100 dark:border-gray-800">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Kode Pembayaran</span>
-                  <h1 className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
-                    {order?.order_number}
-                  </h1>
+        {/* ========================================================
+            KONDISIONAL: JIKA SUDAH LUNAS -> TAMPILKAN DETAIL PEMESANAN (TANPA QRIS)
+            ======================================================== */}
+        {order?.status === 'paid' ? (
+          <div className="space-y-8">
+            {/* Header Hero Card: Bukti Pembayaran Lunas */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-emerald-600 text-white rounded-2xl flex-shrink-0 shadow-sm">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
+                        Detail Pemesanan #{order.order_number}
+                      </h1>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center space-x-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>LUNAS TERVERIFIKASI</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1 font-medium">
+                      Pembayaran pesanan ini telah diverifikasi sah oleh admin 1sLabs.
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Tagihan</span>
-                  <div className="flex items-center justify-end space-x-2 mt-0.5">
-                    <span className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
-                      {order && formatPrice(order.price_snapshot)}
-                    </span>
-                    <button
-                      onClick={handleCopyAmount}
-                      className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs transition-colors"
-                      title="Salin Angka"
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Link
+                    to="/portal"
+                    className="px-5 py-2.5 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-xs transition-all"
+                  >
+                    <span>Buka Layanan Hosting</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  {order.domain && (
+                    <a
+                      href={`https://${order.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors"
                     >
-                      {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                      <Globe className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Kunjungi Website</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* 4 Quick Stat Summary Cards */}
+              <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 block mb-1">Paket Hosting:</span>
+                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                    {order.plan_name_snapshot}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 block mb-1">Total Pembayaran:</span>
+                  <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {formatPrice(order.price_snapshot)}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 block mb-1">Metode Pembayaran:</span>
+                  <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center space-x-1.5">
+                    <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>QRIS (Terverifikasi)</span>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 block mb-1">Tanggal Transaksi:</span>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dua Kolom: Rincian Layanan & Data Pembayaran Sah */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Kolom Kiri (7 Cols): Rincian Layanan & Faktur */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-6">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+                      <FileText className="w-5 h-5 text-gray-500" />
+                      <span>Rincian Layanan yang Dipesan</span>
+                    </h2>
+                    <span className="px-2.5 py-1 text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg">
+                      {order.type === 'renewal' ? 'Perpanjangan 1 Tahun' : 'Pemesanan Baru'}
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+                    <div className="py-3 flex justify-between items-center">
+                      <span className="text-gray-500">Paket Hosting</span>
+                      <span className="font-bold text-gray-900 dark:text-white text-sm">{order.plan_name_snapshot}</span>
+                    </div>
+
+                    <div className="py-3 flex justify-between items-center">
+                      <span className="text-gray-500">Periode Layanan</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{order.period_snapshot}</span>
+                    </div>
+
+                    {order.domain && (
+                      <div className="py-3 flex justify-between items-center">
+                        <span className="text-gray-500">Domain Layanan</span>
+                        <a
+                          href={`https://${order.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center space-x-1"
+                        >
+                          <span>{order.domain}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+
+                    {order.service_code && (
+                      <div className="py-3 flex justify-between items-center">
+                        <span className="text-gray-500">Kode Layanan</span>
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                          {order.service_code}
+                        </span>
+                      </div>
+                    )}
+
+                    {(() => {
+                      const rawAmount = parseFloat(order.price_snapshot.toString()) || 0;
+                      const isBase = [850000, 1000000, 1200000].includes(Math.round(rawAmount));
+                      const dpp = isBase ? rawAmount : Math.round(rawAmount / 1.11);
+                      const ppn = Math.round(dpp * 0.11);
+                      return (
+                        <>
+                          <div className="py-3 flex justify-between items-center">
+                            <span className="text-gray-500">Harga Paket (DPP)</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(dpp)}</span>
+                          </div>
+                          <div className="py-3 flex justify-between items-center">
+                            <span className="text-gray-500 flex items-center space-x-1.5">
+                              <span>PPN (Pajak Pertambahan Nilai)</span>
+                              <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded font-mono font-bold">11%</span>
+                            </span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(ppn)}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+
+                    <div className="py-4 flex justify-between items-center text-sm bg-emerald-50/50 dark:bg-emerald-950/20 -mx-6 px-6 sm:-mx-8 sm:px-8 mt-2 rounded-2xl">
+                      <span className="font-bold text-gray-900 dark:text-white">Total Tagihan Lunas</span>
+                      <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-400 font-mono">
+                        {formatPrice(order.price_snapshot)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* QRIS Code Image Box */}
-              <div className="my-8 flex flex-col items-center">
-                <div className="p-4 bg-white rounded-3xl border-2 border-gray-200 dark:border-gray-700 shadow-md inline-block max-w-[320px]">
-                  <img
-                    src={qrisInfo?.imageUrl || '/qris.jpeg'}
-                    alt="Official QRIS 1sLabs"
-                    className="w-full h-auto object-contain rounded-2xl"
-                  />
-                  <div className="mt-3 text-center">
-                    <p className="text-xs font-bold text-gray-900">{qrisInfo?.merchantName || '1sLabs'}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">NMID: ID1024346142728 / A01</p>
+              {/* Kolom Kanan (5 Cols): Data Verifikasi & Akses Layanan */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-5">
+                  <div className="border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>Data Verifikasi Pembayaran</span>
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Bank / e-Wallet:</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{order.sender_bank || 'QRIS 1sLabs'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Nama Pengirim:</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{order.sender_account_name || user?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Status Validasi:</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Sah & Terverifikasi</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 space-y-2.5">
+                      <Link
+                        to="/portal"
+                        className="w-full py-3 px-4 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold rounded-xl text-xs sm:text-sm text-center flex items-center justify-center space-x-2 transition-all shadow-xs"
+                      >
+                        <span>Kelola Hosting di Customer Portal</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                      {order.service_code && !order.domain && (
+                        <Link
+                          to={`/services/${order.service_code}/setup-domain`}
+                          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs text-center flex items-center justify-center space-x-1.5 transition-colors"
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>Atur Domain Hosting Sekarang</span>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <div className="mt-4 flex flex-wrap justify-center gap-1.5 max-w-md">
-                  {qrisInfo?.supportedApps.map((app, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-medium"
-                    >
-                      {app}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Step by Step Instructions */}
-              <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-3 flex items-center space-x-1.5">
-                  <Info className="w-4 h-4" />
-                  <span>Petunjuk Pembayaran QRIS</span>
-                </h3>
-                <ol className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-                  {qrisInfo?.instructions.map((step, idx) => (
-                    <li key={idx} className="flex items-start space-x-2">
-                      <span className="font-bold text-gray-900 dark:text-white">{idx + 1}.</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
               </div>
             </div>
           </div>
+        ) : (
+          /* ========================================================
+             PENDING PAYMENT / VERIFICATION (SHOW QRIS & CONFIRMATION FORM)
+             ======================================================== */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: QRIS Visual & Instructions (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
+                <div className="flex items-center justify-between pb-6 border-b border-gray-100 dark:border-gray-800">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Kode Pembayaran</span>
+                    <h1 className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
+                      {order?.order_number}
+                    </h1>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Tagihan</span>
+                    <div className="flex items-center justify-end space-x-2 mt-0.5">
+                      <span className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
+                        {order && formatPrice(order.price_snapshot)}
+                      </span>
+                      <button
+                        onClick={handleCopyAmount}
+                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs transition-colors"
+                        title="Salin Angka"
+                      >
+                        {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Right Column: Order Summary & Proof Confirmation Form (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Package Summary */}
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-3">
-                Rincian Layanan yang Dipesan
-              </h2>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-500">Paket Hosting:</span>
-                  <span className="font-semibold">{order?.plan_name_snapshot}</span>
+                {/* QRIS Code Image Box */}
+                <div className="my-8 flex flex-col items-center">
+                  <div className="p-4 bg-white rounded-3xl border-2 border-gray-200 dark:border-gray-700 shadow-md inline-block max-w-[320px]">
+                    <img
+                      src={qrisInfo?.imageUrl || '/qris.jpeg'}
+                      alt="Official QRIS 1sLabs"
+                      className="w-full h-auto object-contain rounded-2xl"
+                    />
+                    <div className="mt-3 text-center">
+                      <p className="text-xs font-bold text-gray-900">{qrisInfo?.merchantName || '1sLabs'}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">NMID: ID1024346142728 / A01</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap justify-center gap-1.5 max-w-md">
+                    {qrisInfo?.supportedApps.map((app, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-medium"
+                      >
+                        {app}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-500">Periode Layanan:</span>
-                  <span className="font-semibold">{order?.period_snapshot}</span>
-                </div>
-                {order && (() => {
-                  const rawAmount = parseFloat(order.price_snapshot.toString()) || 0;
-                  const isBase = [850000, 1000000, 1200000].includes(Math.round(rawAmount));
-                  const dpp = isBase ? rawAmount : Math.round(rawAmount / 1.11);
-                  const ppn = Math.round(dpp * 0.11);
-                  return (
-                    <>
-                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                        <span className="text-gray-500">Harga Paket (DPP):</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(dpp)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                        <span className="text-gray-500 flex items-center space-x-1">
-                          <span>PPN 11%:</span>
-                          <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1 py-0.2 rounded font-mono font-bold">11%</span>
-                        </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(ppn)}</span>
-                      </div>
-                    </>
-                  );
-                })()}
-                <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-500">Tipe Pesanan:</span>
-                  <span className="font-semibold">{order?.type === 'renewal' ? 'Perpanjangan' : 'Pemesanan Baru'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Status Pembayaran:</span>
-                  <span className={`font-semibold ${
-                    order?.status === 'paid' ? 'text-emerald-600' :
-                    order?.status === 'pending_verification' ? 'text-amber-600' : 'text-rose-600'
-                  }`}>
-                    {order?.status === 'paid' ? 'LUNAS' :
-                     order?.status === 'pending_verification' ? 'MENUNGGU VERIFIKASI' : 'BELUM DIBAYAR'}
-                  </span>
+
+                {/* Step by Step Instructions */}
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-3 flex items-center space-x-1.5">
+                    <Info className="w-4 h-4" />
+                    <span>Petunjuk Pembayaran QRIS</span>
+                  </h3>
+                  <ol className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                    {qrisInfo?.instructions.map((step, idx) => (
+                      <li key={idx} className="flex items-start space-x-2">
+                        <span className="font-bold text-gray-900 dark:text-white">{idx + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               </div>
             </div>
 
-            {/* Proof Confirmation Form (Disabled if paid) */}
-            {order?.status !== 'paid' ? (
+            {/* Right Column: Order Summary & Proof Confirmation Form (5 cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* Package Summary */}
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6">
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-3">
+                  Rincian Layanan yang Dipesan
+                </h2>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500">Paket Hosting:</span>
+                    <span className="font-semibold">{order?.plan_name_snapshot}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500">Periode Layanan:</span>
+                    <span className="font-semibold">{order?.period_snapshot}</span>
+                  </div>
+                  {order && (() => {
+                    const rawAmount = parseFloat(order.price_snapshot.toString()) || 0;
+                    const isBase = [850000, 1000000, 1200000].includes(Math.round(rawAmount));
+                    const dpp = isBase ? rawAmount : Math.round(rawAmount / 1.11);
+                    const ppn = Math.round(dpp * 0.11);
+                    return (
+                      <>
+                        <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                          <span className="text-gray-500">Harga Paket (DPP):</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(dpp)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                          <span className="text-gray-500 flex items-center space-x-1">
+                            <span>PPN 11%:</span>
+                            <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1 py-0.2 rounded font-mono font-bold">11%</span>
+                          </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(ppn)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                  {order?.domain && (
+                    <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                      <span className="text-gray-500">Domain Layanan:</span>
+                      <span className="font-semibold text-blue-600 dark:text-blue-400 font-mono">{order.domain}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500">Tipe Pesanan:</span>
+                    <span className="font-semibold">{order?.type === 'renewal' ? 'Perpanjangan' : 'Pemesanan Baru'}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-500">Status Pembayaran:</span>
+                    <span className={`font-semibold ${
+                      order?.status === 'paid' ? 'text-emerald-600' :
+                      order?.status === 'pending_verification' ? 'text-amber-600' : 'text-rose-600'
+                    }`}>
+                      {order?.status === 'paid' ? 'LUNAS' :
+                       order?.status === 'pending_verification' ? 'MENUNGGU VERIFIKASI' : 'BELUM DIBAYAR'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Proof Confirmation Form */}
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
                 <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-2">
                   Konfirmasi Pembayaran Anda
                 </h2>
                 <p className="text-xs text-gray-500 mb-6">
-                  Unggah tangkapan layar struk mutasi agar admin dapat mencocokkan pembayaran dan mengaktifkan akun hosting.
+                  Unggah tangkapan layar struk mutasi (JPG, PNG, WebP, atau PDF) agar admin dapat memverifikasi pembayaran dan mengaktifkan akun hosting.
                 </p>
 
                 {submitSuccess && (
@@ -399,7 +595,7 @@ export const PaymentPage: React.FC = () => {
                     <input
                       type="file"
                       ref={fileInputRef}
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
                       onChange={handleFileChange}
                       className="hidden"
                     />
@@ -420,7 +616,7 @@ export const PaymentPage: React.FC = () => {
                       ) : order?.proof_image ? (
                         <div className="space-y-2">
                           <img
-                            src={order.proof_image}
+                            src={order.proof_image.startsWith('http') ? order.proof_image : (order.proof_image.startsWith('/api') ? order.proof_image : `/api${order.proof_image.startsWith('/') ? '' : '/'}${order.proof_image}`)}
                             alt="Bukti Transfer Tersimpan"
                             className="max-h-40 mx-auto rounded-xl object-contain"
                           />
@@ -497,37 +693,9 @@ export const PaymentPage: React.FC = () => {
                   </button>
                 </form>
               </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                  Pembayaran Selesai
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Layanan hosting Anda telah siap. Klik tombol di bawah untuk melihat rincian hosting atau mengonfigurasi domain.
-                </p>
-                <div className="space-y-2">
-                  {order.service_code && (
-                    <Link
-                      to={`/services/${order.service_code}/setup-domain`}
-                      className="block w-full py-2.5 px-4 bg-black text-white dark:bg-white dark:text-black rounded-xl text-xs font-semibold text-center"
-                    >
-                      Konfigurasi Domain Hosting
-                    </Link>
-                  )}
-                  <Link
-                    to="/portal"
-                    className="block w-full py-2.5 px-4 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold text-center"
-                  >
-                    Buka Customer Portal
-                  </Link>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       <div className="max-w-[1400px] w-full mx-auto">

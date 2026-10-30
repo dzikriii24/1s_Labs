@@ -140,10 +140,65 @@ const quotaService = {
   }
 };
 
+// === DOMAIN & VIRTUAL HOST OPERATIONS (cPanel Jupiter Domains) ===
+const domainService = {
+  async listAddonDomains() {
+    return execUapi('AddonDomain', 'listaddondomains');
+  },
+
+  async addAddonDomain(domain, subDomain = null, dir = null) {
+    if (!domain || typeof domain !== 'string') {
+      throw new Error('Nama domain wajib diisi.');
+    }
+    const cleanDomain = domain.trim().toLowerCase();
+    // Subdomain alias prefix (letters and numbers only, max 32 chars)
+    const cleanSubdomain = (subDomain || cleanDomain.replace(/[^a-zA-Z0-9]/g, '')).slice(0, 32);
+    // Document root matches cPanel public_html/{domain}
+    const docroot = dir || `public_html/${cleanDomain}`;
+
+    try {
+      const res = await execUapi('AddonDomain', 'addaddondomain', {
+        dir: docroot,
+        newdomain: cleanDomain,
+        subdomain: cleanSubdomain,
+        ftp_is_optional: 1
+      });
+      console.log(`[cPanel Service] Successfully registered addon domain: ${cleanDomain} -> ${docroot}`);
+      return res;
+    } catch (err) {
+      const msg = err.message || '';
+      // If already registered / parked in cPanel, treat as idempotent success
+      if (
+        msg.includes('already exists') ||
+        msg.includes('already parked') ||
+        msg.includes('already configured') ||
+        msg.includes('is already configured') ||
+        msg.includes('Subdomain already exists')
+      ) {
+        console.log(`[cPanel Service] Domain ${cleanDomain} already active in cPanel: ${msg}`);
+        return { alreadyExists: true, domain: cleanDomain, message: msg };
+      }
+      console.error(`[cPanel Service] Error adding addon domain ${cleanDomain}:`, msg);
+      throw err;
+    }
+  },
+
+  async deleteAddonDomain(domain, subDomain = null) {
+    if (!domain) throw new Error('Nama domain wajib diisi.');
+    const cleanDomain = domain.trim().toLowerCase();
+    const cleanSubdomain = (subDomain || cleanDomain.replace(/[^a-zA-Z0-9]/g, '')).slice(0, 32);
+    return execUapi('AddonDomain', 'deladdondomain', {
+      domain: cleanDomain,
+      subdomain: cleanSubdomain
+    });
+  }
+};
+
 module.exports = {
   execUapi,
   ftpService,
   mysqlService,
   quotaService,
+  domainService,
   HAS_UAPI
 };

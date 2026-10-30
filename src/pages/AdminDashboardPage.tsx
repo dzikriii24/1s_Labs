@@ -61,6 +61,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [selectedVerificationPayment, setSelectedVerificationPayment] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [adminNotes, setAdminNotes] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
   // Customer Payment History (all paid payments)
@@ -170,13 +171,15 @@ export const AdminDashboardPage: React.FC = () => {
     try {
       const res = await api.admin.verifyPayment(selectedVerificationPayment.id, {
         action,
-        reason: rejectReason.trim()
+        reason: rejectReason.trim(),
+        admin_notes: adminNotes.trim()
       });
 
       if (res.success) {
         alert(res.message);
         setSelectedVerificationPayment(null);
         setRejectReason('');
+        setAdminNotes('');
         await loadAllAdminData();
       }
     } catch (err: any) {
@@ -522,7 +525,7 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-1">
                 <span className="text-gray-500 font-sans">Nameserver Resmi:</span>
-                <span className="text-gray-700 dark:text-gray-300 font-mono text-[10px]">ns1/ns2.serverphp.my.id</span>
+                <span className="text-gray-700 dark:text-gray-300 font-mono text-[10px]">ns1/ns2.domainmurah.net</span>
               </div>
             </div>
           </div>
@@ -1315,6 +1318,28 @@ export const AdminDashboardPage: React.FC = () => {
                       <strong className="text-gray-900 dark:text-white">{selectedVerificationPayment.customer_email}</strong>
                     </div>
                     <div>
+                      <span className="text-gray-500 block">WhatsApp Pelanggan:</span>
+                      {selectedVerificationPayment.customer_phone ? (
+                        <a
+                          href={`https://wa.me/${selectedVerificationPayment.customer_phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center space-x-1"
+                        >
+                          <span>{selectedVerificationPayment.customer_phone}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block">Domain yang Didaftarkan:</span>
+                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                        {selectedVerificationPayment.order_domain || selectedVerificationPayment.domain || '-'}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-gray-500 block">Paket Dipesan:</span>
                       <strong>{selectedVerificationPayment.plan_name_snapshot}</strong>
                     </div>
@@ -1332,27 +1357,52 @@ export const AdminDashboardPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Proof Image Preview */}
+                  {selectedVerificationPayment.notes && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-900 dark:text-amber-200">
+                      <span className="font-semibold block mb-0.5">Catatan dari Pelanggan:</span>
+                      <p className="italic">"{selectedVerificationPayment.notes}"</p>
+                    </div>
+                  )}
+
+                  {/* Proof Image / Document Preview */}
                   <div>
                     <span className="font-semibold block mb-2 text-gray-700 dark:text-gray-300">
-                      Tangkapan Layar Bukti Transfer:
+                      Bukti Pembayaran / Struk Transfer:
                     </span>
                     {selectedVerificationPayment.proof_image ? (
-                      <div className="border border-gray-200 dark:border-gray-700 rounded-2xl p-2 bg-gray-50 dark:bg-gray-800 text-center">
-                        <img
-                          src={selectedVerificationPayment.proof_image}
-                          alt="Bukti Transfer"
-                          className="max-h-64 mx-auto rounded-xl object-contain"
-                        />
-                        <a
-                          href={selectedVerificationPayment.proof_image}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 mt-2 hover:underline"
-                        >
-                          <span>Buka Ukuran Penuh</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                      <div className="border border-gray-200 dark:border-gray-700 rounded-2xl p-3 bg-gray-50 dark:bg-gray-800 text-center">
+                        {selectedVerificationPayment.proof_image.toLowerCase().endsWith('.pdf') ? (
+                          <div className="py-6 flex flex-col items-center">
+                            <FileText className="w-12 h-12 text-red-500 mb-2" />
+                            <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Dokumen Bukti Transfer (PDF)</p>
+                            <a
+                              href={selectedVerificationPayment.proof_image}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:opacity-90 mt-2"
+                            >
+                              <span>Buka Dokumen PDF</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        ) : (
+                          <>
+                            <img
+                              src={selectedVerificationPayment.proof_image}
+                              alt="Bukti Transfer"
+                              className="max-h-64 mx-auto rounded-xl object-contain shadow-xs"
+                            />
+                            <a
+                              href={selectedVerificationPayment.proof_image}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 mt-2 hover:underline"
+                            >
+                              <span>Buka Ukuran Penuh</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 text-center rounded-2xl text-gray-500">
@@ -1361,16 +1411,30 @@ export const AdminDashboardPage: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Internal Admin Notes */}
+                  <div>
+                    <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                      Catatan Internal Administrator (Tersimpan di audit database):
+                    </label>
+                    <input
+                      type="text"
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="Contoh: Sudah dicek via m-banking BCA jam 14:30, mutasi match."
+                      className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                    />
+                  </div>
+
                   {/* Rejection reason input */}
                   <div>
                     <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
-                      Alasan Penolakan (Hanya diisi bila menolak):
+                      Alasan Penolakan untuk Pelanggan (Wajib diisi bila menolak):
                     </label>
                     <input
                       type="text"
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="Contoh: Nominal transfer kurang, atau mutasi bank belum masuk."
+                      placeholder="Contoh: Nominal transfer kurang, atau nama rekening tidak sesuai."
                       className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                     />
                   </div>

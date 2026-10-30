@@ -2,8 +2,12 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const { query, withTransaction } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireVerifiedEmail } = require('../middleware/auth');
 const { uploadPaymentProof } = require('../middleware/upload');
+const {
+  sendPaymentProofReceivedEmail,
+  sendAdminPaymentProofNotification
+} = require('../services/email.service');
 
 // GET /payments/qris-info - Public QRIS configuration
 router.get('/qris-info', async (req, res) => {
@@ -55,8 +59,8 @@ router.get('/qris-info', async (req, res) => {
   }
 });
 
-// POST /payments/:orderNumber/confirm - Customer submits payment confirmation
-router.post('/:orderNumber/confirm', requireAuth, (req, res) => {
+// POST /payments/:orderNumber/confirm - Customer submits manual payment proof
+router.post('/:orderNumber/confirm', requireAuth, requireVerifiedEmail, (req, res) => {
   uploadPaymentProof.single('proof_image')(req, res, async (err) => {
     if (err) {
       return res.status(400).json({
@@ -101,7 +105,7 @@ router.post('/:orderNumber/confirm', requireAuth, (req, res) => {
 
       // Find payment record
       const payments = await query(
-        'SELECT id, status FROM payments WHERE order_id = ?',
+        'SELECT id, payment_number, amount, status FROM payments WHERE order_id = ?',
         [order.id]
       );
 
@@ -113,7 +117,7 @@ router.post('/:orderNumber/confirm', requireAuth, (req, res) => {
       }
 
       const payment = payments[0];
-      const proofImagePath = req.file ? `/uploads/proofs/${req.file.filename}` : null;
+      const proofImagePath = req.file ? `/uploads/proofs/${req.file.filename}` : (req.body?.proof_image || null);
 
       if (!proofImagePath && payment.status === 'unpaid') {
         return res.status(400).json({
@@ -154,6 +158,23 @@ router.post('/:orderNumber/confirm', requireAuth, (req, res) => {
           [order.id]
         );
       });
+
+      // Send email to customer confirming receipt of proof
+      sendPaymentProofReceivedEmail({
+        to: req.user.email,
+        name: req.user.name,
+        orderNumber,
+        amount: payment.amount,
+        senderBank: sender_bank_or_wallet,
+        senderAccount: sender_account_name
+      }).catch(mailErr => console.error('[payments] Background customer proof receipt email error:', mailErr.message));
+
+      // Send immediate alert to admin (dzikrirabbani2401@gmail.com)
+      sendAdminPaymentProofNotification({
+        order: { order_number: orderNumber },
+        payment: { ...payment, sender_bank_or_wallet, sender_account_name },
+        user: req.user
+      }).catch(mailErr => console.error('[payments] Background admin alert email error:', mailErr.message));
 
       return res.json({
         success: true,

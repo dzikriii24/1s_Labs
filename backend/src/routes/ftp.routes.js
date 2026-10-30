@@ -43,7 +43,7 @@ router.get('/', requireAuth, verifyService, async (req, res) => {
       success: true,
       accounts,
       connectionInfo: {
-        host: req.service.server_ip || '194.233.65.45',
+        host: req.service.server_ip || '103.119.237.132',
         port: 21,
         protocol: 'FTPS (FTP over TLS/SSL)',
         encryption: 'Require explicit FTP over TLS',

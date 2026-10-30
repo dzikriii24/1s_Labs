@@ -4,6 +4,7 @@ const { query, withTransaction } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { isValidDomain, cleanDomain, calculateDaysRemaining } = require('../utils/helpers');
 const { ensureServiceRoot, renameServiceDomainRoot } = require('../utils/fileSandbox');
+const { domainService } = require('../services/cpanel.service');
 
 // GET /services - List user's services
 router.get('/', requireAuth, async (req, res) => {
@@ -215,6 +216,14 @@ router.post('/:serviceCode/setup-domain', requireAuth, async (req, res) => {
       console.warn('ensureServiceRoot notice:', fsErr.message);
     }
 
+    // Auto-register into cPanel Jupiter Domains
+    try {
+      await domainService.addAddonDomain(cleaned);
+      console.log(`[services] Auto-registered addon domain '${cleaned}' in cPanel.`);
+    } catch (cpErr) {
+      console.warn(`[services] cPanel addon notice for '${cleaned}':`, cpErr.message);
+    }
+
     return res.json({
       success: true,
       message: 'Domain berhasil disimpan. Layanan hosting Anda sedang dipersiapkan oleh tim engineer 1sLabs.',
@@ -316,6 +325,14 @@ router.post('/:serviceCode/change-domain', requireAuth, async (req, res) => {
       renameServiceDomainRoot(serviceCode, oldDomain, cleaned);
     } catch (fsErr) {
       console.warn('renameServiceDomainRoot notice:', fsErr.message);
+    }
+
+    // Auto-register new domain into cPanel Jupiter Domains
+    try {
+      await domainService.addAddonDomain(cleaned);
+      console.log(`[services] Auto-registered new addon domain '${cleaned}' in cPanel.`);
+    } catch (cpErr) {
+      console.warn(`[services] cPanel addon notice for '${cleaned}':`, cpErr.message);
     }
 
     return res.json({

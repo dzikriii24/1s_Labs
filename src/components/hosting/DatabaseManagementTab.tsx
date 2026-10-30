@@ -32,7 +32,10 @@ import {
   RotateCcw,
   Clock,
   Archive,
-  History
+  History,
+  EyeOff,
+  Info,
+  ChevronDown
 } from 'lucide-react';
 import { api, HostingDatabase, TableItem, DatabaseBackup } from '../../services/api';
 
@@ -112,6 +115,11 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
 
   // Newly created DB details popup
   const [createdInfo, setCreatedInfo] = useState<any | null>(null);
+
+  // Permanent Database Configuration & Snippet Center state
+  const [selectedConfigDbId, setSelectedConfigDbId] = useState<number | 'default'>('default');
+  const [activeSnippetTab, setActiveSnippetTab] = useState<'php' | 'env' | 'nodejs' | 'wordpress'>('php');
+  const [showConfigPass, setShowConfigPass] = useState(false);
 
   const loadBackups = async () => {
     try {
@@ -273,6 +281,9 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
       });
       if (res.success) {
         setCreatedInfo(res.database);
+        if (res.database?.id) {
+          setSelectedConfigDbId(res.database.id);
+        }
         setFeedback({ type: 'success', text: res.message });
         setCreateModalOpen(false);
         setNameSuffix('');
@@ -414,6 +425,105 @@ VALUES ('Admin 1sLabs', 'admin@1slabs.my.id', 'PasswordAman123!');`);
     }
   };
 
+  // Active database for configuration snippet center
+  const currentDb = (selectedConfigDbId !== 'default' && databases.find((d) => d.id === selectedConfigDbId))
+    || (createdInfo ? { id: createdInfo.id, db_name: createdInfo.db_name, db_user: createdInfo.db_user } : null)
+    || databases[0]
+    || { id: 0, db_name: `${serviceCode.toLowerCase().replace(/[^a-z0-9]/g, '')}_db`, db_user: `${serviceCode.toLowerCase().replace(/[^a-z0-9]/g, '')}_user` };
+
+  const activeDbPassword = (createdInfo && createdInfo.db_name === currentDb.db_name)
+    ? createdInfo.db_password
+    : (customPassword || 'Kimholiday2026*');
+
+  const getSnippetContent = () => {
+    if (activeSnippetTab === 'env') {
+      return `# ====================================================
+# Konfigurasi Koneksi Database 1sLabs Hosting (.env)
+# ====================================================
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=${currentDb.db_name}
+DB_USER=${currentDb.db_user}
+DB_PASS=${activeDbPassword}
+
+# Alias Format Alternatif (Kompatibel dengan script KimHoliday / Hostinger)
+HOST=127.0.0.1
+PORT=3306
+DATABASE=${currentDb.db_name}
+USER=${currentDb.db_user}
+PASSWORD=${activeDbPassword}`;
+    }
+
+    if (activeSnippetTab === 'php') {
+      return `<?php
+// ====================================================
+// Koneksi Database PHP PDO (KimHolidayTravel Style)
+// ====================================================
+
+// 1. Membaca variabel environment (dari file .env atau default)
+$dbHost = $env['HOST'] ?? $env['DB_HOST'] ?? '127.0.0.1';
+if ($dbHost === 'localhost') $dbHost = '127.0.0.1';
+$dbName = $env['DATABASE'] ?? $env['DB_NAME'] ?? '${currentDb.db_name}';
+$dbUser = $env['USER'] ?? $env['DB_USER'] ?? '${currentDb.db_user}';
+$dbPass = $env['PASSWORD'] ?? $env['DB_PASS'] ?? '${activeDbPassword}';
+$dbPort = $env['PORT'] ?? $env['DB_PORT'] ?? 3306;
+
+try {
+    $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
+    $pdo = new PDO($dsn, $dbUser, $dbPass, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
+    // Koneksi berhasil! Siap query database
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Koneksi database gagal: ' . $e->getMessage()
+    ]);
+    exit;
+}`;
+    }
+
+    if (activeSnippetTab === 'nodejs') {
+      return `// ====================================================
+// Koneksi Database Node.js (mysql2/promise)
+// ====================================================
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || process.env.HOST || '127.0.0.1',
+  port: parseInt(process.env.DB_PORT || process.env.PORT || '3306', 10),
+  database: process.env.DB_NAME || process.env.DATABASE || '${currentDb.db_name}',
+  user: process.env.DB_USER || process.env.USER || '${currentDb.db_user}',
+  password: process.env.DB_PASS || process.env.PASSWORD || '${activeDbPassword}',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
+});
+
+module.exports = pool;`;
+    }
+
+    if (activeSnippetTab === 'wordpress') {
+      return `// ====================================================
+// Pengaturan MySQL WordPress (wp-config.php)
+// ====================================================
+define( 'DB_NAME', '${currentDb.db_name}' );
+define( 'DB_USER', '${currentDb.db_user}' );
+define( 'DB_PASSWORD', '${activeDbPassword}' );
+define( 'DB_HOST', '127.0.0.1' );
+define( 'DB_CHARSET', 'utf8mb4' );
+define( 'DB_COLLATE', '' );`;
+    }
+
+    return '';
+  };
+
   return (
     <div className="space-y-6">
       {/* Feedback banner */}
@@ -546,45 +656,292 @@ VALUES ('Admin 1sLabs', 'admin@1slabs.my.id', 'PasswordAman123!');`);
             </div>
           </div>
 
-          {/* Newly Created DB Credentials Dialog */}
-          {createdInfo && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-3xl p-6 text-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 font-bold text-emerald-800 dark:text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Kredensial Database Baru Berhasil Dibuat</span>
+          {/* PERMANENT SECTION: PANDUAN KONFIGURASI DATABASE (.ENV & SCRIPT BACKEND) */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            {/* Newly Created DB Alert Banner if just created */}
+            {createdInfo && (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center space-x-2.5 text-emerald-800 dark:text-emerald-200">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <span className="font-bold">Database Baru Berhasil Dibuat: </span>
+                    <span className="font-mono font-semibold underline underline-offset-2">{createdInfo.db_name}</span>
+                    <span className="text-gray-500 dark:text-gray-400 ml-2 hidden sm:inline">(Kredensial aktif di bawah telah otomatis diperbarui)</span>
+                  </div>
                 </div>
-                <button onClick={() => setCreatedInfo(null)} className="text-emerald-700 hover:opacity-75">
-                  <X className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => setCreatedInfo(null)}
+                  className="p-1 text-emerald-700 dark:text-emerald-300 hover:opacity-75"
+                >
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-emerald-700 dark:text-emerald-300">
-                Simpan kredensial ini di file konfigurasi aplikasi Anda (seperti <code className="font-mono font-bold">.env</code> atau <code className="font-mono font-bold">wp-config.php</code>):
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white dark:bg-gray-900 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900 font-mono">
-                <div>
-                  <span className="text-gray-400 block text-[10px] uppercase">DB_NAME:</span>
-                  <strong className="text-gray-900 dark:text-white">{createdInfo.db_name}</strong>
+            )}
+
+            {/* Header with Title and DB Switcher */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                    Pusat Kredensial & Panduan Konfigurasi (.env / Backend)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/50">
+                    Permanen
+                  </span>
                 </div>
-                <div>
-                  <span className="text-gray-400 block text-[10px] uppercase">DB_USER:</span>
-                  <strong className="text-gray-900 dark:text-white">{createdInfo.db_user}</strong>
-                </div>
-                <div>
-                  <span className="text-gray-400 block text-[10px] uppercase">DB_PASS:</span>
-                  <div className="flex items-center justify-between">
-                    <strong className="text-emerald-600 dark:text-emerald-400">{createdInfo.db_password}</strong>
-                    <button
-                      onClick={() => copyToClipboard(createdInfo.db_password, 'newpass')}
-                      className="p-0.5 text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Kredensial terisolasi dan format snippet siap pakai untuk menghubungkan backend website (PHP Native, PDO KimHoliday, Node.js, Laravel, atau WordPress).
+                </p>
+              </div>
+
+              {/* Database Selector dropdown if multiple DBs exist */}
+              {databases.length > 0 && (
+                <div className="flex items-center space-x-2 text-xs flex-shrink-0">
+                  <span className="text-gray-400 text-[11px] font-medium hidden sm:inline">Pilih Database:</span>
+                  <div className="relative">
+                    <select
+                      value={selectedConfigDbId}
+                      onChange={(e) => setSelectedConfigDbId(e.target.value === 'default' ? 'default' : Number(e.target.value))}
+                      className="appearance-none bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-2 pl-3 pr-8 text-xs font-mono font-medium focus:outline-hidden focus:ring-1 focus:ring-black dark:focus:ring-white cursor-pointer"
                     >
-                      {copiedKey === 'newpass' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      <option value="default">
+                        {createdInfo ? `Baru: ${createdInfo.db_name}` : `Default (${databases[0]?.db_name})`}
+                      </option>
+                      {databases.map((db) => (
+                        <option key={db.id} value={db.id}>
+                          {db.db_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick 5 Credential Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+              {/* Host */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">DB_HOST / HOST</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs">127.0.0.1</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('127.0.0.1', 'quick-host')}
+                    className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                    title="Salin Host"
+                  >
+                    {copiedKey === 'quick-host' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-gray-400 mt-1">atau <code className="font-mono">localhost</code></span>
+              </div>
+
+              {/* Port */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">DB_PORT / PORT</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs">3306</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('3306', 'quick-port')}
+                    className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                    title="Salin Port"
+                  >
+                    {copiedKey === 'quick-port' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-gray-400 mt-1">Port standar MySQL</span>
+              </div>
+
+              {/* Database Name */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">DB_NAME / DATABASE</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs truncate max-w-[140px]" title={currentDb.db_name}>
+                    {currentDb.db_name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(currentDb.db_name, 'quick-dbname')}
+                    className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                    title="Salin DB_NAME"
+                  >
+                    {copiedKey === 'quick-dbname' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-gray-400 mt-1">Nama database aktif</span>
+              </div>
+
+              {/* User */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">DB_USER / USER</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-mono font-bold text-gray-900 dark:text-white text-xs truncate max-w-[140px]" title={currentDb.db_user}>
+                    {currentDb.db_user}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(currentDb.db_user, 'quick-dbuser')}
+                    className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                    title="Salin DB_USER"
+                  >
+                    {copiedKey === 'quick-dbuser' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-gray-400 mt-1">User MySQL berhak akses</span>
+              </div>
+
+              {/* Password */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">DB_PASS / PASSWORD</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs truncate max-w-[120px]">
+                    {showConfigPass ? activeDbPassword : '••••••••••••'}
+                  </span>
+                  <div className="flex items-center space-x-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowConfigPass(!showConfigPass)}
+                      className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                      title={showConfigPass ? "Sembunyikan Password" : "Lihat Password"}
+                    >
+                      {showConfigPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(activeDbPassword, 'quick-dbpass')}
+                      className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
+                      title="Salin Password"
+                    >
+                      {copiedKey === 'quick-dbpass' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
+                <span className="text-[10px] text-gray-400 mt-1">
+                  {createdInfo && createdInfo.db_name === currentDb.db_name ? 'Tersimpan otomatis' : 'Diatur saat buat DB'}
+                </span>
               </div>
             </div>
-          )}
+
+            {/* Interactive Code Snippet Tabs */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSnippetTab('php')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+                      activeSnippetTab === 'php'
+                        ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <FileCode className="w-3.5 h-3.5 text-blue-500" />
+                    <span>PHP (PDO / KimHoliday Style)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSnippetTab('env')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+                      activeSnippetTab === 'env'
+                        ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>File .env (Semua Framework)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSnippetTab('nodejs')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+                      activeSnippetTab === 'nodejs'
+                        ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Code2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Node.js (mysql2)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSnippetTab('wordpress')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+                      activeSnippetTab === 'wordpress'
+                        ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs font-semibold'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Server className="w-3.5 h-3.5 text-purple-500" />
+                    <span>WordPress (wp-config.php)</span>
+                  </button>
+                </div>
+
+                {/* Copy Snippet Button */}
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(getSnippetContent(), `snippet-${activeSnippetTab}`)}
+                  className="px-3.5 py-1.5 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors shadow-xs"
+                >
+                  {copiedKey === `snippet-${activeSnippetTab}` ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />
+                      <span>Snippet Berhasil Disalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Kode Snippet</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Code Display Container */}
+              <div className="relative rounded-2xl bg-neutral-950 border border-neutral-800 text-neutral-200 p-4 font-mono text-xs overflow-x-auto leading-relaxed shadow-inner">
+                <pre tabIndex={0} className="focus:outline-hidden">
+                  <code>{getSnippetContent()}</code>
+                </pre>
+              </div>
+            </div>
+
+            {/* Practical Guide for PHP Backend (KimHolidayTravel) */}
+            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 text-xs space-y-2.5">
+              <div className="flex items-center space-x-2 text-blue-900 dark:text-blue-300 font-bold">
+                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span>Petunjuk Praktis: Cara Mengunggah & Mengonfigurasi Backend PHP (Seperti KimHolidayTravel)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-gray-600 dark:text-gray-300 pt-1 leading-relaxed text-[11px]">
+                <div className="p-3 bg-white dark:bg-gray-900/70 rounded-xl border border-blue-100 dark:border-blue-900/30 space-y-1">
+                  <strong className="text-gray-900 dark:text-white block font-semibold">1. Lokasi File .env</strong>
+                  <p>
+                    Letakkan file <code className="font-mono text-blue-600 font-semibold">.env</code> di root folder website Anda (misal: <code className="font-mono">public_html/.env</code> atau <code className="font-mono">public_html/kimholidaytravel.id/.env</code>), sejajar dengan <code className="font-mono">index.html</code>.
+                  </p>
+                </div>
+                <div className="p-3 bg-white dark:bg-gray-900/70 rounded-xl border border-blue-100 dark:border-blue-900/30 space-y-1">
+                  <strong className="text-gray-900 dark:text-white block font-semibold">2. Lokasi Folder api/</strong>
+                  <p>
+                    Upload folder <code className="font-mono text-blue-600 font-semibold">api/</code> (berisi <code className="font-mono">db.php</code>, <code className="font-mono">gallery.php</code>) langsung ke dalam <code className="font-mono">public_html/api/</code> melalui <strong>File Manager</strong> atau <strong>FTP</strong>.
+                  </p>
+                </div>
+                <div className="p-3 bg-white dark:bg-gray-900/70 rounded-xl border border-blue-100 dark:border-blue-900/30 space-y-1">
+                  <strong className="text-gray-900 dark:text-white block font-semibold">3. Eksekusi Otomatis</strong>
+                  <p>
+                    PHP di 1sLabs Hosting langsung aktif otomatis tanpa perlu compile/start server. Script Anda langsung siap diakses di <code className="font-mono text-blue-600">https://domainanda.com/api/gallery.php</code>!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Databases List Table */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-xs">

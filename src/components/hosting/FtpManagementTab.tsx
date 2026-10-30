@@ -180,9 +180,9 @@ export const FtpManagementTab: React.FC<FtpManagementTabProps> = ({
           <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
             <span className="text-gray-500 block mb-1">Host / Server IP:</span>
             <div className="flex items-center justify-between">
-              <span className="font-mono font-bold text-gray-900 dark:text-white">{serverIp || '194.233.65.45'}</span>
+              <span className="font-mono font-bold text-gray-900 dark:text-white">{serverIp || '103.119.237.132'}</span>
               <button
-                onClick={() => copyToClipboard(serverIp || '194.233.65.45', 'host')}
+                onClick={() => copyToClipboard(serverIp || '103.119.237.132', 'host')}
                 className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 {copiedKey === 'host' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -315,7 +315,7 @@ export const FtpManagementTab: React.FC<FtpManagementTabProps> = ({
         </h4>
         <ol className="list-decimal list-inside space-y-2 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           <li>Unduh dan buka aplikasi <strong>FileZilla Client</strong> di komputer Anda.</li>
-          <li>Pada menu atas, isi kolom <strong>Host</strong> dengan: <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded font-mono text-gray-900 dark:text-white">{serverIp || '194.233.65.45'}</code></li>
+          <li>Pada menu atas, isi kolom <strong>Host</strong> dengan: <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded font-mono text-gray-900 dark:text-white">{serverIp || '103.119.237.132'}</code></li>
           <li>Isi <strong>Username</strong> dengan akun FTP lengkap di atas (misal: <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded font-mono text-gray-900 dark:text-white">user@{domain || '1slabs.my.id'}</code>).</li>
           <li>Masukkan <strong>Password</strong> yang Anda buat, dan set <strong>Port</strong> ke: <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded font-mono text-gray-900 dark:text-white">21</code>.</li>
           <li>Klik <strong>Quickconnect</strong>. Jika muncul dialog sertifikat SSL/TLS, centang <em>"Always trust certificate"</em> dan klik <strong>OK</strong>.</li>

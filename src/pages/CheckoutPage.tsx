@@ -6,10 +6,13 @@ import {
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
-  ArrowLeft,
   AlertCircle,
   Loader2,
-  FileCheck
+  Globe,
+  Check,
+  XCircle,
+  Mail,
+  RefreshCw
 } from 'lucide-react';
 import { api, HostingPlan } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,7 +28,17 @@ export const CheckoutPage: React.FC = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  // Domain state
+  const [domain, setDomain] = useState('');
+  const [domainType, setDomainType] = useState<'new' | 'existing'>('existing');
+  const [isCheckingDomain, setIsCheckingDomain] = useState(false);
+  const [domainCheckStatus, setDomainCheckStatus] = useState<{ available: boolean; message: string } | null>(null);
+
+  // Email verification resend state
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
+
+  const { user, isAuthenticated, isLoading: authLoading, resendVerification } = useAuth();
   const navigate = useNavigate();
 
   // Redirect to login if not authenticated
@@ -64,9 +77,65 @@ export const CheckoutPage: React.FC = () => {
     }).format(num);
   };
 
+  const handleCheckDomain = async () => {
+    if (!domain.trim()) {
+      setDomainCheckStatus({ available: false, message: 'Masukkan nama domain terlebih dahulu.' });
+      return;
+    }
+
+    setIsCheckingDomain(true);
+    setDomainCheckStatus(null);
+
+    try {
+      const res = await api.orders.checkDomain(domain.trim());
+      setDomainCheckStatus({
+        available: res.available,
+        message: res.message
+      });
+      if (res.domain) {
+        setDomain(res.domain);
+      }
+    } catch (err: any) {
+      setDomainCheckStatus({
+        available: false,
+        message: err.message || 'Domain tidak dapat digunakan atau format tidak valid.'
+      });
+    } finally {
+      setIsCheckingDomain(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResendingEmail(true);
+    setResendStatus(null);
+    try {
+      const res = await resendVerification(user?.email);
+      setResendStatus(res.message || 'Tautan verifikasi baru berhasil dikirim ke email Anda.');
+    } catch (err: any) {
+      setResendStatus(err.message || 'Gagal mengirim ulang email verifikasi.');
+    } finally {
+      setIsResendingEmail(false);
+    }
+  };
+
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!plan) return;
+
+    if (!user?.email_verified) {
+      setError('Alamat email Anda belum diverifikasi. Harap verifikasi email Anda terlebih dahulu.');
+      return;
+    }
+
+    if (!domain.trim()) {
+      setError('Nama domain untuk layanan hosting wajib diisi.');
+      return;
+    }
+
+    if (domainCheckStatus && !domainCheckStatus.available) {
+      setError('Domain yang Anda masukkan tidak tersedia atau mengalami konflik pada sistem. Silakan ganti domain.');
+      return;
+    }
 
     if (!agreedToTerms) {
       setError('Anda harus menyetujui ketentuan layanan sebelum melanjutkan.');
@@ -79,12 +148,13 @@ export const CheckoutPage: React.FC = () => {
     try {
       const res = await api.orders.create({
         plan_id: plan.id,
+        domain: domain.trim(),
+        domain_type: domainType,
         type: 'new',
         customer_notes: customerNotes
       });
 
       if (res.success && res.order) {
-        // Redirect to QRIS Payment Page
         navigate(`/payment/${res.order.orderNumber}`);
       }
     } catch (err: any) {
@@ -136,11 +206,57 @@ export const CheckoutPage: React.FC = () => {
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2 text-gray-900 dark:text-white">
-          Ringkasan Pemesanan Hosting
+          Checkout Pemesanan Hosting
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-          Periksa kembali rincian paket dan identitas akun pemesan sebelum menerbitkan invoice pembayaran.
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Lengkapi domain layanan dan periksa rincian pesanan Anda sebelum melanjutkan ke pembayaran manual.
         </p>
+
+        {/* Email verification warning if customer is unverified */}
+        {user && !user.email_verified && (
+          <div className="mb-6 p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-900 dark:text-amber-200">
+            <div className="flex items-start space-x-3 text-sm">
+              <Mail className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-bold">Email Anda Belum Terverifikasi ({user.email})</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  Sesuai kebijakan keamanan 1sLabs, akun dengan email belum diverifikasi tidak dapat menerbitkan pesanan. Silakan klik tautan verifikasi yang telah kami kirimkan ke email Anda.
+                </p>
+                {resendStatus && (
+                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-2">
+                    {resendStatus}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={isResendingEmail}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold transition-all flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                {isResendingEmail ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Mengirim...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Kirim Ulang Email</span>
+                  </>
+                )}
+              </button>
+              <Link
+                to="/verify-email"
+                className="px-4 py-2 bg-white dark:bg-gray-900 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 rounded-xl text-xs font-semibold hover:bg-amber-100 transition-all"
+              >
+                Input Token
+              </Link>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 flex items-start space-x-3 text-red-700 dark:text-red-300 text-sm">
@@ -150,9 +266,133 @@ export const CheckoutPage: React.FC = () => {
         )}
 
         <form onSubmit={handleCreateOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Plan & Customer Info */}
+          {/* Left Column: Plan, Domain & Customer Info */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Selected Plan Snapshot */}
+            
+            {/* 1. Mandatory Domain Registration Card */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                    Pendaftaran Domain Layanan (Wajib)
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Tentukan nama domain yang akan dikonfigurasikan pada paket hosting ini.
+                  </p>
+                </div>
+              </div>
+
+              {/* Domain Type Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                <label
+                  onClick={() => setDomainType('existing')}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start space-x-3 text-xs ${
+                    domainType === 'existing'
+                      ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800/80 font-semibold'
+                      : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="domainType"
+                    checked={domainType === 'existing'}
+                    onChange={() => setDomainType('existing')}
+                    className="mt-0.5 text-black focus:ring-black"
+                  />
+                  <div>
+                    <span className="text-gray-900 dark:text-white block font-medium">Domain yang Sudah Dimiliki</span>
+                    <span className="text-gray-500 text-[11px]">Saya akan mengarahkan DNS domain ke nameserver 1sLabs.</span>
+                  </div>
+                </label>
+
+                <label
+                  onClick={() => setDomainType('new')}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start space-x-3 text-xs ${
+                    domainType === 'new'
+                      ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800/80 font-semibold'
+                      : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="domainType"
+                    checked={domainType === 'new'}
+                    onChange={() => setDomainType('new')}
+                    className="mt-0.5 text-black focus:ring-black"
+                  />
+                  <div>
+                    <span className="text-gray-900 dark:text-white block font-medium">Registrasi Domain Baru</span>
+                    <span className="text-gray-500 text-[11px]">Daftarkan nama domain baru bersama layanan hosting.</span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Domain Input Field with Validation */}
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Nama Domain
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Globe className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      required
+                      value={domain}
+                      onChange={(e) => {
+                        setDomain(e.target.value.toLowerCase().replace(/\s+/g, ''));
+                        setDomainCheckStatus(null);
+                      }}
+                      placeholder="contoh: bisnisanda.com atau portfolio.my.id"
+                      className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-all font-mono"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCheckDomain}
+                    disabled={isCheckingDomain || !domain.trim()}
+                    className="px-5 py-3 bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 rounded-xl text-xs font-semibold hover:opacity-90 transition-all flex items-center justify-center space-x-1.5 disabled:opacity-40"
+                  >
+                    {isCheckingDomain ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Memeriksa...</span>
+                      </>
+                    ) : (
+                      <span>Cek Ketersediaan</span>
+                    )}
+                  </button>
+                </div>
+
+                {domainCheckStatus && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-xl text-xs flex items-center space-x-2 ${
+                      domainCheckStatus.available
+                        ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300'
+                        : 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {domainCheckStatus.available ? (
+                      <Check className="w-4 h-4 flex-shrink-0 text-green-600" />
+                    ) : (
+                      <XCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
+                    )}
+                    <span>{domainCheckStatus.message}</span>
+                  </motion.div>
+                )}
+
+                <p className="text-[11px] text-gray-500">
+                  Domain akan otomatis direservasi secara atomik untuk pesanan Anda selama 24 jam dan langsung dikonfigurasi saat pembayaran disetujui.
+                </p>
+              </div>
+            </div>
+
+            {/* 2. Selected Plan Snapshot */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
               <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex items-center space-x-3">
@@ -200,7 +440,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Customer Details */}
+            {/* 3. Customer Details */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
               <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">
                 Identitas Pemesan
@@ -212,46 +452,56 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-gray-500 block mb-1">Email Akun:</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{user?.email}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white flex items-center space-x-1.5">
+                    <span>{user?.email}</span>
+                    {user?.email_verified ? (
+                      <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 font-bold">
+                        Terverifikasi
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold">
+                        Belum Verifikasi
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-500 block mb-1">Nomor WhatsApp:</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{user?.phone || 'Belum diisi'}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {user?.phone ? `+${user.phone}` : 'Wajib diisi'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-500 block mb-1">Metode Pembayaran:</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">QRIS (BCA, Mandiri, GoPay, Dana, dll.)</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">Manual QRIS / Transfer Bank</span>
                 </div>
               </div>
             </div>
 
-            {/* Optional Notes */}
+            {/* 4. Notes */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                Catatan Khusus atau Domain Rencana (Opsional)
+                Catatan Tambahan untuk Tim Engineer (Opsional)
               </label>
               <textarea
                 rows={3}
                 value={customerNotes}
                 onChange={(e) => setCustomerNotes(e.target.value)}
-                placeholder="Contoh: Rencana domain bisnis saya adalah tokoberkah.com, butuh bantuan migrasi data dari hosting lama."
+                placeholder="Contoh: Tolong siapkan konfigurasi PHP 8.2 atau bantuan pemindahan database dari hosting lama."
                 className="w-full p-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
               />
-              <p className="text-[11px] text-gray-500 mt-2">
-                * Konfigurasi domain resmi akan diminta secara mandiri melalui Customer Portal setelah pembayaran terverifikasi.
-              </p>
             </div>
           </div>
 
-          {/* Right Column: Cost Breakdown & Checkout Submit */}
+          {/* Right Column: Authoritative Cost Breakdown & Checkout Submit */}
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 sticky top-24 shadow-sm">
               <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">
-                Rincian Biaya
+                Rincian Tagihan Resmi
               </h2>
 
               {(() => {
-                const basePrice = plan ? parseFloat(plan.price) : 0;
+                const basePrice = parseFloat(plan.price);
                 const ppnAmount = Math.round(basePrice * 0.11);
                 const totalAmount = basePrice + ppnAmount;
 
@@ -259,30 +509,27 @@ export const CheckoutPage: React.FC = () => {
                   <>
                     <div className="space-y-3 pb-4 border-b border-gray-100 dark:border-gray-800 text-xs sm:text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Harga Paket ({plan.name})</span>
+                        <span className="text-gray-500">Harga Paket (1 Tahun)</span>
                         <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(basePrice)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500 flex items-center space-x-1.5">
-                          <span>PPN 11% (Pajak Pertambahan Nilai)</span>
-                          <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded font-mono font-bold">11%</span>
-                        </span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">PPN (11%)</span>
                         <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(ppnAmount)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Bantuan Setup & Auto-SSL</span>
-                        <span className="font-semibold text-emerald-600">Gratis (Rp 0)</span>
+                        <span className="text-gray-500">Domain ({domain || 'Belum diisi'})</span>
+                        <span className="font-semibold text-emerald-600">Termasuk (Rp 0)</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Biaya Administrasi QRIS</span>
-                        <span className="font-semibold text-emerald-600">Rp 0 (Gratis)</span>
+                        <span className="text-gray-500">Biaya Verifikasi Manual</span>
+                        <span className="font-semibold text-emerald-600">Gratis (Rp 0)</span>
                       </div>
                     </div>
 
                     <div className="py-4 flex justify-between items-baseline border-b border-gray-100 dark:border-gray-800">
                       <div>
-                        <span className="text-sm font-bold text-gray-900 dark:text-white block">Total Pembayaran:</span>
-                        <span className="text-[11px] text-gray-400">Sudah Termasuk PPN 11%</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white block">Total Tagihan:</span>
+                        <span className="text-[11px] text-gray-400">Total Akhir (Server Authoritative)</span>
                       </div>
                       <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
                         {formatPrice(totalAmount)}
@@ -302,14 +549,14 @@ export const CheckoutPage: React.FC = () => {
                     className="mt-0.5 rounded border-gray-300 text-black focus:ring-black dark:border-gray-700"
                   />
                   <span>
-                    Saya menyetujui ketentuan layanan 1sLabs bahwa layanan hosting akan aktif setelah pembayaran diverifikasi oleh admin.
+                    Saya menyetujui ketentuan layanan 1sLabs bahwa layanan hosting akan aktif segera setelah bukti transfer diverifikasi sah oleh admin.
                   </span>
                 </label>
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || !agreedToTerms}
+                disabled={isSubmitting || !agreedToTerms || !user?.email_verified || !domain.trim()}
                 className="w-full py-3.5 px-4 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold rounded-xl text-sm transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? (
@@ -324,6 +571,12 @@ export const CheckoutPage: React.FC = () => {
                   </>
                 )}
               </button>
+
+              {!user?.email_verified && (
+                <p className="text-[11px] text-center text-amber-600 dark:text-amber-400 mt-2 font-medium">
+                  * Verifikasi email diperlukan untuk mengaktifkan tombol pemesanan.
+                </p>
+              )}
 
               <div className="mt-4 flex items-center justify-center space-x-1.5 text-[11px] text-gray-500">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />

@@ -4,6 +4,13 @@ const { query, withTransaction } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { generateInvoiceNumber, generateServiceCode } = require('../utils/helpers');
 const { ensureServiceRoot } = require('../utils/fileSandbox');
+const { domainService } = require('../services/cpanel.service');
+const {
+  sendPaymentApprovedEmail,
+  sendPaymentRejectedEmail,
+  sendHostingActivatedEmail,
+  sendAdminProvisioningFailureNotification
+} = require('../services/email.service');
 
 // All routes here require admin access
 router.use(requireAuth, requireAdmin);
@@ -49,6 +56,7 @@ router.get('/payments', async (req, res) => {
     const { status, search } = req.query;
     let sql = `
       SELECT p.*, o.order_number, o.type as order_type, o.plan_name_snapshot, o.period_snapshot,
+             o.domain as order_domain, o.domain_type as order_domain_type,
              u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
              admin.name as verified_by_name
       FROM payments p
@@ -90,7 +98,7 @@ router.get('/payments', async (req, res) => {
 router.post('/payments/:id/verify', async (req, res) => {
   try {
     const paymentId = parseInt(req.params.id, 10);
-    const { action, reason } = req.body;
+    const { action, reason, admin_notes } = req.body;
 
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({
@@ -102,16 +110,19 @@ router.post('/payments/:id/verify', async (req, res) => {
     if (action === 'reject' && (!reason || reason.trim().length === 0)) {
       return res.status(400).json({
         success: false,
-        message: 'Alasan penolakan pembayaran wajib dicantumkan.'
+        message: 'Alasan penolakan pembayaran untuk pelanggan wajib dicantumkan.'
       });
     }
 
     // Fetch current payment and order
     const payments = await query(
       `SELECT p.*, o.order_number, o.user_id as order_user_id, o.plan_id, o.plan_name_snapshot,
-              o.period_snapshot, o.type as order_type, o.related_service_id
+              o.period_snapshot, o.type as order_type, o.related_service_id,
+              o.domain as order_domain, o.domain_type as order_domain_type,
+              u.name as customer_name, u.email as customer_email, u.phone as customer_phone
        FROM payments p
        JOIN orders o ON p.order_id = o.id
+       JOIN users u ON p.user_id = u.id
        WHERE p.id = ?`,
       [paymentId]
     );
@@ -141,9 +152,10 @@ router.post('/payments/:id/verify', async (req, res) => {
         // 1. Update payment status to paid
         await conn.query(
           `UPDATE payments 
-           SET status = 'paid', verified_by = ?, verified_at = NOW(), rejection_reason = NULL, updated_at = NOW()
+           SET status = 'paid', verified_by = ?, verified_at = NOW(), rejection_reason = NULL,
+               admin_notes = COALESCE(?, admin_notes), updated_at = NOW()
            WHERE id = ?`,
-          [req.user.id, payment.id]
+          [req.user.id, admin_notes ? admin_notes.trim() : null, payment.id]
         );
 
         // 2. Update order status to paid
@@ -154,11 +166,12 @@ router.post('/payments/:id/verify', async (req, res) => {
 
         let createdServiceId = null;
         let serviceCode = null;
+        const targetDomain = payment.order_domain || null;
 
         if (payment.order_type === 'new') {
           // Check if service already exists
           const [existingServices] = await conn.query(
-            'SELECT id, service_code FROM hosting_services WHERE order_id = ?',
+            'SELECT id, service_code, domain FROM hosting_services WHERE order_id = ?',
             [payment.order_id]
           );
 
@@ -167,20 +180,56 @@ router.post('/payments/:id/verify', async (req, res) => {
             serviceCode = existingServices[0].service_code;
           } else {
             serviceCode = generateServiceCode();
+            const serviceStatus = targetDomain ? 'active' : 'awaiting_domain';
             const [serviceInsert] = await conn.query(
               `INSERT INTO hosting_services 
-              (service_code, user_id, plan_id, order_id, status, server_ip, nameservers, activated_at, expires_at)
-              VALUES (?, ?, ?, ?, 'awaiting_domain', '194.233.65.45', 'ns1.serverphp.my.id, ns2.serverphp.my.id', NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))`,
-              [serviceCode, payment.user_id, payment.plan_id, payment.order_id]
+              (service_code, user_id, plan_id, order_id, domain, domain_type, status, server_ip, nameservers, activated_at, expires_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, '103.119.237.132', 'ns1.domainmurah.net, ns2.domainmurah.net', NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))`,
+              [
+                serviceCode,
+                payment.user_id,
+                payment.plan_id,
+                payment.order_id,
+                targetDomain,
+                payment.order_domain_type || 'existing',
+                serviceStatus
+              ]
             );
             createdServiceId = serviceInsert.insertId;
 
             // Log service event
             await conn.query(
               `INSERT INTO service_events (service_id, event_type, title, description, actor_type, actor_id)
-               VALUES (?, 'service_created', 'Layanan Hosting Dibuat', 'Pembayaran QRIS diverifikasi oleh admin. Menunggu pelanggan mengisi domain layanan.', 'admin', ?)`,
-              [createdServiceId, req.user.id]
+               VALUES (?, 'service_created', 'Layanan Hosting Aktif', ?, 'admin', ?)`,
+              [
+                createdServiceId,
+                targetDomain 
+                  ? `Pembayaran QRIS diverifikasi sah. Domain ${targetDomain} telah aktif di server cloud 1sLabs.`
+                  : 'Pembayaran QRIS diverifikasi sah oleh admin.',
+                req.user.id
+              ]
             );
+
+            // If domain present, activate reservation and provision root
+            if (targetDomain) {
+              await conn.query(
+                "UPDATE domain_reservations SET status = 'active', service_id = ? WHERE domain = ?",
+                [createdServiceId, targetDomain]
+              );
+              try {
+                ensureServiceRoot(serviceCode, targetDomain);
+              } catch (fsErr) {
+                console.warn('[provision] ensureServiceRoot notice:', fsErr.message);
+              }
+
+              // Auto-register domain into cPanel Jupiter Domains
+              try {
+                await domainService.addAddonDomain(targetDomain);
+                console.log(`[cPanel Provisioning] Addon domain '${targetDomain}' successfully added to cPanel.`);
+              } catch (cpErr) {
+                console.warn(`[cPanel Provisioning] cPanel addon notice for '${targetDomain}':`, cpErr.message);
+              }
+            }
           }
         } else if (payment.order_type === 'renewal' && payment.related_service_id) {
           createdServiceId = payment.related_service_id;
@@ -214,15 +263,18 @@ router.post('/payments/:id/verify', async (req, res) => {
         if (existingInvoices.length > 0) {
           invoiceNumber = existingInvoices[0].invoice_number;
           await conn.query(
-            "UPDATE invoices SET status = 'paid', paid_at = NOW(), service_id = ? WHERE id = ?",
-            [createdServiceId, existingInvoices[0].id]
+            `UPDATE invoices 
+             SET status = 'paid', paid_at = NOW(), service_id = ?, domain = COALESCE(?, domain),
+                 billing_start_date = NOW(), billing_end_date = DATE_ADD(NOW(), INTERVAL 1 YEAR)
+             WHERE id = ?`,
+            [createdServiceId, targetDomain, existingInvoices[0].id]
           );
         } else {
           invoiceNumber = generateInvoiceNumber();
           await conn.query(
             `INSERT INTO invoices 
-            (invoice_number, order_id, payment_id, user_id, service_id, amount, status, plan_name, period, paid_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?, NOW())`,
+            (invoice_number, order_id, payment_id, user_id, service_id, amount, status, plan_name, domain, period, billing_start_date, billing_end_date, paid_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), NOW())`,
             [
               invoiceNumber,
               payment.order_id,
@@ -231,6 +283,7 @@ router.post('/payments/:id/verify', async (req, res) => {
               createdServiceId,
               payment.amount,
               payment.plan_name_snapshot,
+              targetDomain,
               payment.period_snapshot
             ]
           );
@@ -239,23 +292,25 @@ router.post('/payments/:id/verify', async (req, res) => {
         // 4. Audit log
         await conn.query(
           `INSERT INTO payment_verification_logs (payment_id, admin_id, action, previous_status, new_status, reason, ip_address)
-           VALUES (?, ?, 'approve', ?, 'paid', 'Pembayaran QRIS diverifikasi sah.', ?)`,
-          [payment.id, req.user.id, payment.status, ipAddress]
+           VALUES (?, ?, 'approve', ?, 'paid', ?, ?)`,
+          [payment.id, req.user.id, payment.status, admin_notes ? `Disetujui. Catatan: ${admin_notes.trim()}` : 'Pembayaran QRIS diverifikasi sah.', ipAddress]
         );
 
         return {
           status: 'paid',
           invoiceNumber,
           serviceCode,
-          serviceId: createdServiceId
+          serviceId: createdServiceId,
+          domain: targetDomain
         };
       } else {
         // Reject
         await conn.query(
           `UPDATE payments 
-           SET status = 'rejected', rejection_reason = ?, verified_by = ?, verified_at = NOW(), updated_at = NOW()
+           SET status = 'rejected', rejection_reason = ?, admin_notes = COALESCE(?, admin_notes),
+               verified_by = ?, verified_at = NOW(), updated_at = NOW()
            WHERE id = ?`,
-          [reason.trim(), req.user.id, payment.id]
+          [reason.trim(), admin_notes ? admin_notes.trim() : null, req.user.id, payment.id]
         );
 
         await conn.query(
@@ -276,9 +331,43 @@ router.post('/payments/:id/verify', async (req, res) => {
       }
     });
 
+    // Send customer notification emails asynchronously (database committed safely first)
+    if (action === 'approve') {
+      sendPaymentApprovedEmail({
+        to: payment.customer_email,
+        name: payment.customer_name,
+        orderNumber: payment.order_number,
+        invoiceNumber: verificationResult.invoiceNumber,
+        planName: payment.plan_name_snapshot,
+        domain: verificationResult.domain || payment.order_domain || '-',
+        amount: payment.amount
+      }).catch(err => console.error('[admin] Background approve email error:', err.message));
+
+      if (verificationResult.domain && verificationResult.serviceCode) {
+        sendHostingActivatedEmail({
+          to: payment.customer_email,
+          name: payment.customer_name,
+          serviceCode: verificationResult.serviceCode,
+          domain: verificationResult.domain,
+          planName: payment.plan_name_snapshot,
+          serverIp: '103.119.237.132',
+          nameservers: 'ns1.domainmurah.net, ns2.domainmurah.net',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        }).catch(err => console.error('[admin] Background hosting active email error:', err.message));
+      }
+    } else {
+      sendPaymentRejectedEmail({
+        to: payment.customer_email,
+        name: payment.customer_name,
+        orderNumber: payment.order_number,
+        planName: payment.plan_name_snapshot,
+        rejectionReason: reason.trim()
+      }).catch(err => console.error('[admin] Background reject email error:', err.message));
+    }
+
     return res.json({
       success: true,
-      message: action === 'approve' ? 'Pembayaran berhasil disetujui.' : 'Pembayaran telah ditolak.',
+      message: action === 'approve' ? 'Pembayaran berhasil disetujui dan layanan hosting telah diaktifkan.' : 'Pembayaran telah ditolak.',
       result: verificationResult
     });
   } catch (error) {

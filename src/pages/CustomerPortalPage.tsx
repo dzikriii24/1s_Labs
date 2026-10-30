@@ -16,6 +16,7 @@ import {
   User,
   LogOut,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Lock,
   Layers,
@@ -36,6 +37,7 @@ import {
   Cloud,
   Cpu,
   PieChart,
+  BarChart3,
   Wifi,
   X
 } from 'lucide-react';
@@ -46,6 +48,7 @@ import { Footer } from '../components/layout/Footer';
 import { FileManagerTab } from '../components/hosting/FileManagerTab';
 import { FtpManagementTab } from '../components/hosting/FtpManagementTab';
 import { DatabaseManagementTab } from '../components/hosting/DatabaseManagementTab';
+import { AnalyticsTab } from '../components/hosting/AnalyticsTab';
 
 
 export const CustomerPortalPage: React.FC = () => {
@@ -57,7 +60,7 @@ export const CustomerPortalPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedService, setSelectedService] = useState<HostingService | null>(null);
-  const [serviceSubTab, setServiceSubTab] = useState<'overview' | 'files' | 'ftp' | 'databases'>('overview');
+  const [serviceSubTab, setServiceSubTab] = useState<'overview' | 'files' | 'ftp' | 'databases' | 'analytics'>('overview');
 
   // Profile edit state
   const [profileName, setProfileName] = useState('');
@@ -71,6 +74,7 @@ export const CustomerPortalPage: React.FC = () => {
   const [renewingId, setRenewingId] = useState<number | null>(null);
   const [copiedNs, setCopiedNs] = useState<number | null>(null);
   const [copiedIp, setCopiedIp] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
 
   // Order cancellation state
   const [isCancellingOrder, setIsCancellingOrder] = useState<string | null>(null);
@@ -247,6 +251,19 @@ export const CustomerPortalPage: React.FC = () => {
     }
   };
 
+  const handleResendPortalVerification = async () => {
+    if (!user?.email) return;
+    setIsResendingVerification(true);
+    try {
+      const res = await api.auth.resendVerification(user.email);
+      alert(res.message || 'Tautan verifikasi baru berhasil dikirim ke email Anda.');
+    } catch (err: any) {
+      alert(err.message || 'Gagal mengirim ulang email verifikasi.');
+    } finally {
+      setIsResendingVerification(false);
+    }
+  };
+
   const formatPrice = (val: string | number) => {
     const num = typeof val === 'string' ? parseFloat(val) : val;
     return new Intl.NumberFormat('id-ID', {
@@ -335,6 +352,41 @@ export const CustomerPortalPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Unverified Email Warning Banner */}
+        {user && !user.email_verified && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-900 dark:text-amber-200">
+                  Alamat Email Belum Terverifikasi
+                </p>
+                <p className="text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                  Tautan aktivasi akun telah dikirimkan ke <strong>{user?.email}</strong>. Selesaikan verifikasi email untuk membuka akses penuh pemesanan paket hosting baru dan pembayaran.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResendPortalVerification}
+              disabled={isResendingVerification}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold shadow-xs transition-all whitespace-nowrap self-start sm:self-center disabled:opacity-50 cursor-pointer"
+            >
+              {isResendingVerification ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Mengirimkan...</span>
+                </>
+              ) : (
+                <>
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Kirim Ulang Email Verifikasi</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Portal Navigation Tabs */}
         <div className="flex overflow-x-auto space-x-2 pb-2 mb-8 border-b border-gray-200 dark:border-gray-800 no-scrollbar">
@@ -447,18 +499,41 @@ export const CustomerPortalPage: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Domain / Title */}
+                      {/* Domain / Title (Clickable Web Link) */}
                       <div className="mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
-                          {srv.domain || 'Domain Belum Dikonfigurasi'}
-                        </h3>
+                        <div className="flex items-center justify-between">
+                          {srv.domain ? (
+                            <a
+                              href={`https://${srv.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-lg font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center space-x-1.5 truncate group"
+                              title={`Buka situs https://${srv.domain}`}
+                            >
+                              <span className="truncate">{srv.domain}</span>
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                              Domain Belum Dikonfigurasi
+                            </h3>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 font-mono mt-0.5">
                           {srv.service_code}
                         </p>
                       </div>
 
-                      {/* Specs snippet */}
+                      {/* Specs snippet with Verified SSL */}
                       <div className="space-y-1.5 py-3 border-y border-gray-100 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
+                        <div className="flex justify-between items-center">
+                          <span>Sertifikat SSL:</span>
+                          <span className="inline-flex items-center space-x-1 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/60">
+                            <Lock className="w-3 h-3 text-emerald-500" />
+                            <span>Tersertifikasi (HTTPS)</span>
+                          </span>
+                        </div>
                         <div className="flex justify-between">
                           <span>NVMe Storage:</span>
                           <span className="font-semibold text-gray-900 dark:text-white">
@@ -481,15 +556,33 @@ export const CustomerPortalPage: React.FC = () => {
                     </div>
 
                     {/* Actions */}
-                    <div className="mt-6 pt-2 space-y-2">
+                    <div className="mt-6 pt-2">
                       {srv.status === 'awaiting_domain' ? (
                         <Link
                           to={`/services/${srv.service_code}/setup-domain`}
-                          className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-xs"
+                          className="w-full py-2.5 px-4 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-xs transition-all"
                         >
                           <span>Atur Domain Sekarang</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
+                      ) : srv.days_remaining <= 30 && srv.status === 'active' ? (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleRenewal(srv)}
+                            disabled={renewingId === srv.id}
+                            className="flex-1 py-2.5 px-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${renewingId === srv.id ? 'animate-spin' : ''}`} />
+                            <span>Perpanjang</span>
+                          </button>
+                          <button
+                            onClick={() => selectService(srv.service_code)}
+                            className="flex-1 py-2.5 px-3 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center justify-center space-x-1 transition-all cursor-pointer"
+                          >
+                            <span>Kelola Hosting</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={() => selectService(srv.service_code)}
@@ -499,26 +592,6 @@ export const CustomerPortalPage: React.FC = () => {
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       )}
-
-                      <div className="flex space-x-2">
-                        {srv.days_remaining <= 30 && srv.status === 'active' && (
-                          <button
-                            onClick={() => handleRenewal(srv)}
-                            disabled={renewingId === srv.id}
-                            className="flex-1 py-2 px-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1"
-                          >
-                            <RefreshCw className={`w-3.5 h-3.5 ${renewingId === srv.id ? 'animate-spin' : ''}`} />
-                            <span>Perpanjang</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => selectService(srv.service_code)}
-                          className="flex-1 py-2 px-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold text-center flex items-center justify-center space-x-1"
-                        >
-                          <span>Kelola Hosting</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -538,10 +611,24 @@ export const CustomerPortalPage: React.FC = () => {
                     <Globe className="w-8 h-8" />
                   </div>
                   <div>
-                    <div className="flex items-center space-x-3">
-                      <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
-                        {selectedService.domain || 'Domain Menunggu Konfigurasi'}
-                      </h2>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {selectedService.domain ? (
+                        <a
+                          href={`https://${selectedService.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group inline-flex items-center space-x-2 text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title={`Buka situs https://${selectedService.domain}`}
+                        >
+                          <span>{selectedService.domain}</span>
+                          <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0" />
+                        </a>
+                      ) : (
+                        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
+                          Domain Menunggu Konfigurasi
+                        </h2>
+                      )}
+
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         selectedService.status === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' :
                         selectedService.status === 'awaiting_domain' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' :
@@ -551,6 +638,21 @@ export const CustomerPortalPage: React.FC = () => {
                          selectedService.status === 'awaiting_domain' ? 'Menunggu Domain' :
                          selectedService.status === 'pending_provisioning' ? 'Sedang Dikonfigurasi' : selectedService.status}
                       </span>
+
+                      {/* SSL Certified Badge */}
+                      {selectedService.domain && (
+                        <a
+                          href={`https://www.sslshopper.com/ssl-checker.html#hostname=${selectedService.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Sertifikat SSL Let's Encrypt Wildcard Aktif - Klik untuk Cek"
+                          className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-2xs"
+                        >
+                          <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>SSL Certified (HTTPS)</span>
+                          <ExternalLink className="w-3 h-3 opacity-60" />
+                        </a>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       Paket: <strong className="text-gray-900 dark:text-white">{selectedService.plan_name}</strong> • Kode: {selectedService.service_code}
@@ -585,7 +687,28 @@ export const CustomerPortalPage: React.FC = () => {
               </div>
 
               {/* Dynamic Subscription & Days Remaining Section */}
-              <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+                <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40">
+                  <span className="text-gray-500 block mb-1">Status Keamanan SSL:</span>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="inline-flex items-center space-x-1 font-bold text-emerald-700 dark:text-emerald-300">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Tersertifikasi (HTTPS)</span>
+                    </span>
+                  </div>
+                  {selectedService.domain && (
+                    <a
+                      href={`https://www.sslshopper.com/ssl-checker.html#hostname=${selectedService.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center space-x-0.5 mt-1 font-semibold"
+                    >
+                      <span>Cek di SSLShopper</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
+                </div>
+
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
                   <span className="text-gray-500 block mb-1">Masa Aktif Layanan:</span>
                   <div className="text-base font-bold text-gray-900 dark:text-white flex items-center space-x-1.5">
@@ -611,7 +734,7 @@ export const CustomerPortalPage: React.FC = () => {
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
                   <span className="text-gray-500 block mb-1">IP Server Hosting:</span>
                   <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
-                    {selectedService.server_ip || '194.233.65.45'}
+                    {selectedService.server_ip || '103.119.237.132'}
                   </span>
                 </div>
               </div>
@@ -629,6 +752,19 @@ export const CustomerPortalPage: React.FC = () => {
               >
                 <Activity className="w-4 h-4" />
                 <span>Ringkasan & Resource</span>
+              </button>
+
+              <button
+                onClick={() => setServiceSubTab('analytics')}
+                className={`px-4 py-2.5 rounded-xl flex items-center space-x-2 transition-all ${
+                  serviceSubTab === 'analytics'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-purple-500" />
+                <span>Analitik Web</span>
+                <span className="px-1.5 py-0.5 text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 rounded-full font-bold">Baru</span>
               </button>
 
               <button
@@ -668,6 +804,14 @@ export const CustomerPortalPage: React.FC = () => {
               </button>
             </div>
 
+            {/* TAB CONTENT: ANALYTICS */}
+            {serviceSubTab === 'analytics' && (
+              <AnalyticsTab
+                serviceCode={selectedService.service_code}
+                domain={selectedService.domain}
+              />
+            )}
+
             {/* TAB CONTENT: FILE MANAGER */}
             {serviceSubTab === 'files' && (
               <FileManagerTab
@@ -681,7 +825,7 @@ export const CustomerPortalPage: React.FC = () => {
             {serviceSubTab === 'ftp' && (
               <FtpManagementTab
                 serviceCode={selectedService.service_code}
-                serverIp={selectedService.server_ip}
+                serverIp={selectedService.server_ip || '103.119.237.132'}
                 domain={selectedService.domain}
               />
             )}
@@ -691,12 +835,221 @@ export const CustomerPortalPage: React.FC = () => {
               <DatabaseManagementTab
                 serviceCode={selectedService.service_code}
                 databasesCount={selectedService.databases_count}
+                serverIp={selectedService.server_ip || '103.119.237.132'}
               />
             )}
 
             {/* TAB CONTENT: OVERVIEW */}
             {serviceSubTab === 'overview' && (
               <div className="space-y-6">
+                {/* INFORMASI SERVER, DNS & NAMESERVER RESMI (MIGRASI FIX) */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2.5 bg-blue-600 text-white rounded-2xl shadow-xs flex-shrink-0 mt-0.5">
+                        <Server className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                            Informasi Server & DNS
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                            Server: Merapi (Aktif)
+                          </span>
+                        </div>
+                        <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white mt-1">
+                          Konfigurasi Nameserver & IP Server Hosting
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Gunakan Nameserver resmi berikut untuk menghubungkan domain Anda ke hosting berkinerja tinggi 1sLabs.
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedService.domain && (
+                      <a
+                        href={`https://${selectedService.domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 inline-flex items-center space-x-1.5 self-start transition-colors"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Kunjungi Situs Web</span>
+                        <ExternalLink className="w-3 h-3 opacity-60" />
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Tabel Domain, IP & Nameserver Fix */}
+                  <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/30">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-gray-100/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 font-semibold border-b border-gray-200 dark:border-gray-800">
+                        <tr>
+                          <th className="px-4 py-2.5">Domain</th>
+                          <th className="px-4 py-2.5">IP Server (A Record)</th>
+                          <th className="px-4 py-2.5">Nameserver 1</th>
+                          <th className="px-4 py-2.5">Nameserver 2</th>
+                          <th className="px-4 py-2.5">Status SSL</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800 font-mono text-[11px]">
+                        <tr>
+                          <td className="px-4 py-3 font-bold text-gray-900 dark:text-white font-sans">
+                            {selectedService.domain ? (
+                              <a
+                                href={`https://${selectedService.domain}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center space-x-1"
+                              >
+                                <span>{selectedService.domain}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              'domain-anda.com'
+                            )}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                            <span className="inline-flex items-center space-x-2">
+                              <span>103.119.237.132</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText('103.119.237.132');
+                                  setCopiedIp(true);
+                                  setTimeout(() => setCopiedIp(false), 2000);
+                                }}
+                                className="px-2 py-0.5 text-[10px] bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-sans transition-colors inline-flex items-center space-x-1"
+                              >
+                                {copiedIp ? <Check className="w-2.5 h-2.5 text-emerald-500" /> : <Copy className="w-2.5 h-2.5" />}
+                                <span>{copiedIp ? 'Disalin' : 'Salin'}</span>
+                              </button>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                            <span className="inline-flex items-center space-x-2">
+                              <span>ns1.domainmurah.net</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText('ns1.domainmurah.net');
+                                  setCopiedNs(1);
+                                  setTimeout(() => setCopiedNs(null), 2000);
+                                }}
+                                className="px-2 py-0.5 text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded font-sans transition-colors inline-flex items-center space-x-1"
+                              >
+                                {copiedNs === 1 ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                                <span>{copiedNs === 1 ? 'Disalin' : 'Salin'}</span>
+                              </button>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                            <span className="inline-flex items-center space-x-2">
+                              <span>ns2.domainmurah.net</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText('ns2.domainmurah.net');
+                                  setCopiedNs(2);
+                                  setTimeout(() => setCopiedNs(null), 2000);
+                                }}
+                                className="px-2 py-0.5 text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 rounded font-sans transition-colors inline-flex items-center space-x-1"
+                              >
+                                {copiedNs === 2 ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                                <span>{copiedNs === 2 ? 'Disalin' : 'Salin'}</span>
+                              </button>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-sans">
+                            <a
+                              href={selectedService.domain ? `https://www.sslshopper.com/ssl-checker.html#hostname=${selectedService.domain}` : '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 hover:opacity-80 transition-opacity"
+                              title="Cek sertifikat SSL valid di SSLShopper"
+                            >
+                              <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>Tersertifikasi</span>
+                              <ExternalLink className="w-2 h-2" />
+                            </a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Quick Highlight Cards: SSL & Analytics */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    {/* Card 1: SSL Certification Details */}
+                    <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center space-x-1.5">
+                          <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>Status Sertifikat SSL (HTTPS)</span>
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 rounded font-semibold">
+                          Aktif & Valid
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Situs Anda telah diamankan dengan enkripsi <strong>Let's Encrypt Wildcard SSL 256-bit</strong>. Semua trafik HTTP otomatis dialihkan ke HTTPS yang aman.
+                      </p>
+                      <div className="pt-1 flex items-center space-x-3 text-xs">
+                        {selectedService.domain && (
+                          <a
+                            href={`https://www.sslshopper.com/ssl-checker.html#hostname=${selectedService.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-700 dark:text-emerald-300 hover:underline font-semibold inline-flex items-center space-x-1"
+                          >
+                            <span>Cek Sertifikat di SSLShopper</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <span className="text-gray-300 dark:text-gray-700">•</span>
+                        {selectedService.domain && (
+                          <a
+                            href={`https://${selectedService.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-semibold inline-flex items-center space-x-1"
+                          >
+                            <span>Kunjungi https://{selectedService.domain}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card 2: Web Analytics Quick Access */}
+                    <div className="p-4 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center space-x-1.5">
+                          <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <span>Statistik Kunjungan & Klik Web</span>
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 rounded font-semibold">
+                          Real-time
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Pantau jumlah kunjungan halaman, pengunjung unik, dan klik tombol pada website Anda secara akurat dan real-time.
+                      </p>
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setServiceSubTab('analytics')}
+                          className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
+                        >
+                          <span>Buka Tab Analitik & Tutorial Embed</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 1. VISUAL RESOURCE USAGE & DONUT CHARTS (Hostinger & cPanel Inspired) */}
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 space-y-7 shadow-xs">
                   {/* Header & Status Bar */}
@@ -1098,7 +1451,7 @@ export const CustomerPortalPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText('ns1.serverphp.my.id');
+                              navigator.clipboard.writeText('ns1.domainmurah.net');
                               setCopiedNs(1);
                               setTimeout(() => setCopiedNs(null), 2000);
                             }}
@@ -1110,7 +1463,7 @@ export const CustomerPortalPage: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200/80 dark:border-gray-700">
                           <code className="text-gray-900 dark:text-white font-mono font-bold text-xs">
-                            ns1.serverphp.my.id
+                            ns1.domainmurah.net
                           </code>
                           <span className="text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-md font-semibold">
                             Primary
@@ -1124,7 +1477,7 @@ export const CustomerPortalPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText('ns2.serverphp.my.id');
+                              navigator.clipboard.writeText('ns2.domainmurah.net');
                               setCopiedNs(2);
                               setTimeout(() => setCopiedNs(null), 2000);
                             }}
@@ -1136,7 +1489,7 @@ export const CustomerPortalPage: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200/80 dark:border-gray-700">
                           <code className="text-gray-900 dark:text-white font-mono font-bold text-xs">
-                            ns2.serverphp.my.id
+                            ns2.domainmurah.net
                           </code>
                           <span className="text-[10px] px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 rounded-md font-semibold">
                             Secondary
@@ -1150,7 +1503,7 @@ export const CustomerPortalPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText(selectedService.server_ip || '194.233.65.45');
+                              navigator.clipboard.writeText(selectedService.server_ip || '103.119.237.132');
                               setCopiedIp(true);
                               setTimeout(() => setCopiedIp(false), 2000);
                             }}
@@ -1161,7 +1514,7 @@ export const CustomerPortalPage: React.FC = () => {
                           </button>
                         </div>
                         <div className="px-3.5 py-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 font-mono font-semibold text-gray-900 dark:text-white">
-                          {selectedService.server_ip || '194.233.65.45'}
+                          {selectedService.server_ip || '103.119.237.132'}
                         </div>
                       </div>
 
@@ -1515,29 +1868,48 @@ export const CustomerPortalPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                  Alamat Email (Akun Utama)
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Alamat Email (Akun Utama)
+                  </label>
+                  {user?.email_verified ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 inline-flex items-center space-x-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Terverifikasi</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center space-x-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>Belum Terverifikasi</span>
+                    </span>
+                  )}
+                </div>
                 <input
                   type="email"
                   disabled
                   value={user?.email || ''}
                   className="w-full px-3.5 py-2.5 bg-gray-100 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-xl text-xs sm:text-sm text-gray-500 cursor-not-allowed"
                 />
-                <span className="text-[11px] text-gray-400 mt-1 block">Email akun terikat secara permanen dengan invoice dan sertifikat kepemilikan.</span>
+                <span className="text-[11px] text-gray-400 mt-1 block">
+                  Email akun terikat secara permanen dengan invoice dan sertifikat kepemilikan.
+                </span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                  Nomor WhatsApp
+                  Nomor WhatsApp (Wajib Aktif)
                 </label>
                 <input
                   type="tel"
+                  required
                   value={profilePhone}
                   onChange={(e) => setProfilePhone(e.target.value)}
-                  placeholder="081234567890"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="081234567890 atau +628123456789"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white font-mono"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Nomor WhatsApp digunakan untuk konfirmasi status pembayaran transfer/QRIS dan pemberitahuan darurat hosting.
+                </p>
               </div>
 
               <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
@@ -1664,7 +2036,7 @@ export const CustomerPortalPage: React.FC = () => {
                   </div>
 
                   <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
-                    Pastikan domain baru telah diarahkan ke Nameserver: <strong>ns1.serverphp.my.id</strong> dan <strong>ns2.serverphp.my.id</strong> atau A Record ke IP <strong>{selectedService.server_ip || '194.233.65.45'}</strong>.
+                    Pastikan domain baru telah diarahkan ke Nameserver: <strong>ns1.domainmurah.net</strong> dan <strong>ns2.domainmurah.net</strong> atau A Record ke IP <strong>{selectedService.server_ip || '103.119.237.132'}</strong>.
                   </div>
 
                   <div className="pt-2 flex space-x-3">

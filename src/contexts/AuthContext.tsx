@@ -6,12 +6,14 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isEmailVerified: boolean;
   isLoading: boolean;
   login: (credentials: { email: string; password: string }) => Promise<User>;
-  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; phone?: string }) => Promise<User>;
+  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; phone: string }) => Promise<{ user: User; message: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUser: (user: User) => void;
+  resendVerification: (email?: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,12 +60,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res.user;
   };
 
-  const register = async (payload: { name: string; email: string; password: string; confirmPassword?: string; phone?: string }): Promise<User> => {
+  const register = async (payload: { name: string; email: string; password: string; confirmPassword?: string; phone: string }): Promise<{ user: User; message: string }> => {
     const res = await api.auth.register(payload);
     setAuthSession(res.token, res.user);
     setToken(res.token);
     setUser(res.user);
-    return res.user;
+    return { user: res.user, message: res.message };
+  };
+
+  const resendVerification = async (email?: string) => {
+    return api.auth.resendVerification(email || user?.email);
   };
 
   const logout = () => {
@@ -82,12 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     token,
     isAuthenticated: !!user && !!token,
     isAdmin: user?.role === 'admin',
+    isEmailVerified: !!user?.email_verified,
     isLoading,
     login,
     register,
     logout,
     refreshUser,
-    updateUser
+    updateUser,
+    resendVerification
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

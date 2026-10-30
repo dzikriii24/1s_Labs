@@ -4,6 +4,8 @@ export interface User {
   name: string;
   phone?: string | null;
   role: 'customer' | 'admin';
+  email_verified: boolean;
+  status?: string;
   createdAt?: string;
   activeServicesCount?: number;
   pendingOrdersCount?: number;
@@ -35,6 +37,8 @@ export interface Order {
   order_number: string;
   user_id: number;
   plan_id: number;
+  domain?: string | null;
+  domain_type?: 'new' | 'existing';
   plan_name_snapshot: string;
   price_snapshot: string;
   period_snapshot: string;
@@ -125,6 +129,8 @@ export interface Invoice {
   plan_name: string;
   domain?: string | null;
   period: string;
+  billing_start_date?: string | null;
+  billing_end_date?: string | null;
   paid_at?: string | null;
   created_at: string;
   customer_name?: string;
@@ -261,6 +267,58 @@ export interface DatabaseBackup {
   created_at: string;
 }
 
+export interface AnalyticsSummary {
+  total_pageviews: number;
+  unique_visitors: number;
+  total_clicks: number;
+  click_rate: number;
+}
+
+export interface AnalyticsTopPage {
+  page_path: string;
+  page_title: string;
+  views: number;
+  visitors: number;
+}
+
+export interface AnalyticsTopClick {
+  element_text: string;
+  element_tag: string;
+  page_path: string;
+  count: number;
+}
+
+export interface AnalyticsEvent {
+  id: number;
+  event_type: 'pageview' | 'click';
+  page_path: string;
+  page_title: string;
+  element_text: string | null;
+  device: string;
+  browser: string;
+  created_at: string;
+}
+
+export interface AnalyticsTimelineItem {
+  date: string;
+  views: number;
+  visitors: number;
+  clicks: number;
+}
+
+export interface AnalyticsResponse {
+  success: boolean;
+  serviceCode: string;
+  domain: string;
+  range: string;
+  summary: AnalyticsSummary;
+  topPages: AnalyticsTopPage[];
+  topClicks: AnalyticsTopClick[];
+  devices: { device: string; count: number }[];
+  recentActivity: AnalyticsEvent[];
+  timeline: AnalyticsTimelineItem[];
+}
+
 const API_BASE = '/api';
 
 
@@ -338,8 +396,29 @@ export const api = {
         body: JSON.stringify(credentials)
       }),
 
-    register: (payload: { name: string; email: string; password: string; confirmPassword?: string; phone?: string }) =>
-      request<{ success: boolean; token: string; user: User }>('/auth/register', {
+    register: (payload: { name: string; email: string; password: string; confirmPassword?: string; phone: string }) =>
+      request<{ success: boolean; token: string; user: User; message: string }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    verifyEmail: (token: string) =>
+      request<{ success: boolean; message: string; user?: User }>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+
+    resendVerification: (email?: string) =>
+      request<{ success: boolean; message: string }>('/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      }),
+
+    forgotPassword: (email: string) =>
+      request<{ success: boolean; message: string }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      }),
+
+    resetPassword: (payload: { token: string; newPassword: string; confirmPassword?: string }) =>
+      request<{ success: boolean; message: string }>('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify(payload)
       }),
@@ -365,8 +444,14 @@ export const api = {
 
   // Orders
   orders: {
-    create: (payload: { plan_id: number; type?: 'new' | 'renewal'; related_service_id?: number; customer_notes?: string }) =>
-      request<{ success: boolean; order: { orderNumber: string; paymentNumber: string; amount: string; planName: string } }>('/orders', {
+    checkDomain: (domain: string) =>
+      request<{ success: boolean; available: boolean; domain: string; message: string }>('/orders/check-domain', {
+        method: 'POST',
+        body: JSON.stringify({ domain })
+      }),
+
+    create: (payload: { plan_id: number; domain: string; domain_type?: 'new' | 'existing'; type?: 'new' | 'renewal'; related_service_id?: number; customer_notes?: string }) =>
+      request<{ success: boolean; order: { orderNumber: string; paymentNumber: string; amount: string; planName: string; domain: string } }>('/orders', {
         method: 'POST',
         body: JSON.stringify(payload)
       }),
@@ -415,7 +500,10 @@ export const api = {
       request<{ success: boolean; message: string; domain: string }>(`/services/${serviceCode}/change-domain`, {
         method: 'POST',
         body: JSON.stringify(payload)
-      })
+      }),
+
+    getAnalytics: (serviceCode: string, range = '30d') =>
+      request<AnalyticsResponse>(`/analytics/service/${serviceCode}?range=${range}`)
   },
 
   // Hosting File Manager
@@ -460,6 +548,69 @@ export const api = {
       request<{ success: boolean; message: string; uploadedFiles: any[] }>(`/services/${serviceCode}/files/upload?path=${encodeURIComponent(path)}`, {
         method: 'POST',
         body: formData
+      }),
+
+    uploadWithProgress: (
+      serviceCode: string,
+      path: string,
+      formData: FormData,
+      onProgress?: (loaded: number, total: number) => void,
+      signal?: AbortSignal
+    ): Promise<{ success: boolean; message: string; uploadedFiles: any[] }> => {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const token = getAuthToken();
+        const url = `${API_BASE}/services/${serviceCode}/files/upload?path=${encodeURIComponent(path)}`;
+
+        xhr.open('POST', url, true);
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        if (onProgress && xhr.upload) {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              onProgress(event.loaded, event.total);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && json.success) {
+              resolve(json);
+            } else {
+              reject(new Error(json.message || `Upload gagal dengan status HTTP ${xhr.status}`));
+            }
+          } catch {
+            reject(new Error(`Respon server tidak valid (${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Koneksi terputus saat mengunggah. Periksa jaringan Anda.'));
+        };
+
+        xhr.ontimeout = () => {
+          reject(new Error('Waktu upload habis (timeout).'));
+        };
+
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            xhr.abort();
+            reject(new Error('Upload dibatalkan.'));
+          });
+        }
+
+        xhr.send(formData);
+      });
+    },
+
+    extract: (serviceCode: string, path: string) =>
+      request<{ success: boolean; message: string }>(`/services/${serviceCode}/files/extract`, {
+        method: 'POST',
+        body: JSON.stringify({ path })
       })
   },
 
@@ -607,7 +758,7 @@ export const api = {
       return request<{ success: boolean; payments: any[] }>(`/admin/payments${q ? `?${q}` : ''}`);
     },
 
-    verifyPayment: (paymentId: number, payload: { action: 'approve' | 'reject'; reason?: string }) =>
+    verifyPayment: (paymentId: number, payload: { action: 'approve' | 'reject'; reason?: string; admin_notes?: string }) =>
       request<{ success: boolean; message: string; result: any }>(`/admin/payments/${paymentId}/verify`, {
         method: 'POST',
         body: JSON.stringify(payload)

@@ -8,12 +8,20 @@ import {
   Archive,
   Upload,
   FolderPlus,
+  FolderUp,
+  UploadCloud,
   RefreshCw,
   Search,
   Trash2,
   Edit3,
   Download,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  XCircle,
+  Layers,
+  ArrowUpCircle,
   HardDrive,
   Loader2,
   AlertCircle,
@@ -60,9 +68,16 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
   const [editingFile, setEditingFile] = useState<{ path: string; name: string; content: string } | null>(null);
   const [isSavingContent, setIsSavingContent] = useState(false);
 
-  // Upload state
-  const [isUploading, setIsUploading] = useState(false);
+  // Upload Queue Engine state
+  const [uploadQueue, setUploadQueue] = useState<UploadTask[]>([]);
+  const [isQueueExpanded, setIsQueueExpanded] = useState(true);
+  const isProcessingRef = useRef(false);
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const skipFileRef = useRef(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = async (targetPath = currentPath) => {
     try {
@@ -85,19 +100,27 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
     loadFiles(currentPath);
   }, [serviceCode, currentPath]);
 
-  // Navigate folder
+  // Navigate folder (clears search query and immediately loads files)
   const handleNavigate = (folderName: string) => {
-    const nextPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
-    setCurrentPath(nextPath);
+    setSearchQuery('');
+    const cleanCurrent = currentPath === '/' ? '' : currentPath.replace(/\/+$/, '');
+    const cleanFolder = folderName.replace(/^\/+|\/+$/g, '');
+    const nextPath = cleanCurrent + '/' + cleanFolder;
+    const target = nextPath === '' ? '/' : nextPath;
+    setCurrentPath(target);
+    loadFiles(target);
   };
 
   const handleBreadcrumbClick = (index: number, parts: string[]) => {
+    setSearchQuery('');
     if (index === -1) {
       setCurrentPath('/');
+      loadFiles('/');
       return;
     }
     const path = '/' + parts.slice(0, index + 1).join('/');
     setCurrentPath(path);
+    loadFiles(path);
   };
 
   // Open file editor
@@ -240,28 +263,538 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
     }
   };
 
-  // Upload handler
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // --- Upload Queue Engine & Micro-Batching ---
+  interface UploadItem {
+    file: File;
+    relativePath: string;
+  }
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
+  interface UploadTask {
+    id: string;
+    title: string;
+    type: 'file' | 'folder';
+    targetPath: string;
+    items: UploadItem[];
+    totalFiles: number;
+    completedFiles: number;
+    totalBytes: number;
+    uploadedBytes: number;
+    percent: number;
+    status: 'queued' | 'uploading' | 'completed' | 'error' | 'cancelled';
+    errorMessage?: string;
+    currentFileName?: string;
+    currentFileBytes?: number;
+    currentFileLoaded?: number;
+    currentFilePercent?: number;
+    recentLogs: string[];
+    speedText?: string;
+    etaText?: string;
+    createdAt: number;
+  }
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  // Recursive reader for FileSystemEntry (WebKit Drag and Drop API)
+  const readEntryRecursively = async (entry: any, basePath = ''): Promise<UploadItem[]> => {
+    if (!entry) return [];
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        entry.file(
+          (file: File) => resolve([{ file, relativePath: basePath + file.name }]),
+          () => resolve([])
+        );
+      });
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      const allEntries: any[] = [];
+      const readBatch = (): Promise<any[]> => {
+        return new Promise((resolve) => {
+          dirReader.readEntries(
+            (entries: any[]) => {
+              if (!entries || entries.length === 0) {
+                resolve(allEntries);
+              } else {
+                allEntries.push(...entries);
+                readBatch().then(resolve);
+              }
+            },
+            () => resolve(allEntries)
+          );
+        });
+      };
+
+      const entries = await readBatch();
+      const results = await Promise.all(
+        entries.map((child: any) => readEntryRecursively(child, `${basePath}${entry.name}/`))
+      );
+      return results.flat();
+    }
+    return [];
+  };
+
+  const extractFilesFromDrop = async (e: React.DragEvent): Promise<UploadItem[]> => {
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) {
+      const files = Array.from(e.dataTransfer.files || []);
+      return files.map(file => ({ file, relativePath: file.name }));
     }
 
+    const promises: Promise<UploadItem[]>[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+        if (entry) {
+          promises.push(readEntryRecursively(entry));
+        } else {
+          const file = item.getAsFile();
+          if (file) {
+            promises.push(Promise.resolve([{ file, relativePath: file.name }]));
+          }
+        }
+      }
+    }
+
+    const results = await Promise.all(promises);
+    return results.flat();
+  };
+
+  // Conflict resolution state
+  interface ConflictModalState {
+    rawItems: UploadItem[];
+    customTitle?: string;
+    conflicts: string[];
+  }
+  const [conflictModal, setConflictModal] = useState<ConflictModalState | null>(null);
+
+  // Directly enqueues an upload task
+  const executeEnqueue = (cleanItems: UploadItem[], customTitle?: string) => {
+    if (cleanItems.length === 0) return;
+    const totalBytes = cleanItems.reduce((acc, it) => acc + (it.file.size || 0), 0);
+
+    let title = customTitle;
+    if (!title) {
+      if (cleanItems.length === 1) {
+        title = cleanItems[0].relativePath.split('/').pop() || cleanItems[0].relativePath;
+      } else {
+        const firstParts = cleanItems[0].relativePath.split('/');
+        if (firstParts.length > 1) {
+          title = `Folder: ${firstParts[0]} (${cleanItems.length} berkas)`;
+        } else {
+          title = `${cleanItems.length} berkas`;
+        }
+      }
+    }
+
+    const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const newTask: UploadTask = {
+      id: taskId,
+      title,
+      type: cleanItems.length > 1 || cleanItems[0].relativePath.includes('/') ? 'folder' : 'file',
+      targetPath: currentPath,
+      items: cleanItems,
+      totalFiles: cleanItems.length,
+      completedFiles: 0,
+      totalBytes,
+      uploadedBytes: 0,
+      percent: 0,
+      status: 'queued',
+      recentLogs: [],
+      createdAt: Date.now()
+    };
+
+    setUploadQueue(prev => [...prev, newTask]);
+    setIsQueueExpanded(true);
+  };
+
+  // Enqueue new upload task with conflict detection
+  const queueUpload = (rawItems: UploadItem[], customTitle?: string) => {
+    if (rawItems.length === 0) return;
+
+    // Filter out OS junk files
+    const cleanItems = rawItems.filter(item => {
+      const base = item.relativePath.split('/').pop() || '';
+      return !['.DS_Store', 'Thumbs.db', 'desktop.ini'].includes(base);
+    });
+    if (cleanItems.length === 0) return;
+
+    // Detect if any items already exist in current folder
+    const existingNames = new Set(items.map(it => it.name.toLowerCase()));
+    const conflictingNames: string[] = [];
+    for (const it of cleanItems) {
+      const topName = it.relativePath.split('/')[0];
+      if (existingNames.has(topName.toLowerCase()) && !conflictingNames.includes(topName)) {
+        conflictingNames.push(topName);
+      }
+    }
+
+    if (conflictingNames.length > 0) {
+      setConflictModal({
+        rawItems: cleanItems,
+        customTitle,
+        conflicts: conflictingNames
+      });
+      return;
+    }
+
+    executeEnqueue(cleanItems, customTitle);
+  };
+
+  // Upload Queue Worker Loop
+  useEffect(() => {
+    if (isProcessingRef.current) return;
+
+    const nextTask = uploadQueue.find(t => t.status === 'queued');
+    if (!nextTask) return;
+
+    processTask(nextTask.id);
+  }, [uploadQueue]);
+
+  // Micro-batch process execution with auto-retry and resume
+  const processTask = async (taskId: string) => {
+    const task = uploadQueue.find(t => t.id === taskId);
+    if (!task || task.status !== 'queued') return;
+
+    isProcessingRef.current = true;
+    const controller = new AbortController();
+    abortControllersRef.current.set(taskId, controller);
+
+    setUploadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading' } : t));
+
+    const items = task.items;
+    const BATCH_SIZE = 5; // upload in chunks of 5 files
+    const MAX_BATCH_BYTES = 5 * 1024 * 1024; // max 5MB per chunk
+
+    // Resume from where it left off if retrying
+    let completedFiles = task.completedFiles || 0;
+    let cumulativeBytes = task.uploadedBytes || 0;
+    let recentLogs: string[] = task.recentLogs || [];
+    const startTime = Date.now();
+
     try {
-      setIsUploading(true);
-      const res = await api.files.upload(serviceCode, currentPath, formData);
+      let i = completedFiles;
+      while (i < items.length) {
+        if (controller.signal.aborted) {
+          throw new Error('Dibatalkan');
+        }
+
+        const currentBatch: UploadItem[] = [];
+        let batchBytes = 0;
+
+        // If file is large (> 8MB), process it as a dedicated single-file chunk
+        if (items[i].file.size > 8 * 1024 * 1024) {
+          currentBatch.push(items[i]);
+          batchBytes += items[i].file.size;
+          i++;
+        } else {
+          while (
+            i < items.length &&
+            currentBatch.length < BATCH_SIZE &&
+            items[i].file.size <= 8 * 1024 * 1024 &&
+            (batchBytes === 0 || batchBytes + items[i].file.size < MAX_BATCH_BYTES)
+          ) {
+            currentBatch.push(items[i]);
+            batchBytes += items[i].file.size;
+            i++;
+          }
+        }
+
+        const currentDisplay = currentBatch.length === 1
+          ? currentBatch[0].relativePath
+          : `${currentBatch[0].relativePath.split('/').pop()} (+${currentBatch.length - 1} berkas)`;
+
+        setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+          ...t,
+          currentFileName: currentDisplay
+        } : t));
+
+        const formData = new FormData();
+        for (const it of currentBatch) {
+          formData.append('files', it.file);
+          formData.append('paths', it.relativePath);
+        }
+
+        // Auto-retry up to 3 times before failing
+        let attempt = 0;
+        let success = false;
+        let lastError: any = null;
+        let lastTimestamp = Date.now();
+        let lastLoaded = 0;
+        let instantSpeed = 0;
+
+        while (attempt < 3 && !success) {
+          if (controller.signal.aborted) {
+            if (skipFileRef.current) break;
+            throw new Error('Dibatalkan');
+          }
+          try {
+            attempt++;
+            await api.files.uploadWithProgress(
+              serviceCode,
+              task.targetPath,
+              formData,
+              (loaded, total) => {
+                const now = Date.now();
+                const deltaT = (now - lastTimestamp) / 1000;
+                if (deltaT >= 0.3) {
+                  const deltaB = loaded - lastLoaded;
+                  if (deltaB > 0) {
+                    instantSpeed = deltaB / deltaT;
+                  }
+                  lastTimestamp = now;
+                  lastLoaded = loaded;
+                }
+
+                const currentTotalBytes = cumulativeBytes + loaded;
+                const pct = Math.min(99, Math.round((currentTotalBytes / Math.max(1, task.totalBytes)) * 100));
+                const targetBatchBytes = total || batchBytes;
+                const filePct = Math.min(100, Math.round((loaded / Math.max(1, targetBatchBytes)) * 100));
+
+                let speedStr = instantSpeed > 0 ? formatBytes(instantSpeed) + '/s' : '';
+                let etaStr = '';
+                if (instantSpeed > 0 && targetBatchBytes > loaded) {
+                  const remainingSec = Math.round((targetBatchBytes - loaded) / instantSpeed);
+                  etaStr = remainingSec < 60 ? `~${remainingSec}s lagi` : `~${Math.ceil(remainingSec / 60)}m lagi`;
+                }
+
+                setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+                  ...t,
+                  uploadedBytes: currentTotalBytes,
+                  percent: pct,
+                  currentFileLoaded: loaded,
+                  currentFileBytes: targetBatchBytes,
+                  currentFilePercent: filePct,
+                  speedText: speedStr,
+                  etaText: etaStr
+                } : t));
+              },
+              controller.signal
+            );
+            success = true;
+          } catch (batchErr: any) {
+            if (skipFileRef.current) break;
+            lastError = batchErr;
+            if (controller.signal.aborted || batchErr.message === 'Upload dibatalkan.' || batchErr.message === 'Dibatalkan') {
+              throw batchErr;
+            }
+            if (attempt < 3) {
+              setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+                ...t,
+                speedText: `Mencoba ulang (${attempt}/3)...`
+              } : t));
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          }
+        }
+
+        if (skipFileRef.current) {
+          skipFileRef.current = false;
+          // Recreate fresh controller for remaining files
+          const nextCtrl = new AbortController();
+          abortControllersRef.current.set(taskId, nextCtrl);
+
+          cumulativeBytes += batchBytes;
+          completedFiles += currentBatch.length;
+          recentLogs = [`⚠ ${currentDisplay} (Dilewati)`, ...recentLogs].slice(0, 5);
+          continue;
+        }
+
+        if (!success) {
+          throw lastError || new Error('Gagal mengunggah batch berkas.');
+        }
+
+        cumulativeBytes += batchBytes;
+        completedFiles += currentBatch.length;
+
+        for (const it of currentBatch) {
+          recentLogs = [`✓ ${it.relativePath} (${formatBytes(it.file.size)})`, ...recentLogs].slice(0, 5);
+        }
+
+        const overallPercent = Math.min(100, Math.round((completedFiles / items.length) * 100));
+        setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+          ...t,
+          completedFiles,
+          uploadedBytes: cumulativeBytes,
+          percent: overallPercent,
+          recentLogs
+        } : t));
+
+        if (task.targetPath === currentPath) {
+          loadFiles(currentPath);
+        }
+      }
+
+      setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+        ...t,
+        status: 'completed',
+        percent: 100,
+        completedFiles: items.length,
+        uploadedBytes: task.totalBytes,
+        currentFileName: undefined,
+        currentFileBytes: undefined,
+        currentFileLoaded: undefined,
+        currentFilePercent: undefined,
+        speedText: undefined,
+        etaText: undefined
+      } : t));
+
+      loadFiles(currentPath);
+    } catch (err: any) {
+      const isCancelled = controller.signal.aborted || err.message === 'Dibatalkan' || err.message === 'Upload dibatalkan.';
+      setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+        ...t,
+        status: isCancelled ? 'cancelled' : 'error',
+        errorMessage: isCancelled ? 'Upload dibatalkan.' : (err.message || 'Gagal mengunggah.'),
+        completedFiles,
+        uploadedBytes: cumulativeBytes,
+        currentFileName: undefined,
+        currentFileBytes: undefined,
+        currentFileLoaded: undefined,
+        currentFilePercent: undefined
+      } : t));
+    } finally {
+      abortControllersRef.current.delete(taskId);
+      isProcessingRef.current = false;
+      setTimeout(() => {
+        setUploadQueue(prev => [...prev]);
+      }, 50);
+    }
+  };
+
+  const cancelTask = (taskId: string) => {
+    const ctrl = abortControllersRef.current.get(taskId);
+    if (ctrl) {
+      ctrl.abort();
+    }
+    setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+      ...t,
+      status: 'cancelled',
+      errorMessage: 'Dibatalkan oleh pengguna.'
+    } : t));
+  };
+
+  const skipCurrentFile = (taskId: string) => {
+    skipFileRef.current = true;
+    const ctrl = abortControllersRef.current.get(taskId);
+    if (ctrl) {
+      ctrl.abort();
+    }
+  };
+
+  const retryTask = (taskId: string) => {
+    setUploadQueue(prev => prev.map(t => t.id === taskId ? {
+      ...t,
+      status: 'queued',
+      errorMessage: undefined
+    } : t));
+  };
+
+  const clearCompletedTasks = () => {
+    setUploadQueue(prev => prev.filter(t => t.status === 'uploading' || t.status === 'queued'));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const uploadItems: UploadItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      uploadItems.push({ file: files[i], relativePath: files[i].name });
+    }
+    const title = files.length === 1 ? files[0].name : `${files.length} berkas`;
+    queueUpload(uploadItems, title);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const uploadItems: UploadItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const rel = (file as any).webkitRelativePath || file.name;
+      uploadItems.push({ file, relativePath: rel });
+    }
+    let folderName = 'Folder Proyek';
+    if (files[0] && (files[0] as any).webkitRelativePath) {
+      folderName = (files[0] as any).webkitRelativePath.split('/')[0] || folderName;
+    }
+    queueUpload(uploadItems, `Folder: ${folderName} (${uploadItems.length} berkas)`);
+    if (folderInputRef.current) folderInputRef.current.value = '';
+  };
+
+  // Drag & drop event handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => prev + 1);
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => {
+      const next = prev - 1;
+      if (next <= 0) {
+        setIsDraggingOver(false);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    setDragCounter(0);
+
+    const items = await extractFilesFromDrop(e);
+    if (items.length > 0) {
+      let title = '';
+      if (items.length === 1) {
+        title = items[0].relativePath.split('/').pop() || items[0].relativePath;
+      } else {
+        const firstParts = items[0].relativePath.split('/');
+        if (firstParts.length > 1) {
+          title = `Folder: ${firstParts[0]} (${items.length} berkas)`;
+        } else {
+          title = `${items.length} berkas`;
+        }
+      }
+      queueUpload(items, title);
+    }
+  };
+
+  // Extract archive (ZIP / TAR)
+  const handleExtractArchive = async (item: FileItem) => {
+    const targetPath = currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`;
+    if (!window.confirm(`Ekstrak berkas arsip '${item.name}' ke dalam folder saat ini?`)) {
+      return;
+    }
+    try {
+      setIsActionLoading(true);
+      const res = await api.files.extract(serviceCode, targetPath);
       if (res.success) {
         setActionMessage({ type: 'success', text: res.message });
         loadFiles();
       }
     } catch (err: any) {
-      setActionMessage({ type: 'error', text: err.message || 'Gagal mengunggah file.' });
+      setActionMessage({ type: 'error', text: err.message || 'Gagal mengekstrak berkas arsip.' });
     } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsActionLoading(false);
     }
   };
 
@@ -296,6 +829,13 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
   const filteredItems = items.filter(i =>
     i.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Active upload queue stats
+  const activeTask = uploadQueue.find(t => t.status === 'uploading');
+  const queuedCount = uploadQueue.filter(t => t.status === 'queued').length;
+  const completedCount = uploadQueue.filter(t => t.status === 'completed').length;
+  const isUploading = Boolean(activeTask || queuedCount > 0);
+  const totalQueueTasks = uploadQueue.length;
 
   return (
     <div className="space-y-6">
@@ -360,6 +900,15 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
             className="hidden"
           />
 
+          {/* Hidden Folder Input */}
+          <input
+            type="file"
+            ref={folderInputRef}
+            onChange={handleFolderUpload}
+            {...({ webkitdirectory: '', directory: '', multiple: true } as any)}
+            className="hidden"
+          />
+
           <button
             onClick={() => setNewFileOpen(true)}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
@@ -378,16 +927,45 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="px-3.5 py-2 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
+            className="px-3.5 py-2 bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
+            title="Unggah berkas tunggal atau banyak sekaligus (dapat ditumpuk/stack antrean)"
           >
-            {isUploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Upload className="w-3.5 h-3.5" />
-            )}
-            <span>{isUploading ? 'Mengunggah...' : 'Unggah File'}</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>Unggah File</span>
           </button>
+
+          <button
+            onClick={() => folderInputRef.current?.click()}
+            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
+            title="Unggah seluruh folder proyek beserta subdirektori (dapat ditumpuk/stack antrean)"
+          >
+            <FolderUp className="w-3.5 h-3.5" />
+            <span>Unggah Folder</span>
+          </button>
+
+          {totalQueueTasks > 0 && (
+            <button
+              onClick={() => setIsQueueExpanded(prev => !prev)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-xs ${
+                activeTask
+                  ? 'bg-blue-600 text-white shadow-blue-500/20'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+              title="Buka panel antrean upload"
+            >
+              <Layers className={`w-3.5 h-3.5 ${activeTask ? 'animate-pulse' : ''}`} />
+              <span>
+                {activeTask
+                  ? `Antrean: ${activeTask.percent}% (${completedCount}/${totalQueueTasks})`
+                  : `Antrean Selesai (${completedCount}/${totalQueueTasks})`}
+              </span>
+              {isQueueExpanded ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
 
           <button
             onClick={() => loadFiles(currentPath)}
@@ -399,6 +977,190 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
           </button>
         </div>
       </div>
+
+      {/* Quick Deploy Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/30 dark:via-gray-900 dark:to-indigo-950/20 border border-blue-200/80 dark:border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start space-x-3">
+          <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs flex-shrink-0 mt-0.5 sm:mt-0">
+            <UploadCloud className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>Deploy Cepat (Drag & Drop Folder & File)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-semibold">
+                Queue & Stack System
+              </span>
+            </h4>
+            <p className="text-gray-600 dark:text-gray-400 text-[11px] mt-0.5">
+              Anda dapat langsung menyeret (<em>drag & drop</em>) folder atau berkas tanpa menunggu upload sebelumnya selesai — sistem otomatis menyusun <strong>antrean (stack)</strong> secara berurutan dan real-time.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-[11px] font-semibold flex items-center space-x-1.5 transition-colors"
+          >
+            <Upload className="w-3 h-3 text-gray-500" />
+            <span>Pilih File</span>
+          </button>
+          <button
+            onClick={() => folderInputRef.current?.click()}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
+          >
+            <FolderUp className="w-3 h-3" />
+            <span>Pilih Folder</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Realtime Upload Progress Banner */}
+      {activeTask && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/5 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-gray-900 border border-blue-300/80 dark:border-blue-800/80 text-gray-900 dark:text-white space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs flex-shrink-0">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center space-x-2">
+                  <h5 className="font-bold text-xs truncate">{activeTask.title}</h5>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-600 text-white font-bold">
+                    {activeTask.percent}%
+                  </span>
+                  {activeTask.speedText && (
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium">
+                      ({activeTask.speedText})
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                  Tujuan: <code className="font-mono text-blue-600 dark:text-blue-400">{activeTask.targetPath}</code> •{' '}
+                  {activeTask.completedFiles} dari {activeTask.totalFiles} berkas ({formatBytes(activeTask.uploadedBytes)} / {formatBytes(activeTask.totalBytes)})
+                  {queuedCount > 0 && (
+                    <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">
+                      • +{queuedCount} antrean berikutnya
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <button
+                onClick={() => cancelTask(activeTask.id)}
+                className="px-2.5 py-1 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors font-semibold flex items-center space-x-1"
+                title="Batalkan proses upload saat ini"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                <span>Batalkan</span>
+              </button>
+              <button
+                onClick={() => setIsQueueExpanded(true)}
+                className="px-2.5 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors font-semibold flex items-center space-x-1"
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-600" />
+                <span>Rincian</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2 rounded-full transition-all duration-300 ease-out shadow-xs"
+              style={{ width: `${Math.max(2, activeTask.percent)}%` }}
+            />
+          </div>
+
+          {/* Live file status ticker & progress */}
+          <div className="space-y-1.5 pt-0.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center space-x-1.5 text-blue-700 dark:text-blue-300 font-mono text-[10px] truncate max-w-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping inline-block flex-shrink-0" />
+                <span className="truncate">
+                  {activeTask.currentFileName ? (
+                    <>
+                      <span className="text-gray-500 dark:text-gray-400">Sedang:</span>{' '}
+                      <strong className="text-blue-600 dark:text-blue-400">{activeTask.currentFileName}</strong>
+                      {activeTask.currentFileBytes ? (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded font-semibold text-[10px]">
+                          {formatBytes(activeTask.currentFileLoaded || 0)} / {formatBytes(activeTask.currentFileBytes)} ({activeTask.currentFilePercent || 0}%)
+                        </span>
+                      ) : null}
+                    </>
+                  ) : 'Menyiapkan berkas...'}
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2 text-[10px] font-mono">
+                {activeTask.etaText && (
+                  <span className="text-gray-500 dark:text-gray-400">
+                    ETA: {activeTask.etaText}
+                  </span>
+                )}
+                {activeTask.currentFileBytes && activeTask.currentFileBytes > 3 * 1024 * 1024 && (
+                  <button
+                    type="button"
+                    onClick={() => skipCurrentFile(activeTask.id)}
+                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/60 dark:hover:bg-amber-900 dark:text-amber-300 rounded transition-colors font-medium flex items-center space-x-1"
+                    title="Lewati berkas besar ini dan lanjutkan berkas lainnya dalam antrean"
+                  >
+                    <span>Lewati Berkas Ini</span>
+                  </button>
+                )}
+                {activeTask.recentLogs && activeTask.recentLogs.length > 0 && (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium truncate max-w-[220px]">
+                    {activeTask.recentLogs[0]}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Sub progress bar for current active file if > 1MB */}
+            {activeTask.currentFileBytes && activeTask.currentFileBytes > 1024 * 1024 && (
+              <div className="w-full bg-blue-100 dark:bg-blue-950/60 rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-1 rounded-full transition-all duration-150 ease-out"
+                  style={{ width: `${Math.max(2, activeTask.currentFilePercent || 0)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error Recovery Banner with Resume Button */}
+      {!activeTask && uploadQueue.some(t => t.status === 'error') && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-rose-600 text-white rounded-xl shadow-xs flex-shrink-0">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold">
+                Ada proses upload yang terhenti sebelum selesai.
+              </p>
+              <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
+                Koneksi sempat terputus pada berkas tertentu. Anda dapat langsung melanjutkan upload dari posisi berkas yang tersisa tanpa harus mulai dari awal.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {uploadQueue.filter(t => t.status === 'error').map(errTask => (
+              <button
+                key={errTask.id}
+                type="button"
+                onClick={() => retryTask(errTask.id)}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Lanjutkan Upload ({errTask.completedFiles}/{errTask.totalFiles})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Storage and Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
@@ -418,8 +1180,30 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
         </div>
       </div>
 
-      {/* File Explorer Table */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-xs">
+      {/* File Explorer Table with Drag & Drop Container */}
+      <div
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative bg-white dark:bg-gray-900 border rounded-3xl overflow-hidden shadow-xs transition-all ${
+          isDraggingOver
+            ? 'border-blue-500 ring-4 ring-blue-500/20'
+            : 'border-gray-200 dark:border-gray-800'
+        }`}
+      >
+        {/* Drag Overlay Backdrop */}
+        {isDraggingOver && (
+          <div className="absolute inset-0 z-30 bg-blue-600/10 dark:bg-blue-500/20 backdrop-blur-xs border-2 border-dashed border-blue-500 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-pulse pointer-events-none">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-3 shadow-lg">
+              <FolderUp className="w-8 h-8" />
+            </div>
+            <h4 className="text-base font-bold text-gray-900 dark:text-white">Lepaskan File atau Folder di Sini</h4>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 max-w-sm">
+              File atau seluruh folder proyek Anda akan otomatis diunggah dan mempertahankan struktur direktori secara instan.
+            </p>
+          </div>
+        )}
         {loading && items.length === 0 ? (
           <div className="py-16 text-center text-xs text-gray-500 space-y-2">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
@@ -467,21 +1251,55 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
                 {filteredItems.map((item) => (
                   <tr
                     key={item.name}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors group"
+                    onClick={() => {
+                      if (item.isDirectory) {
+                        handleNavigate(item.name);
+                      }
+                    }}
+                    onDoubleClick={() => {
+                      if (item.isDirectory) {
+                        handleNavigate(item.name);
+                      } else {
+                        handleOpenFile(item);
+                      }
+                    }}
+                    className={`transition-colors group ${
+                      item.isDirectory
+                        ? 'cursor-pointer hover:bg-blue-50/70 dark:hover:bg-blue-950/20'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                    }`}
                   >
                     <td className="py-3.5 px-5 font-sans">
                       <div className="flex items-center space-x-2.5">
-                        {getFileIcon(item)}
+                        <div
+                          className="flex-shrink-0 cursor-pointer"
+                          onClick={(e) => {
+                            if (item.isDirectory) {
+                              e.stopPropagation();
+                              handleNavigate(item.name);
+                            }
+                          }}
+                        >
+                          {getFileIcon(item)}
+                        </div>
                         {item.isDirectory ? (
                           <button
-                            onClick={() => handleNavigate(item.name)}
-                            className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 text-left transition-colors"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigate(item.name);
+                            }}
+                            className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 text-left transition-colors flex items-center space-x-1"
                           >
-                            {item.name}
+                            <span>{item.name}</span>
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleOpenFile(item)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenFile(item);
+                            }}
                             className="font-medium text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 text-left transition-colors"
                           >
                             {item.name}
@@ -496,10 +1314,41 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
                     </td>
                     <td className="py-3.5 px-5 text-right font-sans">
                       <div className="flex items-center justify-end space-x-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                        {!item.isDirectory && (
+                        {item.isDirectory ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigate(item.name);
+                            }}
+                            className="px-2.5 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors flex items-center space-x-1 text-xs font-semibold"
+                            title="Buka Folder Ini"
+                          >
+                            <span>Buka</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
                           <>
+                            {/* Extract archive button */}
+                            {['zip', 'tar', 'gz', 'tgz', 'rar'].includes(item.extension || '') && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExtractArchive(item);
+                                }}
+                                title="Ekstrak Berkas Arsip ke Direktori Ini"
+                                className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg transition-colors"
+                              >
+                                <Archive className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => handleOpenFile(item)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenFile(item);
+                              }}
                               title="Edit Kode/Teks"
                               className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                             >
@@ -509,6 +1358,7 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
                               href={`/api/services/${serviceCode}/files/download?path=${encodeURIComponent(
                                 currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`
                               )}`}
+                              onClick={(e) => e.stopPropagation()}
                               title="Unduh Berkas"
                               className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                             >
@@ -517,7 +1367,9 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
                           </>
                         )}
                         <button
-                          onClick={() => {
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setRenameTarget(item);
                             setRenameNewName(item.name);
                           }}
@@ -527,7 +1379,11 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => setDeleteTarget(item)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(item);
+                          }}
                           title="Hapus"
                           className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                         >
@@ -844,6 +1700,350 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
               >
                 {isActionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Hapus Sekarang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Upload Queue Manager Widget */}
+      {uploadQueue.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          {!isQueueExpanded ? (
+            /* Minimized Pill Widget */
+            <button
+              onClick={() => setIsQueueExpanded(true)}
+              className="flex items-center space-x-3 px-4 py-3 bg-neutral-900/95 dark:bg-gray-900/95 text-white rounded-2xl shadow-2xl border border-gray-800 dark:border-gray-700 backdrop-blur-md hover:scale-[1.02] transition-all cursor-pointer group"
+            >
+              <div className="relative">
+                {activeTask ? (
+                  <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                )}
+                {queuedCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                )}
+              </div>
+              <div className="text-left text-xs">
+                <p className="font-bold">
+                  {activeTask
+                    ? `Mengunggah (${activeTask.percent}%)`
+                    : `Upload Selesai (${completedCount}/${totalQueueTasks})`}
+                </p>
+                <p className="text-[10px] text-gray-400 font-mono">
+                  {activeTask
+                    ? `${activeTask.completedFiles}/${activeTask.totalFiles} berkas • ${activeTask.speedText || 'Aktif'}`
+                    : 'Semua berkas siap'}
+                </p>
+              </div>
+              <ChevronUp className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+            </button>
+          ) : (
+            /* Expanded Floating Drawer Widget */
+            <div className="w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200 flex flex-col">
+              {/* Header */}
+              <div className="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 bg-blue-600 text-white rounded-lg">
+                    <Layers className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                      Antrean Upload
+                    </h4>
+                    <span className="text-[10px] text-gray-500">
+                      {completedCount} dari {totalQueueTasks} tugas selesai
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                  {completedCount > 0 && (
+                    <button
+                      onClick={clearCompletedTasks}
+                      className="px-2 py-1 text-[10px] text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                      title="Bersihkan riwayat tugas yang sudah selesai"
+                    >
+                      Bersihkan
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsQueueExpanded(false)}
+                    className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Kecilkan jendela"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Task List */}
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 p-2 space-y-2">
+                {uploadQueue.map(task => {
+                  const isTaskActive = task.status === 'uploading';
+                  const isTaskQueued = task.status === 'queued';
+                  const isTaskDone = task.status === 'completed';
+                  const isTaskFailed = task.status === 'error' || task.status === 'cancelled';
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-3 rounded-2xl text-xs space-y-2 transition-colors ${
+                        isTaskActive
+                          ? 'bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60'
+                          : 'bg-gray-50/50 dark:bg-gray-800/40 border border-transparent'
+                      }`}
+                    >
+                      {/* Title & Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          {task.type === 'folder' ? (
+                            <FolderUp className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          ) : (
+                            <File className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-white truncate text-[11px]">
+                              {task.title}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-mono truncate">
+                              Ke: {task.targetPath}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          {isTaskActive && (
+                            <span className="text-[10px] font-bold font-mono text-blue-600 dark:text-blue-400">
+                              {task.percent}%
+                            </span>
+                          )}
+                          {isTaskQueued && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center space-x-0.5">
+                              <Clock className="w-3 h-3" />
+                              <span>Antrean</span>
+                            </span>
+                          )}
+                          {isTaskDone && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center space-x-0.5">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Selesai</span>
+                            </span>
+                          )}
+                          {isTaskFailed && (
+                            <div className="flex items-center space-x-1">
+                              <span className="text-[10px] text-rose-500 font-medium flex items-center space-x-0.5" title={task.errorMessage}>
+                                <XCircle className="w-3 h-3" />
+                                <span>{task.status === 'cancelled' ? 'Batal' : 'Gagal'}</span>
+                              </span>
+                              {task.status === 'error' && (
+                                <button
+                                  type="button"
+                                  onClick={() => retryTask(task.id)}
+                                  className="px-1.5 py-0.5 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 rounded transition-colors flex items-center space-x-0.5 font-semibold"
+                                  title="Lanjutkan / Coba Lagi Upload dari berkas yang tersisa"
+                                >
+                                  <RefreshCw className="w-2.5 h-2.5" />
+                                  <span>Coba Lagi</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {(isTaskActive || isTaskQueued) && (
+                            <button
+                              type="button"
+                              onClick={() => cancelTask(task.id)}
+                              className="p-1 text-gray-400 hover:text-rose-500 rounded transition-colors"
+                              title="Batalkan tugas ini"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      {(isTaskActive || isTaskDone || isTaskQueued || isTaskFailed) && (
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              isTaskDone
+                                ? 'bg-emerald-500'
+                                : isTaskFailed
+                                ? 'bg-rose-500'
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                            }`}
+                            style={{ width: `${isTaskDone ? 100 : Math.max(3, task.percent)}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Info & Micro Stats */}
+                      <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                        <span>
+                          {task.completedFiles}/{task.totalFiles} berkas ({formatBytes(task.uploadedBytes)} / {formatBytes(task.totalBytes)})
+                        </span>
+                        {task.speedText && isTaskActive && (
+                          <span className="text-blue-600 dark:text-blue-400 font-bold">
+                            {task.speedText}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Error Message notice if failed */}
+                      {isTaskFailed && task.errorMessage && (
+                        <p className="text-[10px] text-rose-500 font-mono truncate bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md">
+                          Error: {task.errorMessage}
+                        </p>
+                      )}
+
+                      {/* Live Ticker Current File */}
+                      {isTaskActive && task.currentFileName && (
+                        <div className="p-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-mono">
+                            <span className="text-blue-700 dark:text-blue-300 font-medium truncate max-w-[190px]" title={task.currentFileName}>
+                              {task.currentFileName}
+                            </span>
+                            {task.currentFileBytes ? (
+                              <span className="text-blue-600 dark:text-blue-400 font-bold flex-shrink-0">
+                                {task.currentFilePercent || 0}%
+                              </span>
+                            ) : null}
+                          </div>
+                          {task.currentFileBytes && task.currentFileBytes > 1024 * 1024 && (
+                            <div className="w-full bg-blue-200/60 dark:bg-blue-900/60 rounded-full h-1 overflow-hidden">
+                              <div
+                                className="bg-blue-600 dark:bg-blue-400 h-1 rounded-full transition-all duration-150"
+                                style={{ width: `${Math.max(2, task.currentFilePercent || 0)}%` }}
+                              />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-[9px] text-gray-500 font-mono">
+                            <span>
+                              {task.currentFileBytes
+                                ? `${formatBytes(task.currentFileLoaded || 0)} / ${formatBytes(task.currentFileBytes)}`
+                                : 'Mengirim...'}
+                            </span>
+                            <div className="flex items-center space-x-1.5">
+                              {task.etaText && <span>ETA {task.etaText}</span>}
+                              {task.currentFileBytes && task.currentFileBytes > 3 * 1024 * 1024 && (
+                                <button
+                                  type="button"
+                                  onClick={() => skipCurrentFile(task.id)}
+                                  className="text-amber-600 hover:text-amber-700 font-medium underline"
+                                  title="Lewati berkas besar ini"
+                                >
+                                  Lewati
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent Success Logs */}
+                      {task.recentLogs && task.recentLogs.length > 0 && (
+                        <div className="space-y-0.5 pt-0.5">
+                          {task.recentLogs.slice(0, 2).map((log, logIdx) => (
+                            <p key={logIdx} className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono truncate">
+                              {log}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Quick Help */}
+              <div className="p-2.5 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-500 flex items-center justify-between">
+                <span>Dapat drag & drop berkas/folder baru kapan saja.</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Auto Chunk 5-File</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL: Conflict Resolution (Replace All / Skip Existing / Cancel) */}
+      {conflictModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center space-x-3 text-amber-500">
+              <div className="p-2.5 bg-amber-500/10 rounded-2xl">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  File atau Folder Sudah Ada
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Konfirmasi penimpaan berkas di direktori saat ini
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs space-y-2">
+              <p className="text-gray-600 dark:text-gray-300">
+                Terdapat <strong>{conflictModal.conflicts.length}</strong> file atau folder dengan nama yang sama di folder{' '}
+                <code className="font-mono text-gray-900 dark:text-white font-semibold">{currentPath}</code>:
+              </p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-1">
+                {conflictModal.conflicts.map((name, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-mono bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">
+                Pilih apakah Anda ingin menimpa berkas lama (<em>Replace All</em>), hanya mengunggah berkas baru yang belum ada, atau membatalkan upload.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConflictModal(null)}
+                className="w-full sm:w-auto px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold transition-colors"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const conflictSet = new Set(conflictModal.conflicts.map(c => c.toLowerCase()));
+                  const filtered = conflictModal.rawItems.filter(it => !conflictSet.has(it.relativePath.split('/')[0].toLowerCase()));
+                  const customTitle = conflictModal.customTitle;
+                  setConflictModal(null);
+                  if (filtered.length > 0) {
+                    executeEnqueue(filtered, customTitle);
+                  } else {
+                    setActionMessage({ type: 'success', text: 'Semua berkas dilewati karena sudah ada di direktori.' });
+                  }
+                }}
+                className="w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl text-xs font-semibold transition-colors"
+              >
+                Lewati yang Ada
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const itemsToUpload = conflictModal.rawItems;
+                  const customTitle = conflictModal.customTitle;
+                  setConflictModal(null);
+                  executeEnqueue(itemsToUpload, customTitle);
+                }}
+                className="w-full sm:w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
+              >
+                Timpa Semua (Replace All)
               </button>
             </div>
           </div>

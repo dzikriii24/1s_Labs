@@ -10,10 +10,10 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-HOSTNAME = "194.233.65.45"
+HOSTNAME = "103.119.237.132"
 USERNAME = "u1zh8984"
-KEY_PATH = r"C:\Users\dzikri\.ssh\id_rsa"
-PASSPHRASE = "Rabbani2401*"
+KEY_PATH = r"C:\Users\dzikri\.ssh\id_ed25519"
+PASSPHRASE = None
 
 REMOTE_BACKEND = "/home/u1zh8984/oneslabs-backend"
 LOCAL_BACKEND = r"c:\Users\dzikri\Downloads\1sLabs-website\backend"
@@ -26,7 +26,7 @@ def main():
     print("   1sLabs Full System Deployment (Frontend & Backend)")
     print("==================================================")
 
-    pkey = paramiko.RSAKey.from_private_key_file(KEY_PATH, password=PASSPHRASE)
+    pkey = paramiko.Ed25519Key.from_private_key_file(KEY_PATH)
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(hostname=HOSTNAME, port=22, username=USERNAME, pkey=pkey, timeout=20)

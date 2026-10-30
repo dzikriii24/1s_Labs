@@ -52,30 +52,15 @@ async function verifyServiceAccess(req, res, next) {
   }
 }
 
-// Multer storage for uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      const relPath = req.query.path || req.body.path || '';
-      const dest = resolveSafePath(req.params.serviceCode, relPath, req.service?.domain);
-      if (!fs.existsSync(dest) || !fs.statSync(dest).isDirectory()) {
-        return cb(new Error('Direktori tujuan upload tidak ditemukan.'));
-      }
-      cb(null, dest);
-    } catch (err) {
-      cb(err);
-    }
-  },
-  filename: (req, file, cb) => {
-    // Sanitize filename to prevent directory traversal
-    const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, safeName);
-  }
-});
+const os = require('os');
+const uploadTempDir = path.join(os.tmpdir(), '1slabs-uploads');
+if (!fs.existsSync(uploadTempDir)) {
+  try { fs.mkdirSync(uploadTempDir, { recursive: true }); } catch (_) {}
+}
 
 const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB per file
+  dest: uploadTempDir,
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB per file
 });
 
 // Helper to format bytes
@@ -388,12 +373,61 @@ router.post('/delete', requireAuth, verifyServiceAccess, async (req, res) => {
   }
 });
 
-// 7. POST /upload - Upload file(s)
-router.post('/upload', requireAuth, verifyServiceAccess, upload.array('files', 10), async (req, res) => {
+// 7. POST /upload - Upload file(s) and/or complete folder trees
+router.post('/upload', requireAuth, verifyServiceAccess, upload.array('files', 500), async (req, res) => {
   try {
     const files = req.files || [];
     if (files.length === 0) {
       return res.status(400).json({ success: false, message: 'Tidak ada file yang diunggah.' });
+    }
+
+    const { serviceCode } = req.params;
+    const basePath = req.query.path || req.body.path || '';
+    const rawPaths = req.body.paths;
+    const relativePaths = Array.isArray(rawPaths)
+      ? rawPaths
+      : (rawPaths ? [rawPaths] : []);
+
+    const savedFiles = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // If folder upload or drag-and-drop, relative path is preserved (e.g. "api/db.php", "css/style.css")
+      const rawRel = relativePaths[i] || file.originalname;
+      const normalizedRel = rawRel.replace(/\\/g, '/').replace(/^\/+/, '');
+
+      // Resolve safe path inside customer document root
+      const targetSubPath = path.join(basePath, normalizedRel);
+      const safeDest = resolveSafePath(serviceCode, targetSubPath, req.service?.domain);
+
+      // Auto-create any intermediate directories
+      const parentDir = path.dirname(safeDest);
+      if (fs.existsSync(parentDir) && !fs.statSync(parentDir).isDirectory()) {
+        try { fs.unlinkSync(parentDir); } catch (_) {}
+      }
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true, mode: 0o755 });
+      }
+
+      // If safeDest already exists as a directory, remove it so file can overwrite
+      if (fs.existsSync(safeDest) && fs.statSync(safeDest).isDirectory()) {
+        try { fs.rmSync(safeDest, { recursive: true, force: true }); } catch (_) {}
+      }
+
+      // Copy from temp storage to target destination (clean overwrite)
+      fs.copyFileSync(file.path, safeDest);
+      try { fs.chmodSync(safeDest, 0o644); } catch (_) {}
+
+      // Delete temp file
+      try {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      } catch (_) {}
+
+      savedFiles.push({
+        name: path.basename(safeDest),
+        path: normalizedRel,
+        size: file.size
+      });
     }
 
     // Audit log
@@ -403,20 +437,100 @@ router.post('/upload', requireAuth, verifyServiceAccess, upload.array('files', 1
       [
         req.service.id,
         req.user.id,
-        req.query.path || '/',
+        basePath || '/',
         req.ip || '127.0.0.1',
-        JSON.stringify({ count: files.length, names: files.map(f => f.filename) })
+        JSON.stringify({ count: savedFiles.length, names: savedFiles.slice(0, 10).map(f => f.path) })
       ]
     );
 
     return res.json({
       success: true,
-      message: `${files.length} file berhasil diunggah.`,
-      uploadedFiles: files.map(f => ({ name: f.filename, size: f.size }))
+      message: `${savedFiles.length} file berhasil diunggah dan ditempatkan ke direktori server.`,
+      uploadedFiles: savedFiles
     });
   } catch (error) {
+    if (req.files) {
+      for (const f of req.files) {
+        try { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch (_) {}
+      }
+    }
     console.error('Upload error:', error);
     return res.status(400).json({ success: false, message: error.message || 'Gagal mengunggah file.' });
+  }
+});
+
+// 7b. POST /extract - Extract zip or tar archive into current directory
+router.post('/extract', requireAuth, verifyServiceAccess, async (req, res) => {
+  try {
+    const { serviceCode } = req.params;
+    const { path: relFilePath } = req.body;
+
+    if (!relFilePath) {
+      return res.status(400).json({ success: false, message: 'Parameter path arsip wajib diisi.' });
+    }
+
+    const safeArchivePath = resolveSafePath(serviceCode, relFilePath, req.service?.domain);
+    if (!fs.existsSync(safeArchivePath) || fs.statSync(safeArchivePath).isDirectory()) {
+      return res.status(404).json({ success: false, message: 'File arsip tidak ditemukan.' });
+    }
+
+    const targetDir = path.dirname(safeArchivePath);
+    const ext = path.extname(safeArchivePath).toLowerCase();
+
+    if (ext === '.zip') {
+      const { execFile, exec } = require('child_process');
+      const hasUnzip = fs.existsSync('/usr/bin/unzip');
+
+      if (hasUnzip) {
+        await new Promise((resolve, reject) => {
+          execFile('/usr/bin/unzip', ['-o', safeArchivePath, '-d', targetDir], { timeout: 60000 }, (err, stdout, stderr) => {
+            if (err) {
+              console.error('Unzip error:', stderr || err.message);
+              return reject(new Error('Gagal mengekstrak file ZIP. Pastikan file tidak korup.'));
+            }
+            resolve(stdout);
+          });
+        });
+      } else {
+        // Fallback for Windows environment
+        await new Promise((resolve, reject) => {
+          exec(`powershell -command "Expand-Archive -Force -Path '${safeArchivePath}' -DestinationPath '${targetDir}'"`, { timeout: 60000 }, (err, stdout, stderr) => {
+            if (err) {
+              return reject(new Error('Gagal mengekstrak file ZIP di server.'));
+            }
+            resolve(stdout);
+          });
+        });
+      }
+    } else if (ext === '.tar' || ext === '.gz' || ext === '.tgz') {
+      const { execFile } = require('child_process');
+      await new Promise((resolve, reject) => {
+        execFile('/usr/bin/tar', ['-xf', safeArchivePath, '-C', targetDir], { timeout: 60000 }, (err, stdout, stderr) => {
+          if (err) {
+            console.error('Tar error:', stderr || err.message);
+            return reject(new Error('Gagal mengekstrak arsip TAR.'));
+          }
+          resolve(stdout);
+        });
+      });
+    } else {
+      return res.status(400).json({ success: false, message: 'Format arsip tidak didukung. Harap gunakan file .zip atau .tar.gz' });
+    }
+
+    // Audit log
+    await query(
+      `INSERT INTO hosting_audit_logs (service_id, user_id, action, target_resource, ip_address, details)
+       VALUES (?, ?, 'file_extract', ?, ?, ?)`,
+      [req.service.id, req.user.id, relFilePath, req.ip || '127.0.0.1', JSON.stringify({ file: path.basename(safeArchivePath) })]
+    );
+
+    return res.json({
+      success: true,
+      message: `File arsip '${path.basename(safeArchivePath)}' berhasil diekstrak ke direktori ini.`
+    });
+  } catch (error) {
+    console.error('Extract error:', error);
+    return res.status(400).json({ success: false, message: error.message || 'Gagal mengekstrak file arsip.' });
   }
 });
 

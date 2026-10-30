@@ -22,7 +22,10 @@ async function requireAuth(req, res, next) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const users = await query('SELECT id, email, name, phone, role, created_at FROM users WHERE id = ?', [decoded.id]);
+    const users = await query(
+      'SELECT id, email, name, phone, role, email_verified, status, created_at FROM users WHERE id = ?',
+      [decoded.id]
+    );
     
     if (!users || users.length === 0) {
       return res.status(401).json({
@@ -31,7 +34,16 @@ async function requireAuth(req, res, next) {
       });
     }
 
-    req.user = users[0];
+    const user = users[0];
+    if (user.status === 'suspended' || user.status === 'disabled') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Akun Anda sedang ditangguhkan atau dinonaktifkan oleh administrator. Silakan hubungi support 1sLabs.'
+      });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -53,7 +65,10 @@ async function optionalAuth(req, res, next) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET);
-      const users = await query('SELECT id, email, name, phone, role FROM users WHERE id = ?', [decoded.id]);
+      const users = await query(
+        'SELECT id, email, name, phone, role, email_verified, status FROM users WHERE id = ?',
+        [decoded.id]
+      );
       if (users && users.length > 0) {
         req.user = users[0];
       }
@@ -74,9 +89,40 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+/**
+ * Enforces email verification requirement on protected actions
+ * Customers with unverified emails can view their profile or resend verification,
+ * but CANNOT place orders, submit payment proofs, or access hosting management.
+ */
+function requireVerifiedEmail(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Otentikasi diperlukan.'
+    });
+  }
+
+  // Admins always bypass email verification restriction
+  if (req.user.role === 'admin') {
+    return next();
+  }
+
+  if (!req.user.email_verified) {
+    return res.status(403).json({
+      success: false,
+      code: 'EMAIL_NOT_VERIFIED',
+      message: 'Alamat email Anda belum diverifikasi. Harap verifikasi email Anda sebelum melakukan pemesanan atau mengelola hosting.',
+      email: req.user.email
+    });
+  }
+
+  next();
+}
+
 module.exports = {
   requireAuth,
   optionalAuth,
   requireAdmin,
+  requireVerifiedEmail,
   JWT_SECRET
 };

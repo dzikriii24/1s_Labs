@@ -163,7 +163,7 @@ export const SetupDomainPage: React.FC = () => {
                 <Info className="w-5 h-5 flex-shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
                   <span className="font-semibold block mb-0.5">Pemberitahuan Konfigurasi Server:</span>
-                  Input domain ini berfungsi untuk mengalokasikan virtual host, folder direktori web, dan database pada server 1sLabs. Jika Anda menggunakan domain yang dibeli di registrar lain, arahkan Nameserver ke <strong>{service?.nameservers || 'ns1.serverphp.my.id, ns2.serverphp.my.id'}</strong> atau A Record ke IP <strong>{service?.server_ip || '194.233.65.45'}</strong>.
+                  Input domain ini berfungsi untuk mengalokasikan virtual host, folder direktori web, dan database pada server 1sLabs. Jika Anda menggunakan domain yang dibeli di registrar lain, arahkan Nameserver ke <strong>{service?.nameservers || 'ns1.domainmurah.net, ns2.domainmurah.net'}</strong> atau A Record ke IP <strong>{service?.server_ip || '103.119.237.132'}</strong>.
                 </div>
               </div>
 

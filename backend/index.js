@@ -12,6 +12,7 @@ const paymentsRoutes = require('./src/routes/payments.routes');
 const servicesRoutes = require('./src/routes/services.routes');
 const invoicesRoutes = require('./src/routes/invoices.routes');
 const adminRoutes = require('./src/routes/admin.routes');
+const analyticsRoutes = require('./src/routes/analytics.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: '*'
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -36,6 +37,12 @@ if (!fs.existsSync(proofsDir)) {
 // Serve uploaded proof images
 app.use('/uploads', express.static(uploadsDir));
 app.use('/api/uploads', express.static(uploadsDir));
+
+// Direct tracker.js script endpoint
+app.get('/tracker.js', (req, res, next) => {
+  req.url = '/tracker.js';
+  analyticsRoutes(req, res, next);
+});
 
 // API Router
 const apiRouter = express.Router();
@@ -70,6 +77,7 @@ apiRouter.use('/payments', paymentsRoutes);
 apiRouter.use('/services', servicesRoutes);
 apiRouter.use('/invoices', invoicesRoutes);
 apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/analytics', analyticsRoutes);
 
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);

@@ -7,9 +7,9 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-HOSTNAME = "194.233.65.45"
+HOSTNAME = "103.119.237.132"
 USERNAME = "u1zh8984"
-KEY_PATH = r"C:\Users\dzikri\.ssh\id_rsa"
+KEY_PATH = r"C:\Users\dzikri\.ssh\id_ed25519"
 PASSPHRASE = "Rabbani2401*"
 REMOTE_BASE = "public_html/1slabs.my.id"
 LOCAL_DIST = r"c:\Users\dzikri\Downloads\1sLabs-website\dist"

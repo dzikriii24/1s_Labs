@@ -159,25 +159,45 @@ export const InvoicePage: React.FC = () => {
             </p>
             <p className="text-gray-600 dark:text-gray-300 mt-0.5">{invoice.customer_email}</p>
             {invoice.customer_phone && (
-              <p className="text-gray-600 dark:text-gray-300 mt-0.5">WhatsApp: {invoice.customer_phone}</p>
+              <p className="text-gray-600 dark:text-gray-300 mt-0.5 flex items-center space-x-1.5">
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">WhatsApp:</span>
+                <span className="font-mono">{invoice.customer_phone}</span>
+              </p>
             )}
+            <p className="text-gray-400 text-[11px] mt-1 font-mono">
+              Status Akun: Terverifikasi Email & WhatsApp
+            </p>
           </div>
 
           <div className="sm:text-right space-y-1.5">
             <div>
               <span className="text-gray-400">Tanggal Terbit: </span>
-              <span className="font-semibold">{invoice.created_at ? invoice.created_at.slice(0, 10) : '-'}</span>
+              <span className="font-semibold">{invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</span>
             </div>
             <div>
               <span className="text-gray-400">Tanggal Pembayaran: </span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                {invoice.paid_at ? invoice.paid_at.slice(0, 10) : (invoice.created_at ? invoice.created_at.slice(0, 10) : '-')}
+                {invoice.verified_at
+                  ? new Date(invoice.verified_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : (invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-')}
               </span>
             </div>
             <div>
               <span className="text-gray-400">Metode Verifikasi: </span>
-              <span className="font-semibold">QRIS Resmi 1sLabs (Verifikasi Sistem)</span>
+              <span className="font-semibold">
+                {invoice.payment_method ? invoice.payment_method.toUpperCase() : 'TRANSFER / QRIS'} (Verifikasi Manual Admin)
+              </span>
             </div>
+            {invoice.billing_start_date && invoice.billing_end_date && (
+              <div className="pt-1 text-emerald-700 dark:text-emerald-300">
+                <span className="text-gray-400">Masa Aktif Layanan: </span>
+                <span className="font-semibold">
+                  {new Date(invoice.billing_start_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' — '}
+                  {new Date(invoice.billing_end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -189,6 +209,8 @@ export const InvoicePage: React.FC = () => {
           const ppn = Math.round(dpp * 0.11);
           const totalPaid = dpp + ppn;
 
+          const activeDomain = invoice.domain || (invoice as any).order_domain || invoice.current_service_domain || 'Belum terhubung';
+
           return (
             <>
               <div className="py-8">
@@ -196,7 +218,7 @@ export const InvoicePage: React.FC = () => {
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-400 uppercase tracking-wider">
                       <th className="pb-3 font-semibold">Deskripsi Layanan</th>
-                      <th className="pb-3 font-semibold">Periode</th>
+                      <th className="pb-3 font-semibold">Periode Langganan</th>
                       <th className="pb-3 font-semibold text-right">Harga (Sebelum PPN)</th>
                     </tr>
                   </thead>
@@ -204,16 +226,30 @@ export const InvoicePage: React.FC = () => {
                     <tr>
                       <td className="py-4">
                         <p className="font-bold text-gray-900 dark:text-white text-sm">
-                          {invoice.plan_name}
+                          Paket Web Hosting — {invoice.plan_name}
                         </p>
-                        <p className="text-gray-500 mt-0.5">
-                          Domain Terkait: <span className="font-mono text-gray-800 dark:text-gray-200 font-semibold">{invoice.domain || invoice.current_service_domain || 'Dikonfigurasi via portal'}</span>
-                        </p>
-                        <p className="text-gray-400 text-[11px] mt-0.5">
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-gray-500">Domain Resmi:</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-semibold bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 text-[11px]">
+                            {activeDomain}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-[11px] mt-1">
                           Spesifikasi: NVMe High-Speed Storage, Auto-SSL Let's Encrypt, phpMyAdmin & Portal Mandiri 1sLabs
                         </p>
                       </td>
-                      <td className="py-4 text-gray-600 dark:text-gray-300">{invoice.period || '/ tahun (12 Bulan)'}</td>
+                      <td className="py-4 text-gray-600 dark:text-gray-300">
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white block">
+                            {invoice.period || '1 Tahun (12 Bulan)'}
+                          </span>
+                          {invoice.billing_start_date && invoice.billing_end_date && (
+                            <span className="text-[11px] text-gray-400 block mt-0.5 font-mono">
+                              {invoice.billing_start_date.slice(0, 10)} s/d {invoice.billing_end_date.slice(0, 10)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-4 font-bold text-right text-sm text-gray-900 dark:text-white">
                         {formatPrice(dpp)}
                       </td>
@@ -276,7 +312,7 @@ export const InvoicePage: React.FC = () => {
         <div className="pt-8 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-400 gap-4">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <span>Dokumen ini merupakan bukti pembayaran elektronik resmi yang sah dari 1sLabs (PT 1sLabs Solusi Digital).</span>
+            <span>Dokumen ini merupakan bukti pembayaran elektronik resmi yang sah dari 1sLabs</span>
           </div>
 
           <div className="font-mono text-gray-500 text-right">
