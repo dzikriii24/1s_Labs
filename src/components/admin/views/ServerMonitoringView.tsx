@@ -27,8 +27,9 @@ export const ServerMonitoringView: React.FC<ServerMonitoringViewProps> = ({ onNa
     setLoading(true);
     try {
       const res = await api.admin.getServerMonitoring();
-      if (res.success && res.data) {
-        setData(res.data);
+      if (res.success) {
+        const payload = (res as any).data || res;
+        setData(payload);
       }
     } catch (err) {
       console.error('Failed to load server metrics', err);

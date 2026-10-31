@@ -148,7 +148,7 @@ export const EmailTemplateEditorView: React.FC = () => {
     .replace(/\{\{domain_name\}\}/g, 'kimholidaytravel.id')
     .replace(/\{\{service_code\}\}/g, 'SRV-202610-KH01')
     .replace(/\{\{server_ip\}\}/g, '103.119.237.132')
-    .replace(/\{\{nameservers\}\}/g, 'ns1.1slabs.my.id, ns2.1slabs.my.id')
+    .replace(/\{\{nameservers\}\}/g, 'ns1.domainmurah.net, ns2.domainmurah.net')
     .replace(/\{\{hosting_expiration\}\}/g, '30 Oktober 2027')
     .replace(/\{\{days_remaining\}\}/g, '365')
     .replace(/\{\{admin_url\}\}/g, 'https://1slabs.my.id/admin')

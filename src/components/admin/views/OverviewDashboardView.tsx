@@ -49,8 +49,9 @@ export const OverviewDashboardView: React.FC<OverviewDashboardViewProps> = ({
       if (statsRes.success && statsRes.stats) {
         setStats(statsRes.stats);
       }
-      if (monRes.success && monRes.data) {
-        setMonitoring(monRes.data);
+      if (monRes.success) {
+        const mData = (monRes as any).data || monRes;
+        setMonitoring(mData);
       }
     } catch (err) {
       console.error('Failed to load overview data', err);

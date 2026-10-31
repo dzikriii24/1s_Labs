@@ -1,13 +1,18 @@
 const { execFile } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 const UAPI_PATH = '/usr/bin/uapi';
 const HAS_UAPI = fs.existsSync(UAPI_PATH);
 
+const CLOUDLINUX_SELECTOR_PATH = fs.existsSync('/usr/sbin/cloudlinux-selector')
+  ? '/usr/sbin/cloudlinux-selector'
+  : 'cloudlinux-selector';
+
 /**
  * Execute a cPanel UAPI command securely via execFile (no shell interpolation).
- * @param {string} module cPanel module name (e.g., 'Mysql', 'Ftp', 'Quota')
- * @param {string} func cPanel function name (e.g., 'list_databases', 'add_ftp')
+ * @param {string} module cPanel module name (e.g., 'Mysql', 'Ftp', 'Quota', 'SubDomain', 'AddonDomain')
+ * @param {string} func cPanel function name (e.g., 'list_databases', 'add_ftp', 'addsubdomain')
  * @param {Object} args Key-value argument map
  * @returns {Promise<any>}
  */
@@ -30,7 +35,7 @@ function execUapi(module, func, args = {}) {
       }
     }
 
-    execFile(UAPI_PATH, commandArgs, { timeout: 25000 }, (error, stdout, stderr) => {
+    execFile(UAPI_PATH, commandArgs, { timeout: 35000 }, (error, stdout, stderr) => {
       // Note: cPanel often prints warning about adminbin on stderr even on success, so we rely on stdout JSON
       if (error && !stdout) {
         console.error(`[cPanel UAPI Error] ${module}::${func}:`, error.message);
@@ -50,6 +55,35 @@ function execUapi(module, func, args = {}) {
       } catch (parseError) {
         console.error('[cPanel UAPI Parse Error] Raw stdout:', stdout);
         return reject(new Error('Gagal memproses respon data dari cPanel UAPI.'));
+      }
+    });
+  });
+}
+
+/**
+ * Execute CloudLinux Selector CLI command securely via execFile.
+ * @param {Array<string>} args
+ * @returns {Promise<any>}
+ */
+function execSelector(args = []) {
+  return new Promise((resolve, reject) => {
+    execFile(CLOUDLINUX_SELECTOR_PATH, args, { timeout: 45000 }, (error, stdout, stderr) => {
+      if (error && !stdout) {
+        console.error('[CloudLinux Selector Error]:', error.message);
+        return reject(new Error(error.message || 'Eksekusi CloudLinux Selector gagal.'));
+      }
+
+      try {
+        const parsed = JSON.parse(stdout);
+        if (parsed.result && typeof parsed.result === 'string' && parsed.result.startsWith('ERROR')) {
+          return reject(new Error(parsed.result));
+        }
+        return resolve(parsed);
+      } catch (parseErr) {
+        if (stdout && stdout.trim()) {
+          return resolve({ raw: stdout.trim() });
+        }
+        return reject(new Error(stderr || 'Respon kosong dari CloudLinux Selector.'));
       }
     });
   });
@@ -140,7 +174,7 @@ const quotaService = {
   }
 };
 
-// === DOMAIN & VIRTUAL HOST OPERATIONS (cPanel Jupiter Domains) ===
+// === DOMAIN & VIRTUAL HOST OPERATIONS (cPanel AddonDomain) ===
 const domainService = {
   async listAddonDomains() {
     return execUapi('AddonDomain', 'listaddondomains');
@@ -191,6 +225,213 @@ const domainService = {
       domain: cleanDomain,
       subdomain: cleanSubdomain
     });
+  }
+};
+
+// === SUBDOMAIN OPERATIONS (cPanel SubDomain UAPI) ===
+const subdomainService = {
+  async listSubdomains() {
+    const res = await execUapi('SubDomain', 'listsubdomains');
+    return Array.isArray(res) ? res : (res?.data || []);
+  },
+
+  async getReservedSubdomains() {
+    const res = await execUapi('SubDomain', 'getreservedsubdomains');
+    return Array.isArray(res) ? res : (res?.data || []);
+  },
+
+  async addSubdomain(subdomain, rootdomain = '1slabs.my.id', dir = null) {
+    if (!subdomain || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(subdomain)) {
+      throw new Error('Nama subdomain tidak valid (gunakan huruf kecil, angka, tanda hubung, 3-63 karakter).');
+    }
+    const cleanSub = subdomain.trim().toLowerCase();
+    const docroot = dir || `public_html/${cleanSub}.${rootdomain}`;
+
+    try {
+      const res = await execUapi('SubDomain', 'addsubdomain', {
+        domain: cleanSub,
+        rootdomain: rootdomain,
+        dir: docroot
+      });
+      console.log(`[cPanel Subdomain] Added ${cleanSub}.${rootdomain} -> ${docroot}`);
+      return res;
+    } catch (err) {
+      const msg = err.message || '';
+      if (
+        msg.includes('already exists') ||
+        msg.includes('already configured') ||
+        msg.includes('is already configured')
+      ) {
+        return { alreadyExists: true, domain: `${cleanSub}.${rootdomain}`, message: msg };
+      }
+      throw err;
+    }
+  },
+
+  async delSubdomain(domain) {
+    if (!domain) throw new Error('Nama domain/subdomain wajib diisi.');
+    return execUapi('SubDomain', 'delsubdomain', {
+      domain: domain.trim().toLowerCase()
+    });
+  },
+
+  async checkAvailability(subdomain, rootdomain = '1slabs.my.id') {
+    const cleanSub = subdomain.trim().toLowerCase();
+    
+    // System reserved blacklist
+    const systemReserved = [
+      'mail', 'cpanel', 'whm', 'webmail', 'demo', 'api', 'admin', 'administrator',
+      'ns1', 'ns2', 'ns3', 'ns4', 'dns', 'mx', 'ftp', 'smtp', 'pop', 'imap',
+      'root', 'test', 'testing', 'dev', 'developer', 'staging', 'prod', 'production',
+      'app', 'apps', 'auth', 'oneslabs', '1slabs', 'status', 'portal', 'server',
+      'panel', 'dashboard', 'billing', 'support', 'help', 'blog', 'shop', 'store'
+    ];
+
+    if (systemReserved.includes(cleanSub)) {
+      return { available: false, reason: 'Nama subdomain ini dicadangkan untuk infrastruktur sistem 1sLabs.' };
+    }
+
+    try {
+      const subs = await this.listSubdomains();
+      const conflict = subs.find(s => 
+        (s.subdomain && s.subdomain.toLowerCase() === cleanSub && s.rootdomain === rootdomain) ||
+        (s.domain && s.domain.toLowerCase() === `${cleanSub}.${rootdomain}`)
+      );
+      if (conflict) {
+        return { available: false, reason: 'Subdomain ini sudah aktif digunakan di server cPanel.' };
+      }
+      return { available: true };
+    } catch (err) {
+      console.warn('[cPanel checkAvailability notice]:', err.message);
+      return { available: true };
+    }
+  }
+};
+
+// === NODE.JS APPLICATION MANAGER (CloudLinux Node.js Selector) ===
+const nodejsService = {
+  async getAvailableVersions() {
+    try {
+      const res = await execSelector(['get', '--json', '--interpreter', 'nodejs']);
+      const versions = res?.available_versions ? Object.keys(res.available_versions) : ['10.24.1', '20.20.2', '22.23.4', '24.22.1'];
+      return versions;
+    } catch (err) {
+      console.warn('[nodejsService getAvailableVersions error]:', err.message);
+      return ['20.20.2', '22.23.4', '24.22.1'];
+    }
+  },
+
+  async listApplications() {
+    try {
+      const res = await execSelector(['get', '--json', '--interpreter', 'nodejs', '--user', 'u1zh8984']);
+      const apps = [];
+      const versions = res?.available_versions || {};
+      for (const [ver, verData] of Object.entries(versions)) {
+        const userApps = verData?.users?.['u1zh8984']?.applications || {};
+        for (const [appName, appData] of Object.entries(userApps)) {
+          apps.push({
+            app_name: appName,
+            version: ver,
+            ...appData
+          });
+        }
+      }
+      return apps;
+    } catch (err) {
+      console.warn('[nodejsService listApplications error]:', err.message);
+      return [];
+    }
+  },
+
+  async createApplication({ appRoot, appUri, domain, version = '22.23.4', appMode = 'production', startupFile = 'index.js' }) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const cleanUri = appUri ? appUri.trim().replace(/^\/+/, '') : '';
+    const cleanDomain = domain.trim().toLowerCase();
+    const args = [
+      'create', '--json', '--interpreter', 'nodejs',
+      '--app-root', cleanRoot,
+      '--app-uri', cleanUri,
+      '--domain', cleanDomain,
+      '--version', version,
+      '--app-mode', appMode,
+      '--startup-file', startupFile
+    ];
+    return execSelector(args);
+  },
+
+  async updateApplication({ appRoot, newVersion, appMode, startupFile, newAppRoot, envVars }) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const args = ['set', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot];
+    if (newVersion) args.push('--new-version', newVersion);
+    if (appMode) args.push('--app-mode', appMode);
+    if (startupFile) args.push('--startup-file', startupFile);
+    if (newAppRoot) args.push('--new-app-root', newAppRoot.trim().replace(/^\/+/, ''));
+    if (envVars && typeof envVars === 'object') {
+      args.push('--env-vars', JSON.stringify(envVars));
+    }
+    return execSelector(args);
+  },
+
+  async startApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['start', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot]);
+  },
+
+  async stopApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['stop', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot]);
+  },
+
+  async restartApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const restartFile = path.join('/home/u1zh8984', cleanRoot, 'tmp', 'restart.txt');
+    try {
+      if (fs.existsSync(path.dirname(restartFile))) {
+        fs.utimesSync(restartFile, new Date(), new Date());
+      }
+    } catch (e) {
+      // ignore
+    }
+    return execSelector(['restart', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot]);
+  },
+
+  async destroyApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['destroy', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot]);
+  },
+
+  async installModules(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['install-modules', '--json', '--interpreter', 'nodejs', '--app-root', cleanRoot, '--skip-web-check']);
+  },
+
+  async checkHealth(url) {
+    const startTime = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': '1sLabs-HealthMonitor/1.0' }
+      });
+      clearTimeout(timeoutId);
+      const responseTimeMs = Date.now() - startTime;
+      return {
+        healthy: res.status >= 200 && res.status < 400,
+        status: res.status,
+        statusText: res.statusText,
+        responseTimeMs,
+        checkedAt: new Date().toISOString()
+      };
+    } catch (err) {
+      return {
+        healthy: false,
+        status: 0,
+        statusText: err.name === 'AbortError' ? 'Timeout' : err.message,
+        responseTimeMs: Date.now() - startTime,
+        checkedAt: new Date().toISOString()
+      };
+    }
   }
 };
 
@@ -310,13 +551,15 @@ const systemProcessService = {
 
 module.exports = {
   execUapi,
+  execSelector,
   ftpService,
   mysqlService,
   quotaService,
   domainService,
+  subdomainService,
+  nodejsService,
   resourceService,
   sslService,
   systemProcessService,
   HAS_UAPI
 };
-

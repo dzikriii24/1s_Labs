@@ -75,6 +75,100 @@ export interface ServiceEvent {
   created_at: string;
 }
 
+export interface FreePlanClaim {
+  id: number;
+  user_id?: number;
+  subdomain: string;
+  domain: string;
+  service_code?: string;
+  service_id?: number;
+  claimed_at: string;
+  hosting_expires_at: string;
+  domain_expires_at: string;
+  is_hosting_expired?: boolean;
+  is_domain_expired?: boolean;
+  status: 'active' | 'expired' | 'suspended';
+  service_status?: string;
+  provisioning_status?: string;
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  document_root?: string;
+}
+
+export interface DomainRecord {
+  id: number;
+  user_id: number;
+  service_id?: number;
+  service_code?: string;
+  service_status?: string;
+  plan_name?: string;
+  domain: string;
+  domain_type: 'free_subdomain' | 'custom_domain' | 'addon_domain';
+  root_domain?: string;
+  subdomain_prefix?: string;
+  document_root: string;
+  status: 'active' | 'pending_dns' | 'suspended' | 'expired';
+  is_free_plan: boolean | number;
+  ssl_status: 'active' | 'pending' | 'expired' | 'none';
+  dns_status: 'connected' | 'pending' | 'error';
+  registered_at: string;
+  expires_at: string;
+  auto_renew: boolean | number;
+  days_remaining?: number;
+  is_expiring_soon?: boolean;
+  owner_name?: string;
+  owner_email?: string;
+  dns_report?: {
+    connected: boolean;
+    ip?: string | null;
+    message: string;
+  };
+  dns_instructions?: {
+    server_ip: string;
+    nameservers: string[];
+    a_record: { type: string; name: string; target: string; ttl: number };
+    cname_record: { type: string; name: string; target: string; ttl: number };
+  };
+}
+
+export interface NodeJsApp {
+  id: number;
+  user_id: number;
+  service_id?: number;
+  domain_id?: number;
+  app_name: string;
+  app_root: string;
+  full_app_root?: string;
+  app_uri: string;
+  domain: string;
+  app_url: string;
+  nodejs_version: string;
+  app_mode: 'production' | 'development';
+  startup_file: string;
+  status: 'running' | 'stopped' | 'error' | 'starting';
+  health_status: 'healthy' | 'degraded' | 'error' | 'unknown';
+  last_health_check?: string;
+  last_response_time_ms?: number;
+  last_http_status?: number;
+  last_error?: string;
+  last_restart_at?: string;
+  deployment_count: number;
+  env_vars_count?: number;
+  env_vars_masked?: Record<string, string>;
+  created_at: string;
+  owner_name?: string;
+  owner_email?: string;
+  deployments?: {
+    id: number;
+    deployment_number: number;
+    source_type: string;
+    status: string;
+    file_size_bytes?: number;
+    deployed_at: string;
+  }[];
+}
+
 export interface HostingService {
   id: number;
   service_code: string;
@@ -1226,6 +1320,253 @@ export const api = {
       request<{ success: boolean; message: string }>('/admin/system/settings', {
         method: 'PUT',
         body: JSON.stringify({ settings })
+      }),
+
+    // Free Plan, Domains & Node.js Management
+    getFreePlanClaims: () =>
+      request<{ success: boolean; claims: FreePlanClaim[] }>('/admin/freeplan/claims'),
+
+    runInfrastructureCron: () =>
+      request<{ success: boolean; message: string; results: any }>('/admin/infrastructure/run-cron', {
+        method: 'POST'
+      }),
+
+    adminSuspendDomain: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/domains/${id}/suspend`, { method: 'POST' }),
+
+    adminUnsuspendDomain: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/domains/${id}/unsuspend`, { method: 'POST' }),
+
+    adminSuspendHosting: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hosting/${id}/suspend`, { method: 'POST' }),
+
+    adminUnsuspendHosting: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hosting/${id}/unsuspend`, { method: 'POST' }),
+
+    getAdminNodeJsApps: () =>
+      request<{ success: boolean; applications: NodeJsApp[] }>('/admin/nodejs/apps')
+  },
+
+  // Free Plan User API
+  freePlan: {
+    getStatus: () =>
+      request<{ success: boolean; eligible: boolean; alreadyClaimed: boolean; claim: FreePlanClaim | null }>('/freeplan/status'),
+
+    checkSubdomain: (subdomain: string) =>
+      request<{ success: boolean; available: boolean; subdomain?: string; domain?: string; message: string }>(`/freeplan/check-subdomain?subdomain=${encodeURIComponent(subdomain)}`),
+
+    claim: (subdomain: string, agreeTerms: boolean = true) =>
+      request<{ success: boolean; message: string; data: any }>('/freeplan/claim', {
+        method: 'POST',
+        body: JSON.stringify({ subdomain, agreeTerms })
       })
+  },
+
+  // Domain Management API
+  domains: {
+    list: () =>
+      request<{ success: boolean; domains: DomainRecord[] }>('/domains'),
+
+    getDetail: (id: number) =>
+      request<{ success: boolean; domain: DomainRecord }>(`/domains/${id}`),
+
+    check: (domain: string, domainType: string = 'custom_domain') =>
+      request<{ success: boolean; available: boolean; domain?: string; message: string }>('/domains/check', {
+        method: 'POST',
+        body: JSON.stringify({ domain, domain_type: domainType })
+      }),
+
+    addCustom: (domain: string, serviceId?: number) =>
+      request<{ success: boolean; message: string; data: any }>('/domains/custom', {
+        method: 'POST',
+        body: JSON.stringify({ domain, service_id: serviceId })
+      }),
+
+    renew: (id: number) =>
+      request<{ success: boolean; message: string; renewal: any }>(`/domains/${id}/renew`, {
+        method: 'POST'
+      })
+  },
+
+  // Node.js Application Manager API
+  nodejs: {
+    getVersions: () =>
+      request<{ success: boolean; versions: string[]; default: string }>('/nodejs/versions'),
+
+    listApps: () =>
+      request<{ success: boolean; applications: NodeJsApp[] }>('/nodejs/apps'),
+
+    getApp: (id: number) =>
+      request<{ success: boolean; application: NodeJsApp }>(`/nodejs/apps/${id}`),
+
+    createApp: (payload: {
+      app_name: string;
+      domain: string;
+      app_uri?: string;
+      nodejs_version?: string;
+      app_mode?: string;
+      startup_file?: string;
+      env_vars?: Record<string, string>;
+    }) =>
+      request<{ success: boolean; message: string; application: any }>('/nodejs/apps', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    action: (id: number, action: 'start' | 'stop' | 'restart') =>
+      request<{ success: boolean; message: string }>(`/nodejs/apps/${id}/action`, {
+        method: 'POST',
+        body: JSON.stringify({ action })
+      }),
+
+    checkHealth: (id: number) =>
+      request<{ success: boolean; url: string; health: any }>(`/nodejs/apps/${id}/health`),
+
+    getLogs: (id: number) =>
+      request<{ success: boolean; app_name: string; logs: string }>(`/nodejs/apps/${id}/logs`),
+
+    updateEnv: (id: number, env_vars: Record<string, string>) =>
+      request<{ success: boolean; message: string }>(`/nodejs/apps/${id}/env`, {
+        method: 'POST',
+        body: JSON.stringify({ env_vars })
+      }),
+
+    deleteApp: (id: number) =>
+      request<{ success: boolean; message: string }>(`/nodejs/apps/${id}`, {
+        method: 'DELETE'
+      }),
+
+    updateConfig: (id: number, payload: {
+      nodejs_version?: string;
+      app_mode?: 'production' | 'development';
+      startup_file?: string;
+      env_vars?: Record<string, string>;
+    }) =>
+      request<{ success: boolean; message: string; application: NodeJsApp }>(`/nodejs/apps/${id}/config`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    runNpmInstall: (id: number) =>
+      request<{ success: boolean; message: string; output: string }>(`/nodejs/apps/${id}/npm-install`, {
+        method: 'POST'
+      }),
+
+    files: {
+      list: (appId: number, path: string = '/') =>
+        request<FileListResponse>(`/nodejs/apps/${appId}/files?path=${encodeURIComponent(path)}`),
+
+      getContent: (appId: number, path: string) =>
+        request<FileContentResponse>(`/nodejs/apps/${appId}/files/read?path=${encodeURIComponent(path)}`),
+
+      saveContent: (appId: number, path: string, content: string, restart: boolean = false) =>
+        request<{ success: boolean; message: string }>(`/nodejs/apps/${appId}/files/write`, {
+          method: 'POST',
+          body: JSON.stringify({ path, content, restart })
+        }),
+
+      createFile: (appId: number, path: string, name: string, content: string = '') =>
+        request<{ success: boolean; message: string }>(`/nodejs/apps/${appId}/files/create-file`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name, content })
+        }),
+
+      createFolder: (appId: number, path: string, name: string) =>
+        request<{ success: boolean; message: string }>(`/nodejs/apps/${appId}/files/create-folder`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name })
+        }),
+
+      delete: (appId: number, path: string) =>
+        request<{ success: boolean; message: string }>(`/nodejs/apps/${appId}/files`, {
+          method: 'DELETE',
+          body: JSON.stringify({ path })
+        }),
+
+      rename: (appId: number, oldPath: string, newPath: string) =>
+        request<{ success: boolean; message: string }>(`/nodejs/apps/${appId}/files/rename`, {
+          method: 'POST',
+          body: JSON.stringify({ oldPath, newPath })
+        }),
+
+      getDownloadUrl: (appId: number, path: string) => {
+        const token = getAuthToken();
+        return `/api/nodejs/apps/${appId}/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}`;
+      },
+
+      uploadWithProgress: (
+        appId: number,
+        path: string,
+        formData: FormData,
+        onProgress?: (loaded: number, total: number) => void,
+        signal?: AbortSignal
+      ): Promise<{ success: boolean; message: string }> => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const token = getAuthToken();
+          const url = `${API_BASE}/nodejs/apps/${appId}/files/upload?path=${encodeURIComponent(path)}`;
+
+          xhr.open('POST', url, true);
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
+
+          if (onProgress && xhr.upload) {
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                onProgress(event.loaded, event.total);
+              }
+            };
+          }
+
+          if (signal) {
+            signal.addEventListener('abort', () => {
+              xhr.abort();
+              reject(new Error('Unggahan dibatalkan.'));
+            });
+          }
+
+          xhr.onload = () => {
+            try {
+              const json = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300 && json.success) {
+                resolve(json);
+              } else {
+                reject(new Error(json.message || `Upload gagal dengan status HTTP ${xhr.status}`));
+              }
+            } catch {
+              reject(new Error(`Respon server tidak valid (${xhr.status})`));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error('Terjadi kesalahan jaringan saat mengunggah file.'));
+          };
+
+          xhr.send(formData);
+        });
+      }
+    },
+
+    deployZip: async (id: number, file: File): Promise<{ success: boolean; message: string; deployment_number: number }> => {
+      const token = getAuthToken();
+      const formData = new FormData();
+      formData.append('source_zip', file);
+
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/nodejs/apps/${id}/deploy`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Gagal mengunggah dan mendepoloy file ZIP.');
+      }
+      return data;
+    }
   }
 };

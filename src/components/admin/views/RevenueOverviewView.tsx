@@ -34,8 +34,9 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
     setLoading(true);
     try {
       const res = await api.admin.getFinanceOverview();
-      if (res.success && res.data) {
-        setData(res.data);
+      if (res.success) {
+        const fData = (res as any).data || (res as any).revenue || res;
+        setData(fData);
       }
     } catch (err) {
       console.error('Failed to load finance data', err);
@@ -53,19 +54,40 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
     return `Rp${val.toLocaleString('id-ID')}`;
   };
 
+  const filteredTransactions = React.useMemo(() => {
+    if (!data?.recent_transactions) return [];
+    if (reportPeriod === 'all') return data.recent_transactions;
+    const now = new Date();
+    return data.recent_transactions.filter((tx: any) => {
+      if (!tx.created_at) return true;
+      const txDate = new Date(tx.created_at);
+      if (reportPeriod === 'this_month') {
+        return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      }
+      if (reportPeriod === 'last_month') {
+        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        return txDate.getMonth() === lastMonth && txDate.getFullYear() === lastMonthYear;
+      }
+      return true;
+    });
+  }, [data?.recent_transactions, reportPeriod]);
+
   const handleExportCsv = () => {
-    if (!data?.recent_transactions || data.recent_transactions.length === 0) {
+    const listToExport = filteredTransactions.length > 0 ? filteredTransactions : data?.recent_transactions;
+    if (!listToExport || listToExport.length === 0) {
       alert('Tidak ada transaksi untuk diekspor.');
       return;
     }
-    const headers = ['ID', 'Order ID', 'Nominal', 'Metode Pembayaran', 'Status', 'Tanggal', 'Email Pelanggan'];
-    const rows = data.recent_transactions.map((t: any) => [
-      t.id,
-      t.order_id || '-',
+    const headers = ['ID', 'Order Ref', 'Nominal', 'Metode Pembayaran', 'Status', 'Tanggal', 'Nama Pelanggan', 'Email Pelanggan'];
+    const rows = listToExport.map((t: any) => [
+      t.payment_number || `#TX-${t.id}`,
+      t.order_number || t.order_id || '-',
       t.amount || 0,
       t.payment_method || 'QRIS',
       t.status || 'paid',
       t.created_at || '',
+      t.customer_name || 'Pelanggan',
       t.user_email || ''
     ]);
     const csvContent = [headers.join(','), ...rows.map((r: any[]) => r.map((x) => `"${x}"`).join(','))].join('\n');
@@ -73,7 +95,7 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `1slabs_laporan_keuangan_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `1slabs_laporan_keuangan_${reportPeriod}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -188,7 +210,7 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
 
       {/* Transactions Ledger Table */}
       <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+        <div className="p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-zinc-900">
               {isReportMode ? 'Jurnal Audit Pembukuan Kas Masuk' : 'Riwayat Transaksi Terakhir'}
@@ -197,9 +219,48 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
               Daftar transaksi pembayaran invoice yang tercatat pada sistem keuangan 1sLabs.
             </p>
           </div>
-          <span className="text-xs font-mono text-zinc-500 bg-zinc-100 px-2.5 py-1 rounded-lg">
-            {data?.recent_transactions?.length || 0} Transaksi
-          </span>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-zinc-100 p-1 rounded-xl text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setReportPeriod('this_month')}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  reportPeriod === 'this_month'
+                    ? 'bg-white text-zinc-900 shadow-xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Bulan Ini
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportPeriod('last_month')}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  reportPeriod === 'last_month'
+                    ? 'bg-white text-zinc-900 shadow-xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Bulan Lalu
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportPeriod('all')}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  reportPeriod === 'all'
+                    ? 'bg-white text-zinc-900 shadow-xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Semua
+              </button>
+            </div>
+
+            <span className="text-xs font-mono text-zinc-500 bg-zinc-100 px-2.5 py-1.5 rounded-lg">
+              {filteredTransactions.length} Transaksi
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -215,14 +276,14 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 text-zinc-700">
-              {!data?.recent_transactions || data.recent_transactions.length === 0 ? (
+              {filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-zinc-400 font-sans">
-                    Belum ada riwayat transaksi pembayaran.
+                    Belum ada riwayat transaksi pembayaran untuk periode ini.
                   </td>
                 </tr>
               ) : (
-                data.recent_transactions.map((tx: any) => (
+                filteredTransactions.map((tx: any) => (
                   <tr key={tx.id} className="hover:bg-zinc-50/60 transition-colors">
                     <td className="py-3.5 px-5">
                       <div className="font-mono font-bold text-zinc-900">

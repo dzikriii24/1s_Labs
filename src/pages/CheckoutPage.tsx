@@ -41,6 +41,31 @@ export const CheckoutPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading, resendVerification } = useAuth();
   const navigate = useNavigate();
 
+  // Free Plan status
+  const [freePlanClaimed, setFreePlanClaimed] = useState(false);
+  const [claimedDomain, setClaimedDomain] = useState<string | null>(null);
+
+  // Redirect domain-only plan to dedicated domain checkout
+  useEffect(() => {
+    if (planSlug === 'subdomain-1slabs') {
+      navigate('/domain/checkout', { replace: true });
+    }
+  }, [planSlug, navigate]);
+
+  // Check free plan claim status if authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      api.freePlan.getStatus()
+        .then((res) => {
+          if (res.success && res.alreadyClaimed) {
+            setFreePlanClaimed(true);
+            setClaimedDomain(res.claim?.domain || null);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isAuthenticated]);
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -265,6 +290,54 @@ export const CheckoutPage: React.FC = () => {
           </div>
         )}
 
+        {/* If user tries to order free plan but has already claimed */}
+        {(plan.slug === 'free-hosting' || parseFloat(plan.price) === 0) && freePlanClaimed ? (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm my-6">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Anda Sudah Mengklaim Free Plan
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+              Akun Anda (<strong className="text-gray-900 dark:text-white">{user?.email}</strong>) sudah pernah mengklaim fasilitas Free Hosting Trial sebelumnya untuk domain <strong className="font-mono text-blue-600">{claimedDomain || 'dzikri.1slabs.my.id'}</strong>. Sesuai ketentuan 1sLabs, program gratis hanya dapat diklaim 1 kali per akun seumur hidup.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/portal?tab=hosting"
+                className="w-full sm:w-auto px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl text-xs font-semibold hover:opacity-90 transition-all inline-flex items-center justify-center gap-2"
+              >
+                <span>Kelola Layanan di Portal</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/#hosting"
+                className="w-full sm:w-auto px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+              >
+                Lihat Paket Hosting Lain
+              </Link>
+            </div>
+          </div>
+        ) : (plan.slug === 'free-hosting' || parseFloat(plan.price) === 0) ? (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm my-6">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Klaim Free Plan Instan
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+              Program Free Hosting (Trial 14 Hari) dan Subdomain gratis diproses otomatis secara realtime melalui panel Free Plan kami tanpa perlu konfirmasi manual atau pembayaran.
+            </p>
+            <Link
+              to="/portal?tab=freeplan"
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-2"
+            >
+              <span>Buka Panel Klaim Free Plan</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
         <form onSubmit={handleCreateOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Plan, Domain & Customer Info */}
           <div className="lg:col-span-2 space-y-6">
@@ -585,6 +658,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
         </form>
+        )}
       </main>
 
       <div className="max-w-[1400px] w-full mx-auto">

@@ -441,8 +441,8 @@ export const HostingManagementView: React.FC<HostingManagementViewProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-zinc-600 font-mono text-[11px]">
                   <div>cPanel Username: <strong className="text-zinc-900">{selectedService.cpanel_username || '-'}</strong></div>
                   <div>Server IP: <strong className="text-zinc-900">103.119.237.132</strong></div>
-                  <div>Nameserver 1: <strong className="text-zinc-900">ns1.1slabs.my.id</strong></div>
-                  <div>Nameserver 2: <strong className="text-zinc-900">ns2.1slabs.my.id</strong></div>
+                  <div>Nameserver 1: <strong className="text-zinc-900">ns1.domainmurah.net</strong></div>
+                  <div>Nameserver 2: <strong className="text-zinc-900">ns2.domainmurah.net</strong></div>
                 </div>
               </div>
 

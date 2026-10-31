@@ -77,9 +77,9 @@ name=VALUES(name), target=VALUES(target), price=VALUES(price), period=VALUES(per
 INSERT INTO hosting_settings (setting_key, setting_value, description)
 VALUES
 ('qris_image_path', '/qris.jpeg', 'Path publik gambar QRIS resmi'),
-('server_ip', '194.233.65.45', 'IP Server Hosting 1sLabs'),
-('nameserver_1', 'ns1.1slabs.my.id', 'Primary Nameserver'),
-('nameserver_2', 'ns2.1slabs.my.id', 'Secondary Nameserver'),
+('server_ip', '103.119.237.132', 'IP Server Hosting 1sLabs'),
+('nameserver_1', 'ns1.domainmurah.net', 'Primary Nameserver'),
+('nameserver_2', 'ns2.domainmurah.net', 'Secondary Nameserver'),
 ('cpanel_url', 'https://1slabs.my.id:2083', 'URL cPanel Client'),
 ('whatsapp_support', '6285156296580', 'Nomor WhatsApp Resmi Dukungan Hosting')
 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value);

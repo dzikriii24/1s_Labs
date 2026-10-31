@@ -14,6 +14,7 @@ const translations = {
     'nav.about': 'About',
     'nav.services': 'Services',
     'nav.hosting': 'Hosting',
+    'nav.free plan': 'Free Plan',
     'nav.portfolio': 'Portfolio',
     'nav.contact': 'Contact',
     'nav.pages': 'Pages',
@@ -24,6 +25,7 @@ const translations = {
     'nav.about': 'Tentang',
     'nav.services': 'Layanan',
     'nav.hosting': 'Hosting',
+    'nav.free plan': 'Free Plan (Gratis)',
     'nav.portfolio': 'Portofolio',
     'nav.contact': 'Kontak',
     'nav.pages': 'Halaman',
@@ -49,7 +51,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;

@@ -20,6 +20,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { HostingPlanDetailPage } from './pages/HostingPlanDetailPage'
 import { CheckoutPage } from './pages/CheckoutPage'
+import { DomainCheckoutPage } from './pages/DomainCheckoutPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { SetupDomainPage } from './pages/SetupDomainPage'
 import { CustomerPortalPage } from './pages/CustomerPortalPage'
@@ -125,6 +126,7 @@ function App() {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/hosting/plan/:planSlug" element={<HostingPlanDetailPage />} />
               <Route path="/checkout/:planSlug" element={<CheckoutPage />} />
+              <Route path="/domain/checkout" element={<DomainCheckoutPage />} />
               <Route path="/payment/:orderNumber" element={<PaymentPage />} />
               <Route path="/services/:serviceCode/setup-domain" element={<SetupDomainPage />} />
               <Route path="/portal" element={<CustomerPortalPage />} />

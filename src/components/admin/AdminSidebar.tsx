@@ -32,11 +32,13 @@ import {
 export type AdminMenuKey =
   | 'dashboard'
   | 'analytics'
+  | 'freeplan-claims'
   | 'customers'
   | 'customer-services'
   | 'hosting-subscriptions'
   | 'hosting-plans'
   | 'hosting-orders'
+  | 'nodejs-manager'
   | 'server-monitoring'
   | 'resource-usage'
   | 'domains'
@@ -98,10 +100,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'HOSTING MANAGEMENT',
       items: [
+        { key: 'freeplan-claims', label: 'Free Plan Claims', icon: Sparkles },
+        { key: 'nodejs-manager', label: 'Node.js Applications', icon: Cpu },
         { key: 'hosting-plans', label: 'Hosting Plans', icon: Package },
         { key: 'hosting-orders', label: 'Hosting Orders', icon: ShoppingBag },
         { key: 'server-monitoring', label: 'Server Monitoring', icon: Activity },
-        { key: 'resource-usage', label: 'Resource Usage', icon: Cpu }
+        { key: 'resource-usage', label: 'Resource Usage', icon: Server }
       ]
     },
     {

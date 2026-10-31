@@ -26,6 +26,8 @@ import { GeneralSettingsView } from './views/GeneralSettingsView';
 import { ServerConfigView } from './views/ServerConfigView';
 import { ActivityLogsView } from './views/ActivityLogsView';
 import { AdminManagementView } from './views/AdminManagementView';
+import { FreePlanClaimsView } from './views/FreePlanClaimsView';
+import { NodeJsApplicationsAdminView } from './views/NodeJsApplicationsAdminView';
 
 export const AdminLayout: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -93,6 +95,10 @@ export const AdminLayout: React.FC = () => {
         return <OverviewDashboardView key={refreshKey} onNavigate={handleSelectTab} />;
       case 'analytics':
         return <AnalyticsDashboardView key={refreshKey} />;
+      case 'freeplan-claims':
+        return <FreePlanClaimsView key={refreshKey} />;
+      case 'nodejs-manager':
+        return <NodeJsApplicationsAdminView key={refreshKey} />;
       case 'customers':
       case 'customer-list' as any:
         return <CustomerManagementView key={refreshKey} />;

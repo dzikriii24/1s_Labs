@@ -13,6 +13,7 @@ const navigation = [
   { name: 'About', href: '#about' },
   { name: 'Services', href: '#services' },
   { name: 'Hosting', href: '#hosting' },
+  { name: 'Free Plan', href: '/portal?tab=freeplan' },
   { name: 'Portfolio', href: '#portfolio' },
   { name: 'Contact', href: '#contact' },
 ]
@@ -43,6 +44,10 @@ export const Header: React.FC = () => {
   const scrollToSection = (href: string) => {
     setIsMobileMenuOpen(false);
     setIsServicesDropdownOpen(false);
+    if (href.startsWith('/')) {
+      window.location.href = href;
+      return;
+    }
     if (window.location.pathname !== '/') {
       window.location.href = `/${href}`;
       return;

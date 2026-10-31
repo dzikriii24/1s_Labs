@@ -13,6 +13,10 @@ const servicesRoutes = require('./src/routes/services.routes');
 const invoicesRoutes = require('./src/routes/invoices.routes');
 const adminRoutes = require('./src/routes/admin.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
+const freePlanRoutes = require('./src/routes/freeplan.routes');
+const domainsRoutes = require('./src/routes/domains.routes');
+const nodejsRoutes = require('./src/routes/nodejs.routes');
+const SuspensionService = require('./src/services/suspension.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,6 +82,9 @@ apiRouter.use('/services', servicesRoutes);
 apiRouter.use('/invoices', invoicesRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/analytics', analyticsRoutes);
+apiRouter.use('/freeplan', freePlanRoutes);
+apiRouter.use('/domains', domainsRoutes);
+apiRouter.use('/nodejs', nodejsRoutes);
 
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);
@@ -99,6 +106,20 @@ app.use((err, req, res, next) => {
     message: err.message || 'Terjadi kesalahan internal pada server 1sLabs.'
   });
 });
+
+// Automated Lifecycle & Suspension Scheduler
+setTimeout(() => {
+  SuspensionService.checkAndSuspendExpiredServices().catch(err => {
+    console.warn('[SuspensionService Scheduler Init Error]:', err.message);
+  });
+}, 15000);
+
+// Run check periodically every 30 minutes
+setInterval(() => {
+  SuspensionService.checkAndSuspendExpiredServices().catch(err => {
+    console.warn('[SuspensionService Periodic Error]:', err.message);
+  });
+}, 30 * 60 * 1000);
 
 // Start Server (Passenger and Standalone compatible)
 if (typeof(PhusionPassenger) !== 'undefined') {

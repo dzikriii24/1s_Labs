@@ -34,6 +34,8 @@ import {
   Folder,
   Copy,
   Check,
+  FileCheck,
+  Gift,
   Cloud,
   Cpu,
   PieChart,
@@ -41,7 +43,7 @@ import {
   Wifi,
   X
 } from 'lucide-react';
-import { api, HostingService, Order, Invoice } from '../services/api';
+import { api, HostingService, Order, Invoice, DomainRecord, NodeJsApp, FreePlanClaim } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
@@ -49,16 +51,30 @@ import { FileManagerTab } from '../components/hosting/FileManagerTab';
 import { FtpManagementTab } from '../components/hosting/FtpManagementTab';
 import { DatabaseManagementTab } from '../components/hosting/DatabaseManagementTab';
 import { AnalyticsTab } from '../components/hosting/AnalyticsTab';
+import { OverviewTab } from '../components/portal/OverviewTab';
+import { FreePlanTab } from '../components/portal/FreePlanTab';
+import { DomainsTab } from '../components/portal/DomainsTab';
+import { NodeJsAppsTab } from '../components/portal/NodeJsAppsTab';
+import { PortalSidebar } from '../components/portal/PortalSidebar';
+import { PortalHeader } from '../components/portal/PortalHeader';
 
 
 export const CustomerPortalPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTabParam = searchParams.get('tab') || 'services';
+  const activeTabParam = searchParams.get('tab') || 'overview';
   const selectedServiceCode = searchParams.get('service');
 
   const [services, setServices] = useState<HostingService[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [domains, setDomains] = useState<DomainRecord[]>([]);
+  const [nodeApps, setNodeApps] = useState<NodeJsApp[]>([]);
+  const [freePlanStatus, setFreePlanStatus] = useState<{
+    eligible: boolean;
+    alreadyClaimed: boolean;
+    claim: FreePlanClaim | null;
+  } | null>(null);
+
   const [selectedService, setSelectedService] = useState<HostingService | null>(null);
   const [serviceSubTab, setServiceSubTab] = useState<'overview' | 'files' | 'ftp' | 'databases' | 'analytics'>('overview');
 
@@ -89,6 +105,11 @@ export const CustomerPortalPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Layout states for Sidebar & Header
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const { user, logout, isAuthenticated, isLoading: authLoading, updateUser } = useAuth();
   const navigate = useNavigate();
 
@@ -109,15 +130,21 @@ export const CustomerPortalPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [srvRes, ordRes, invRes] = await Promise.all([
+      const [srvRes, ordRes, invRes, domRes, nodeRes, fpRes] = await Promise.all([
         api.services.getAll(),
         api.orders.getAll(),
-        api.invoices.getAll()
+        api.invoices.getAll(),
+        api.domains.list().catch(() => ({ success: true, domains: [] })),
+        api.nodejs.listApps().catch(() => ({ success: true, applications: [] })),
+        api.freePlan.getStatus().catch(() => ({ success: true, eligible: true, alreadyClaimed: false, claim: null }))
       ]);
 
       if (srvRes.success) setServices(srvRes.services);
       if (ordRes.success) setOrders(ordRes.orders);
       if (invRes.success) setInvoices(invRes.invoices);
+      if (domRes.success) setDomains(domRes.domains);
+      if (nodeRes.success) setNodeApps(nodeRes.applications);
+      if (fpRes.success) setFreePlanStatus(fpRes);
 
       // If a service code is selected in URL, load its full detail
       if (selectedServiceCode) {
@@ -138,6 +165,12 @@ export const CustomerPortalPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGlobalRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   useEffect(() => {
@@ -320,140 +353,153 @@ export const CustomerPortalPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300 py-4 px-4 sm:px-8 flex flex-col justify-between font-sans">
-      <Header />
+    <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 flex flex-col antialiased selection:bg-zinc-900 selection:text-white">
+      {/* Mobile Sidebar Overlay */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-zinc-900/40 backdrop-blur-xs lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
 
-      <main className="max-w-[1300px] w-full mx-auto my-8">
-        {/* Welcome Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-200 dark:border-gray-800">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-              Customer Portal
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Selamat datang, <span className="font-semibold text-gray-900 dark:text-white">{user?.name}</span> ({user?.email})
-            </p>
-          </div>
+      {/* Sidebar Container */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <PortalSidebar
+          currentTab={activeTabParam}
+          onSelectTab={(tab) => {
+            setSearchParams({ tab });
+            setMobileSidebarOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          counts={{
+            domains: domains.length,
+            services: services.length,
+            nodeApps: nodeApps.length,
+            invoices: invoices.length,
+            orders: orders.length,
+            freePlanClaimed: !!freePlanStatus?.alreadyClaimed
+          }}
+          user={user}
+          onLogout={logout}
+        />
+      </div>
 
-          <div className="flex items-center space-x-3">
-            <Link
-              to="/#hosting"
-              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold shadow-xs transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Pesan Hosting Baru</span>
-            </Link>
-            <button
-              onClick={logout}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-medium transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Keluar</span>
-            </button>
-          </div>
-        </div>
+      {/* Main Content Area */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Sticky Top Header */}
+        <PortalHeader
+          currentTab={activeTabParam}
+          onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          onRefreshData={handleGlobalRefresh}
+          isRefreshing={isRefreshing}
+          userName={user?.name}
+          userEmail={user?.email}
+        />
 
-        {/* Unverified Email Warning Banner */}
-        {user && !user.email_verified && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-amber-900 dark:text-amber-200">
-                  Alamat Email Belum Terverifikasi
-                </p>
-                <p className="text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
-                  Tautan aktivasi akun telah dikirimkan ke <strong>{user?.email}</strong>. Selesaikan verifikasi email untuk membuka akses penuh pemesanan paket hosting baru dan pembayaran.
-                </p>
+        {/* View Surface */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          {/* Unverified Email Warning Banner */}
+          {user && !user.email_verified && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-900 dark:text-amber-200">
+                    Alamat Email Belum Terverifikasi
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                    Tautan aktivasi akun telah dikirimkan ke <strong>{user?.email}</strong>. Selesaikan verifikasi email untuk membuka akses penuh pemesanan paket hosting baru dan pembayaran.
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={handleResendPortalVerification}
+                disabled={isResendingVerification}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold shadow-xs transition-all whitespace-nowrap self-start sm:self-center disabled:opacity-50 cursor-pointer"
+              >
+                {isResendingVerification ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Mengirimkan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Kirim Ulang Email Verifikasi</span>
+                  </>
+                )}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleResendPortalVerification}
-              disabled={isResendingVerification}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold shadow-xs transition-all whitespace-nowrap self-start sm:self-center disabled:opacity-50 cursor-pointer"
-            >
-              {isResendingVerification ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Mengirimkan...</span>
-                </>
-              ) : (
-                <>
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Kirim Ulang Email Verifikasi</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Portal Navigation Tabs */}
-        <div className="flex overflow-x-auto space-x-2 pb-2 mb-8 border-b border-gray-200 dark:border-gray-800 no-scrollbar">
-          <button
-            onClick={() => setSearchParams({ tab: 'services' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTabParam === 'services'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-            }`}
-          >
-            <Server className="w-4 h-4" />
-            <span>Layanan Hosting Saya ({services.length})</span>
-          </button>
-
-          {selectedService && (
-            <button
-              onClick={() => setSearchParams({ tab: 'detail', service: selectedService.service_code })}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
-                activeTabParam === 'detail'
-                  ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-              }`}
-            >
-              <Globe className="w-4 h-4" />
-              <span>Kelola: {selectedService.domain || selectedService.service_code}</span>
-            </button>
           )}
 
-          <button
-            onClick={() => setSearchParams({ tab: 'orders' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTabParam === 'orders'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Riwayat Pesanan ({orders.length})</span>
-          </button>
+          {/* Breadcrumb Back Link when managing a service */}
+          {activeTabParam === 'detail' && selectedService && (
+            <div className="flex items-center space-x-2 text-xs">
+              <button
+                onClick={() => setSearchParams({ tab: 'services' })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium transition cursor-pointer"
+              >
+                <span>&larr; Kembali ke Daftar Cloud Hosting</span>
+              </button>
+            </div>
+          )}
 
-          <button
-            onClick={() => setSearchParams({ tab: 'invoices' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTabParam === 'invoices'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Invoice Pembayaran ({invoices.length})</span>
-          </button>
+        {/* TAB: OVERVIEW */}
+        {activeTabParam === 'overview' && (
+          <OverviewTab
+            services={services}
+            domains={domains}
+            nodeApps={nodeApps}
+            freePlanStatus={freePlanStatus}
+            onNavigateToTab={(tab, param) => {
+              if (param) setSearchParams({ tab, service: param });
+              else setSearchParams({ tab });
+            }}
+          />
+        )}
 
-          <button
-            onClick={() => setSearchParams({ tab: 'profile' })}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTabParam === 'profile'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-            }`}
-          >
-            <User className="w-4 h-4" />
-            <span>Profil & Keamanan</span>
-          </button>
-        </div>
+        {/* TAB: FREE PLAN */}
+        {activeTabParam === 'freeplan' && (
+          <FreePlanTab
+            onNavigateToHosting={(code) => {
+              if (code) setSearchParams({ tab: 'detail', service: code });
+              else setSearchParams({ tab: 'services' });
+            }}
+            onNavigateToDomains={() => setSearchParams({ tab: 'domains' })}
+            onNavigateToNodeJs={() => setSearchParams({ tab: 'nodejs' })}
+          />
+        )}
 
-        {/* TAB 1: MY SERVICES */}
+        {/* TAB: MY DOMAINS */}
+        {activeTabParam === 'domains' && (
+          <DomainsTab
+            onNavigateToHosting={(code) => {
+              if (code) setSearchParams({ tab: 'detail', service: code });
+              else setSearchParams({ tab: 'services' });
+            }}
+            onNavigateToFreePlan={() => setSearchParams({ tab: 'freeplan' })}
+          />
+        )}
+
+        {/* TAB: NODE.JS APPLICATIONS */}
+        {activeTabParam === 'nodejs' && (
+          <NodeJsAppsTab
+            onNavigateToDomains={() => setSearchParams({ tab: 'domains' })}
+          />
+        )}
+
+        {/* TAB: MY SERVICES */}
         {activeTabParam === 'services' && (
           <div>
             {services.length === 0 ? (
@@ -2067,10 +2113,7 @@ export const CustomerPortalPage: React.FC = () => {
             </div>
           )}
         </AnimatePresence>
-      </main>
-
-      <div className="max-w-[1400px] w-full mx-auto">
-        <Footer />
+        </main>
       </div>
     </div>
   );
