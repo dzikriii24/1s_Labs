@@ -1,0 +1,275 @@
+import React, { useEffect, useState } from 'react';
+import {
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  RefreshCw,
+  Download,
+  Calendar,
+  Layers,
+  ArrowUpRight,
+  Receipt,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  FileText,
+  Printer
+} from 'lucide-react';
+import { api, FinanceOverviewData } from '../../../services/api';
+
+interface RevenueOverviewViewProps {
+  viewMode?: 'overview' | 'reports';
+}
+
+export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
+  viewMode = 'overview'
+}) => {
+  const [data, setData] = useState<FinanceOverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reportPeriod, setReportPeriod] = useState<'this_month' | 'last_month' | 'all'>('this_month');
+
+  const isReportMode = viewMode === 'reports';
+
+  const fetchFinance = async () => {
+    setLoading(true);
+    try {
+      const res = await api.admin.getFinanceOverview();
+      if (res.success && res.data) {
+        setData(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load finance data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinance();
+  }, []);
+
+  const formatRupiah = (val?: number) => {
+    if (!val && val !== 0) return 'Rp0';
+    return `Rp${val.toLocaleString('id-ID')}`;
+  };
+
+  const handleExportCsv = () => {
+    if (!data?.recent_transactions || data.recent_transactions.length === 0) {
+      alert('Tidak ada transaksi untuk diekspor.');
+      return;
+    }
+    const headers = ['ID', 'Order ID', 'Nominal', 'Metode Pembayaran', 'Status', 'Tanggal', 'Email Pelanggan'];
+    const rows = data.recent_transactions.map((t: any) => [
+      t.id,
+      t.order_id || '-',
+      t.amount || 0,
+      t.payment_method || 'QRIS',
+      t.status || 'paid',
+      t.created_at || '',
+      t.user_email || ''
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r: any[]) => r.map((x) => `"${x}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `1slabs_laporan_keuangan_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
+              {isReportMode ? <FileText className="w-5 h-5" /> : <DollarSign className="w-5 h-5" />}
+            </span>
+            <div>
+              <h1 className="text-xl font-bold text-zinc-900">
+                {isReportMode
+                  ? 'Laporan Keuangan & Buku Kas (Financial Reports)'
+                  : 'Ikhtisar Arus Kas & Pendapatan (Revenue Overview)'}
+              </h1>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                {isReportMode
+                  ? 'Buku kas transaksi tervalidasi, audit pembayaran QRIS, rekonsiliasi kas masuk, dan ekspor dokumen keuangan.'
+                  : 'Metrik pendapatan terverifikasi real-time, volume transaksi sukses, dan kontribusi layanan hosting terhadap kas 1sLabs.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Ekspor CSV</span>
+          </button>
+          {isReportMode && (
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl transition-colors cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Cetak Laporan</span>
+            </button>
+          )}
+          <button
+            onClick={fetchFinance}
+            disabled={loading}
+            className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
+            title="Refresh data keuangan"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Total Pendapatan Bersih</span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold font-mono text-emerald-600 mt-3">
+            {formatRupiah(data?.kpi?.total_revenue)}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">Akumulasi seluruh pembayaran sah</div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Pendapatan Bulan Ini</span>
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+              <Calendar className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold font-mono text-zinc-900 mt-3">
+            {formatRupiah(data?.kpi?.monthly_revenue)}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">Bulan kalender berjalan</div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Transaksi Lunas</span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold font-mono text-zinc-900 mt-3">
+            {data?.kpi?.paid_transactions_count || 0}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">Terverifikasi otomatis & manual</div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Menunggu Verifikasi</span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold font-mono text-amber-600 mt-3">
+            {data?.kpi?.pending_verification_count || 0}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">Bukti transfer QRIS menunggu</div>
+        </div>
+      </div>
+
+      {/* Transactions Ledger Table */}
+      <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-xs">
+        <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-zinc-900">
+              {isReportMode ? 'Jurnal Audit Pembukuan Kas Masuk' : 'Riwayat Transaksi Terakhir'}
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Daftar transaksi pembayaran invoice yang tercatat pada sistem keuangan 1sLabs.
+            </p>
+          </div>
+          <span className="text-xs font-mono text-zinc-500 bg-zinc-100 px-2.5 py-1 rounded-lg">
+            {data?.recent_transactions?.length || 0} Transaksi
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-50/70 text-[11px] uppercase tracking-wider text-zinc-400 font-mono border-b border-zinc-100">
+              <tr>
+                <th className="py-3.5 px-5">ID & Order</th>
+                <th className="py-3.5 px-4">Pelanggan</th>
+                <th className="py-3.5 px-4">Metode</th>
+                <th className="py-3.5 px-4">Nominal</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-5 text-right">Tanggal Transaksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 text-zinc-700">
+              {!data?.recent_transactions || data.recent_transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-zinc-400 font-sans">
+                    Belum ada riwayat transaksi pembayaran.
+                  </td>
+                </tr>
+              ) : (
+                data.recent_transactions.map((tx: any) => (
+                  <tr key={tx.id} className="hover:bg-zinc-50/60 transition-colors">
+                    <td className="py-3.5 px-5">
+                      <div className="font-mono font-bold text-zinc-900">
+                        {tx.payment_number || `#TX-${tx.id}`}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                        Order Ref: #{tx.order_number || tx.order_id || '-'}
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <div className="font-medium text-zinc-900">{tx.customer_name || 'Pelanggan'}</div>
+                      <div className="text-[11px] text-zinc-400 font-mono">{tx.user_email || tx.customer_email}</div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <span className="font-mono text-xs font-semibold text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded">
+                        {tx.payment_method || 'QRIS BCA'}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 text-xs">
+                      {formatRupiah(tx.amount)}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {tx.status === 'paid' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3" /> Lunas
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                          <Clock className="w-3 h-3" /> {tx.status}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-5 text-right font-mono text-[11px] text-zinc-500">
+                      {tx.created_at ? new Date(tx.created_at).toLocaleString('id-ID') : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};

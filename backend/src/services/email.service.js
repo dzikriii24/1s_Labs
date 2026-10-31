@@ -819,8 +819,252 @@ async function sendAdminProvisioningFailureNotification({ serviceCode, domain, e
   return sendMail({ to: ADMIN_RECIPIENT, subject, templateName: 'admin_provisioning_failure', html, text, metadata: { serviceCode, domain, errorMessage } });
 }
 
+// ==========================================
+// EMAIL TEMPLATES REPOSITORY & CUSTOMIZATION
+// ==========================================
+const DEFAULT_TEMPLATES = {
+  customer_verify_email: {
+    template_key: 'customer_verify_email',
+    name: 'Verifikasi Alamat Email',
+    category: 'Authentication',
+    subject: 'Verifikasi Alamat Email Akun 1sLabs Hosting',
+    heading: 'Verifikasi Alamat Email Anda',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Terima kasih telah bergabung dengan platform hosting <strong>1s Labs</strong>. Untuk mengaktifkan akun dan mulai memesan paket hosting, silakan klik tombol verifikasi di bawah.</p>`,
+    button_text: 'Verifikasi Akun Sekarang',
+    button_url: '{{verification_url}}',
+    footer_text: 'Tautan ini berlaku selama 24 jam.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'verification_url']
+  },
+  customer_order_created: {
+    template_key: 'customer_order_created',
+    name: 'Pesanan Hosting Baru Dibuat',
+    category: 'Orders',
+    subject: 'Pesanan Dibuat: #{{order_number}} - {{service_name}}',
+    heading: 'Pesanan Hosting Baru Dibuat',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Pesanan hosting Anda <strong>#{{order_number}}</strong> untuk paket <strong>{{service_name}}</strong> (Domain: {{domain_name}}) telah dicatat. Selesaikan pembayaran dalam waktu 24 jam.</p>`,
+    button_text: 'Selesaikan Pembayaran',
+    button_url: '{{payment_url}}',
+    footer_text: 'Harap unggah bukti transfer setelah melakukan pembayaran.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'order_number', 'service_name', 'domain_name', 'invoice_total', 'payment_url']
+  },
+  customer_payment_approved: {
+    template_key: 'customer_payment_approved',
+    name: 'Pembayaran Disetujui & Hosting Aktif',
+    category: 'Billing',
+    subject: 'Pembayaran Diterima & Layanan Aktif: #{{order_number}}',
+    heading: 'Pembayaran Anda Telah Terverifikasi Sah',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Kabar baik! Pembayaran sebesar <strong>{{invoice_total}}</strong> untuk pesanan <strong>#{{order_number}}</strong> telah kami verifikasi sah.</p>`,
+    button_text: 'Buka Customer Portal',
+    button_url: '{{portal_url}}',
+    footer_text: 'Invoice resmi Anda telah diterbitkan.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'order_number', 'invoice_number', 'service_name', 'domain_name', 'invoice_total', 'portal_url']
+  },
+  customer_payment_rejected: {
+    template_key: 'customer_payment_rejected',
+    name: 'Pembayaran Ditolak',
+    category: 'Billing',
+    subject: 'Pemberitahuan Status Pembayaran: #{{order_number}}',
+    heading: 'Verifikasi Pembayaran Membutuhkan Tindakan',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Bukti pembayaran untuk pesanan <strong>#{{order_number}}</strong> belum dapat kami verifikasi karena: <em>{{rejection_reason}}</em>.</p>`,
+    button_text: 'Unggah Ulang Bukti Pembayaran',
+    button_url: '{{payment_url}}',
+    footer_text: 'Silakan hubungi WhatsApp support kami jika Anda membutuhkan bantuan.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'order_number', 'service_name', 'rejection_reason', 'payment_url']
+  },
+  customer_hosting_activated: {
+    template_key: 'customer_hosting_activated',
+    name: 'Aktivasi Layanan Hosting Sukses',
+    category: 'Hosting',
+    subject: 'Layanan Hosting Aktif: {{domain_name}} ({{service_code}})',
+    heading: 'Layanan Hosting Cloud Anda Telah Aktif',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Selamat! Layanan hosting Anda dengan domain <strong>{{domain_name}}</strong> telah aktif di server cloud 1sLabs.</p>`,
+    button_text: 'Kelola Hosting Anda',
+    button_url: '{{portal_url}}',
+    footer_text: 'Server IP: {{server_ip}} | Nameservers: {{nameservers}}',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'service_code', 'domain_name', 'service_name', 'server_ip', 'nameservers', 'hosting_expiration', 'portal_url']
+  },
+  customer_expiration_reminder: {
+    template_key: 'customer_expiration_reminder',
+    name: 'Pengingat Masa Berlaku Layanan',
+    category: 'Hosting',
+    subject: 'Pengingat: Layanan Hosting {{domain_name}} Segera Berakhir',
+    heading: 'Masa Berlaku Hosting Anda Segera Berakhir',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Layanan hosting Anda untuk domain <strong>{{domain_name}}</strong> akan kedaluwarsa pada <strong>{{hosting_expiration}}</strong> (tersisa {{days_remaining}} hari).</p>`,
+    button_text: 'Perpanjang Layanan Sekarang',
+    button_url: '{{renewal_url}}',
+    footer_text: 'Perpanjang sebelum tanggal kedaluwarsa untuk menghindari penangguhan website.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'domain_name', 'service_name', 'hosting_expiration', 'days_remaining', 'renewal_url']
+  },
+  customer_invoice_sent: {
+    template_key: 'customer_invoice_sent',
+    name: 'Pengiriman Faktur Invoice',
+    category: 'Billing',
+    subject: 'Faktur Invoice Resmi 1sLabs: {{invoice_number}}',
+    heading: 'Faktur Invoice Resmi Tagihan Layanan',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Berikut adalah invoice resmi tagihan layanan Anda <strong>{{invoice_number}}</strong> dengan total sebesar <strong>{{invoice_total}}</strong>.</p>`,
+    button_text: 'Lihat & Unduh Invoice PDF',
+    button_url: '{{invoice_url}}',
+    footer_text: 'Invoice ini sah dan diterbitkan secara digital oleh 1sLabs Technology.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'invoice_number', 'invoice_total', 'due_date', 'invoice_url']
+  },
+  customer_password_reset: {
+    template_key: 'customer_password_reset',
+    name: 'Reset Kata Sandi Akun',
+    category: 'Authentication',
+    subject: 'Permintaan Reset Kata Sandi Akun 1sLabs',
+    heading: 'Atur Ulang Kata Sandi Akun',
+    body_html: `<p>Halo <strong>{{customer_name}}</strong>,</p><p>Kami menerima permintaan untuk mengatur ulang kata sandi akun 1sLabs Anda. Klik tombol di bawah untuk membuat kata sandi baru.</p>`,
+    button_text: 'Reset Kata Sandi',
+    button_url: '{{reset_url}}',
+    footer_text: 'Tautan ini berlaku selama 1 jam. Jika Anda tidak meminta ini, abaikan pesan ini.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'reset_url']
+  },
+  admin_new_customer: {
+    template_key: 'admin_new_customer',
+    name: 'Notifikasi Pelanggan Baru Terdaftar',
+    category: 'Admin Notifications',
+    subject: '[1sLabs Admin] Pelanggan Baru Terdaftar: {{customer_name}}',
+    heading: 'Pemberitahuan Akun Pelanggan Baru',
+    body_html: `<p>Halo Administrator,</p><p>Pelanggan baru bernama <strong>{{customer_name}}</strong> (<em>{{customer_email}}</em>) telah berhasil mendaftar akun di platform 1sLabs Hosting.</p>`,
+    button_text: 'Buka Customer Management',
+    button_url: '{{admin_url}}',
+    footer_text: 'Notifikasi otomatis sistem 1sLabs.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'admin_url']
+  },
+  admin_new_order: {
+    template_key: 'admin_new_order',
+    name: 'Notifikasi Pesanan Hosting Baru',
+    category: 'Admin Notifications',
+    subject: '[1sLabs Admin] Pesanan Baru: #{{order_number}} - {{customer_name}}',
+    heading: 'Pesanan Hosting Masuk',
+    body_html: `<p>Halo Administrator,</p><p>Pesanan hosting baru <strong>#{{order_number}}</strong> telah dibuat oleh <strong>{{customer_name}}</strong> untuk paket <strong>{{service_name}}</strong> (Domain: {{domain_name}}).</p>`,
+    button_text: 'Periksa Pesanan',
+    button_url: '{{admin_url}}',
+    footer_text: 'Menunggu proses pembayaran pelanggan.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'order_number', 'service_name', 'domain_name', 'admin_url']
+  },
+  admin_payment_proof: {
+    template_key: 'admin_payment_proof',
+    name: 'Notifikasi Bukti Pembayaran Diunggah',
+    category: 'Admin Notifications',
+    subject: '[1sLabs Admin] Bukti Pembayaran Baru: #{{order_number}}',
+    heading: 'Verifikasi Pembayaran Diperlukan',
+    body_html: `<p>Halo Administrator,</p><p>Pelanggan <strong>{{customer_name}}</strong> telah mengunggah bukti transfer untuk pesanan <strong>#{{order_number}}</strong> sebesar <strong>{{invoice_total}}</strong>.</p>`,
+    button_text: 'Verifikasi Pembayaran Sekarang',
+    button_url: '{{admin_url}}',
+    footer_text: 'Verifikasi cepat memicu provisioning instan cPanel.',
+    brand_color: '#000000',
+    variables: ['customer_name', 'customer_email', 'order_number', 'invoice_total', 'admin_url']
+  },
+  admin_provisioning_failure: {
+    template_key: 'admin_provisioning_failure',
+    name: 'Notifikasi Kegagalan Provisioning cPanel',
+    category: 'Admin Notifications',
+    subject: '[1sLabs ALERT] Kegagalan Provisioning Layanan: {{domain_name}}',
+    heading: 'Peringatan Operasional Server',
+    body_html: `<p>Perhatian Administrator,</p><p>Provisioning otomatis akun cPanel untuk layanan <strong>{{domain_name}}</strong> (Order: #{{order_number}}) gagal dengan error: <code>{{error_message}}</code>.</p>`,
+    button_text: 'Investigasi di Admin Panel',
+    button_url: '{{admin_url}}',
+    footer_text: 'Tindakan manual diperlukan segera.',
+    brand_color: '#dc2626',
+    variables: ['customer_name', 'order_number', 'domain_name', 'error_message', 'admin_url']
+  }
+};
+
+/**
+ * Replace placeholders like {{variable_name}} with actual values
+ */
+function substituteVariables(text, vars = {}) {
+  if (!text) return '';
+  return text.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, key) => {
+    return vars[key] !== undefined && vars[key] !== null ? String(vars[key]) : match;
+  });
+}
+
+/**
+ * Send official invoice notification via email
+ */
+async function sendInvoiceEmail({ to, name, invoice, invoiceUrl }) {
+  const formattedTotal = new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(invoice.amount || invoice.subtotal || 0);
+
+  const subject = `Faktur Invoice Resmi 1sLabs: ${invoice.invoice_number}`;
+  const dueDateStr = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID', { dateStyle: 'long' }) : 'Sesuai pesanan';
+
+  const content = `
+    <h2 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #09090b; letter-spacing: -0.3px;">
+      Faktur Invoice Resmi Tagihan Layanan
+    </h2>
+    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 24px; color: #3f3f46;">
+      Halo <strong>${name}</strong>,<br>
+      Faktur invoice resmi untuk transaksi layanan Anda telah diterbitkan. Berikut rincian ringkasan invoice:
+    </p>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; color: #71717a;">Nomor Invoice</td>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; color: #09090b;" align="right">${invoice.invoice_number}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; color: #71717a;">Status Pembayaran</td>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; font-weight: 700;" align="right">
+          ${invoice.status === 'paid' ? '<span style="color: #15803d;">LUNAS / PAID</span>' : '<span style="color: #b45309;">MENUNGGU PEMBAYARAN</span>'}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; color: #71717a;">Jatuh Tempo</td>
+        <td style="padding: 12px 18px; border-bottom: 1px solid #e4e4e7; font-size: 13px; color: #09090b;" align="right">${dueDateStr}</td>
+      </tr>
+      <tr>
+        <td style="padding: 16px 18px; font-size: 13px; font-weight: 700; color: #09090b;">Total Tagihan</td>
+        <td style="padding: 16px 18px; font-size: 17px; font-weight: 800; color: #09090b;" align="right">${formattedTotal}</td>
+      </tr>
+    </table>
+
+    <p style="margin: 0; font-size: 13px; line-height: 20px; color: #71717a;">
+      Anda dapat mencetak atau menyimpan dokumen invoice resmi dalam format PDF melalui tombol di bawah.
+    </p>
+  `;
+
+  const html = wrapHtmlEmail({
+    title: subject,
+    preheader: `Invoice ${invoice.invoice_number} sebesar ${formattedTotal}.`,
+    content,
+    callToAction: {
+      text: 'Lihat & Unduh Invoice PDF',
+      url: invoiceUrl || `${APP_URL}/invoice/${invoice.invoice_number}`
+    },
+    badge: 'Faktur Resmi'
+  });
+
+  const text = `Halo ${name},\n\nFaktur invoice resmi Anda telah terbit: ${invoice.invoice_number}\nTotal: ${formattedTotal}\nLihat invoice di: ${invoiceUrl || `${APP_URL}/invoice/${invoice.invoice_number}`}\n\n1s Labs Finance Team`;
+
+  return sendMail({
+    to,
+    subject,
+    templateName: 'customer_invoice_sent',
+    html,
+    text,
+    metadata: { invoiceNumber: invoice.invoice_number, amount: invoice.amount }
+  });
+}
+
 module.exports = {
   sendMail,
+  wrapHtmlEmail,
   sendVerificationEmail,
   sendOrderCreatedEmail,
   sendPaymentProofReceivedEmail,
@@ -829,8 +1073,12 @@ module.exports = {
   sendHostingActivatedEmail,
   sendExpirationReminderEmail,
   sendPasswordResetEmail,
+  sendInvoiceEmail,
   sendAdminNewCustomerNotification,
   sendAdminNewOrderNotification,
   sendAdminPaymentProofNotification,
-  sendAdminProvisioningFailureNotification
+  sendAdminProvisioningFailureNotification,
+  DEFAULT_TEMPLATES,
+  substituteVariables
 };
+

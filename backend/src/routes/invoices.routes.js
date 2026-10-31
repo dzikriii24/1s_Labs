@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 // GET /invoices - List invoices
 router.get('/', requireAuth, async (req, res) => {
@@ -38,17 +38,18 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /invoices/:invoiceNumber - Single invoice detail
-router.get('/:invoiceNumber', requireAuth, async (req, res) => {
+// GET /invoices/:invoiceNumber - Single invoice detail (Accessible by auth user, admin, or via direct link)
+router.get('/:invoiceNumber', optionalAuth, async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
-    const isUserAdmin = req.user.role === 'admin';
+    const isUserAdmin = req.user && req.user.role === 'admin';
 
     let sql = `
       SELECT inv.*,
              u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
              o.order_number, o.created_at as order_created_at, o.domain as order_domain,
              p.payment_number, p.method as payment_method, p.verified_at,
+             p.proof_image as payment_proof_image, p.sender_bank_or_wallet, p.sender_account_name,
              s.service_code, s.domain as current_service_domain
       FROM invoices inv
       JOIN users u ON inv.user_id = u.id
@@ -59,7 +60,7 @@ router.get('/:invoiceNumber', requireAuth, async (req, res) => {
     `;
     const params = [invoiceNumber];
 
-    if (!isUserAdmin) {
+    if (req.user && !isUserAdmin) {
       sql += ' AND inv.user_id = ?';
       params.push(req.user.id);
     }

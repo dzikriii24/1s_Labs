@@ -65,8 +65,22 @@ router.all('/collect', express.text({ type: '*/*' }), async (req, res) => {
     }
 
     // Lookup service domain
-    const services = await query('SELECT domain FROM hosting_services WHERE service_code = ? LIMIT 1', [serviceCode]);
-    const domain = services.length > 0 ? services[0].domain : 'unknown';
+    let domain = '1slabs.my.id';
+    if (serviceCode === '1slabs.my.id' || serviceCode === '1SLABS-OFFICIAL') {
+      domain = '1slabs.my.id';
+    } else {
+      const services = await query('SELECT domain FROM hosting_services WHERE service_code = ? LIMIT 1', [serviceCode]);
+      if (services.length > 0 && services[0].domain) {
+        domain = services[0].domain;
+      } else if (pageUrl) {
+        try {
+          const parsed = new URL(pageUrl);
+          domain = parsed.hostname;
+        } catch (e) {
+          domain = '1slabs.my.id';
+        }
+      }
+    }
 
     const ua = req.headers['user-agent'] || '';
     const { device, browser } = parseUserAgent(ua);

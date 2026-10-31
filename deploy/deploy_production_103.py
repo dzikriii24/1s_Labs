@@ -107,7 +107,7 @@ def main():
         "touch /home/u1zh8984/oneslabs-backend/tmp/restart.txt",
         "cloudlinux-selector restart --json --interpreter nodejs --app-root oneslabs-backend",
         "cat /home/u1zh8984/public_html/1slabs.my.id/index.html | grep -E 'assets/index'",
-        "curl -s https://1slabs.my.id/api/health"
+        "curl -s --max-time 5 -H 'User-Agent: Mozilla/5.0' https://1slabs.my.id/api/health"
     ]
 
     for cmd in commands:

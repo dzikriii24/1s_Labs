@@ -194,11 +194,129 @@ const domainService = {
   }
 };
 
+// === RESOURCE & SERVER HEALTH (CloudLinux LVE / cPanel UAPI) ===
+const resourceService = {
+  async getUsages() {
+    const data = await execUapi('ResourceUsage', 'get_usages');
+    return Array.isArray(data) ? data : (data?.data || []);
+  },
+  async getServerInfo() {
+    const data = await execUapi('ServerInformation', 'get_information');
+    return Array.isArray(data) ? data : (data?.data || []);
+  },
+  async getStatsBar() {
+    const data = await execUapi('StatsBar', 'get_stats');
+    return Array.isArray(data) ? data : (data?.data || []);
+  }
+};
+
+// === SSL CERTIFICATES & AUTOSSL OPERATIONS ===
+const sslService = {
+  async getInstalledHosts() {
+    const data = await execUapi('SSL', 'installed_hosts');
+    return Array.isArray(data) ? data : (data?.data || []);
+  },
+  async listCerts() {
+    const data = await execUapi('SSL', 'list_certs');
+    return Array.isArray(data) ? data : (data?.data || []);
+  },
+  async startAutoSslCheck() {
+    return execUapi('SSL', 'start_autossl_check');
+  },
+  async isAutoSslInProgress() {
+    return execUapi('SSL', 'is_autossl_check_in_progress');
+  },
+  async getAutoSslProblems() {
+    const data = await execUapi('SSL', 'get_autossl_problems');
+    return Array.isArray(data) ? data : (data?.data || []);
+  },
+  async getAutoSslRenewalStatus() {
+    return execUapi('SSL', 'get_autossl_renewal_status');
+  }
+};
+
+// === SAFE PROCESS & SYSTEM MONITORING ===
+const systemProcessService = {
+  async listProcesses() {
+    return new Promise((resolve) => {
+      execFile('ps', ['-u', 'u1zh8984', '-o', 'pid,%cpu,%mem,etime,args'], { timeout: 10000 }, (err, stdout) => {
+        if (err || !stdout) {
+          return resolve([]);
+        }
+        const lines = stdout.trim().split('\n');
+        if (lines.length <= 1) return resolve([]);
+        const procs = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const parts = line.split(/\s+/);
+          const pid = parseInt(parts[0], 10);
+          const cpu = parseFloat(parts[1]) || 0;
+          const mem = parseFloat(parts[2]) || 0;
+          const elapsed = parts[3] || '';
+          const command = parts.slice(4).join(' ');
+          if (pid && command) {
+            procs.push({ pid, cpu, mem, elapsed, command });
+          }
+        }
+        resolve(procs);
+      });
+    });
+  },
+
+  async terminateProcess(targetPid) {
+    const pid = parseInt(targetPid, 10);
+    if (!pid || pid <= 1) {
+      throw new Error('PID proses tidak valid.');
+    }
+    if (pid === process.pid || pid === process.ppid) {
+      throw new Error('Dilarang mematikan proses master server yang sedang aktif.');
+    }
+
+    const procs = await this.listProcesses();
+    const targetProc = procs.find(p => p.pid === pid);
+    if (!targetProc) {
+      throw new Error(`Proses dengan PID ${pid} tidak ditemukan atau bukan milik akun ini.`);
+    }
+
+    const cmdLower = targetProc.command.toLowerCase();
+    if (cmdLower.includes('passenger') && cmdLower.includes('core')) {
+      throw new Error('Dilarang mematikan Passenger Core daemon.');
+    }
+
+    return new Promise((resolve, reject) => {
+      execFile('kill', ['-15', String(pid)], (err) => {
+        if (err) {
+          execFile('kill', ['-9', String(pid)], (err2) => {
+            if (err2) return reject(new Error(`Gagal menghentikan proses: ${err2.message}`));
+            resolve({ success: true, pid, command: targetProc.command, forceKilled: true });
+          });
+        } else {
+          resolve({ success: true, pid, command: targetProc.command, forceKilled: false });
+        }
+      });
+    });
+  },
+
+  async getUptime() {
+    return new Promise((resolve) => {
+      execFile('uptime', [], (err, stdout) => {
+        if (err || !stdout) return resolve('Uptime info unavailable');
+        resolve(stdout.trim());
+      });
+    });
+  }
+};
+
 module.exports = {
   execUapi,
   ftpService,
   mysqlService,
   quotaService,
   domainService,
+  resourceService,
+  sslService,
+  systemProcessService,
   HAS_UAPI
 };
+

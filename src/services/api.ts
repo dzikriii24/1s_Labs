@@ -159,10 +159,233 @@ export interface AdminStats {
   pendingPayments: number;
   paidPayments: number;
   totalRevenue: number;
+  monthlyRevenue?: number;
   activeServices: number;
   awaitingServices: number;
   expiringServices: number;
+  recentPendingPayments?: any[];
 }
+
+export interface AdminAnalyticsOverview {
+  range: string;
+  serviceCode: string;
+  summary: {
+    totalPageviews: number;
+    uniqueVisitors: number;
+    totalClicks: number;
+    totalSessions: number;
+    bounceRate: number;
+    clickRate: number;
+  };
+  timeline: { date: string; views: number; visitors: number; clicks: number }[];
+  topPages: { page_path: string; page_title: string; views: number; visitors: number }[];
+  devices: { device: string; count: number }[];
+  browsers: { browser: string; count: number }[];
+  referrers: { source: string; count: number }[];
+  recentEvents: any[];
+  trackedServices: { service_code: string; domain: string }[];
+}
+
+export interface CustomerDetail {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  email_verified: number | boolean;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+  total_spent: number;
+  orders_count: number;
+  services_count: number;
+  orders: Order[];
+  payments: any[];
+  services: HostingService[];
+  invoices: Invoice[];
+  email_logs: any[];
+}
+
+export interface HostingOverviewStats {
+  totalServices: number;
+  activeServices: number;
+  awaitingDomain: number;
+  pendingProvisioning: number;
+  suspendedServices: number;
+  expiredServices: number;
+  upcomingExpirations: number;
+  totalRevenue: number;
+}
+
+export interface ServerMonitoringData {
+  server: {
+    status: 'healthy' | 'warning' | 'critical';
+    uptime: string;
+    timestamp: string;
+    serverIp: string;
+    hostname: string;
+    services: { name: string; value: string; status: number; type: string }[];
+  };
+  resources: {
+    cpu: { usage: number; maximum: number; percent: number };
+    memory: { usageBytes: number; maximumBytes: number; percent: number };
+    entryProcesses: { usage: number; maximum: number; percent: number };
+    numberProcesses: { usage: number; maximum: number; percent: number };
+    iops: { usage: number; maximum: number };
+    io: { usageBytes: number; maximumBytes: number };
+    diskUsageBytes: number;
+    databaseDiskBytes: number;
+    postgresDiskBytes: number;
+    bandwidthBytes: number;
+  };
+  accountStats: {
+    addonDomains: number;
+    subdomains: number;
+    aliases: number;
+    emailAccounts: number;
+    ftpAccounts: number;
+    mysqlDatabases: number;
+    postgresDatabases: number;
+  };
+  alerts: { level: 'warning' | 'critical'; resource: string; message: string }[];
+}
+
+export interface ServerProcessItem {
+  pid: number;
+  cpu: number;
+  mem: number;
+  elapsed: string;
+  command: string;
+}
+
+export interface DomainItem {
+  service_id: number;
+  service_code: string;
+  domain: string;
+  customer_name: string;
+  customer_email: string;
+  service_status: string;
+  server_ip: string;
+  ssl_status: 'active' | 'self_signed' | 'expired' | 'not_installed' | 'failed';
+  ssl_details?: any;
+  autossl_problem?: string | null;
+  expires_at?: string;
+}
+
+export interface FinanceOverviewData {
+  totalRevenue: number;
+  monthlyRevenue: number;
+  annualRevenue: number;
+  totalTransactions: number;
+  successfulPayments: number;
+  pendingPayments: number;
+  failedPayments: number;
+  outstandingInvoicesCount: number;
+  outstandingAmount: number;
+  timeline: { month: string; revenue: number; transaction_count: number }[];
+  serviceBreakdown: { service_name: string; revenue: number; total_orders: number }[];
+}
+
+export interface InvoiceLineItem {
+  section?: string;
+  category?: string;
+  name: string;
+  item_name?: string;
+  description: string;
+  qty?: number;
+  quantity?: number;
+  unit_price: number;
+  total_price: number;
+  proof_url?: string;
+  payment_proof_url?: string;
+}
+
+export interface PaymentProofItem {
+  filename: string;
+  originalName: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  ext: string;
+  isPdf: boolean;
+  isImage: boolean;
+  url: string;
+  previewUrl: string;
+  uploadedAt: string;
+  linkedInvoices: string[];
+}
+
+export interface ServiceReportItem {
+  id: number;
+  report_number: string;
+  report_type: string;
+  title: string;
+  customer_name: string;
+  customer_email?: string;
+  service_id?: number | null;
+  period_start?: string;
+  period_end?: string;
+  status: string;
+  work_summary: string;
+  work_details: any[];
+  notes?: string;
+  created_at: string;
+}
+
+export interface EmailLogItem {
+  id: number;
+  recipient: string;
+  subject: string;
+  template_name: string;
+  email_type?: string;
+  status: string;
+  attempts: number;
+  last_error?: string | null;
+  metadata_json?: any;
+  created_at: string;
+  sent_at?: string | null;
+}
+
+export interface EmailTemplateItem {
+  template_key: string;
+  name: string;
+  category: string;
+  subject: string;
+  heading?: string;
+  body_html: string;
+  body_text?: string;
+  button_text?: string;
+  button_url?: string;
+  footer_text?: string;
+  brand_color?: string;
+  is_customized: boolean;
+  version: number;
+  variables: string[];
+}
+
+export interface ActivityLogItem {
+  id: number;
+  actor_id?: number;
+  actor_name: string;
+  actor_role: string;
+  admin_email?: string;
+  action: string;
+  target: string;
+  details?: any;
+  ip_address?: string;
+  result: string;
+  created_at: string;
+}
+
+export interface AdminNotificationItem {
+  id: string;
+  type: string;
+  level: 'warning' | 'critical' | 'info';
+  title: string;
+  message: string;
+  timestamp: string;
+  link?: string;
+}
+
 
 // === HOSTING MANAGEMENT INTERFACES ===
 export interface FileItem {
@@ -344,6 +567,18 @@ export function getStoredUser(): User | null {
   } catch {
     return null;
   }
+}
+
+export function buildQueryString(params?: Record<string, any>): string {
+  if (!params) return '';
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all' && value !== 'undefined') {
+      searchParams.append(key, String(value));
+    }
+  });
+  const str = searchParams.toString();
+  return str ? `?${str}` : '';
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -753,10 +988,8 @@ export const api = {
     getStats: () =>
       request<{ success: boolean; stats: AdminStats }>('/admin/stats'),
 
-    getPayments: (params?: { status?: string; search?: string }) => {
-      const q = new URLSearchParams(params as Record<string, string>).toString();
-      return request<{ success: boolean; payments: any[] }>(`/admin/payments${q ? `?${q}` : ''}`);
-    },
+    getPayments: (params?: { status?: string; search?: string }) =>
+      request<{ success: boolean; payments: any[] }>(`/admin/payments${buildQueryString(params)}`),
 
     verifyPayment: (paymentId: number, payload: { action: 'approve' | 'reject'; reason?: string; admin_notes?: string }) =>
       request<{ success: boolean; message: string; result: any }>(`/admin/payments/${paymentId}/verify`, {
@@ -764,10 +997,8 @@ export const api = {
         body: JSON.stringify(payload)
       }),
 
-    getServices: (params?: { status?: string; search?: string }) => {
-      const q = new URLSearchParams(params as Record<string, string>).toString();
-      return request<{ success: boolean; services: HostingService[] }>(`/admin/services${q ? `?${q}` : ''}`);
-    },
+    getServices: (params?: { status?: string; search?: string }) =>
+      request<{ success: boolean; services: HostingService[] }>(`/admin/services${buildQueryString(params)}`),
 
     provisionService: (serviceId: number, payload: { status?: string; cpanel_username?: string; admin_notes?: string; domain?: string; server_ip?: string; nameservers?: string }) =>
       request<{ success: boolean; message: string }>(`/admin/services/${serviceId}/provision`, {
@@ -784,7 +1015,217 @@ export const api = {
         body: JSON.stringify(payload)
       }),
 
-    getCustomers: () =>
-      request<{ success: boolean; customers: any[] }>('/admin/customers')
+    getCustomers: (params?: { search?: string; status?: string; sort?: string; order?: string }) =>
+      request<{ success: boolean; customers: any[] }>(`/admin/customers${buildQueryString(params)}`),
+
+    getCustomerDetail: (id: number) =>
+      request<{ success: boolean; customer: CustomerDetail }>(`/admin/customers/${id}`),
+
+    updateCustomerStatus: (id: number, status: string) =>
+      request<{ success: boolean; message: string }>(`/admin/customers/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      }),
+
+    // Hosting
+    getHostingOverview: () =>
+      request<{ success: boolean; overview: HostingOverviewStats }>('/admin/hosting/overview'),
+
+    getHostingDetail: (id: number) =>
+      request<{ success: boolean; service: any }>(`/admin/hosting/${id}`),
+
+    getAllOrders: (params?: { status?: string; search?: string }) =>
+      request<{ success: boolean; orders: Order[] }>(`/admin/orders${buildQueryString(params)}`),
+
+    // Analytics
+    getAnalyticsOverview: (params?: { range?: string; serviceCode?: string; startDate?: string; endDate?: string }) =>
+      request<{ success: boolean } & AdminAnalyticsOverview>(`/admin/analytics/overview${buildQueryString(params)}`),
+
+    // Server Monitoring & Processes
+    getServerMonitoring: () =>
+      request<{ success: boolean } & ServerMonitoringData>('/admin/server/monitoring'),
+
+    getServerProcesses: () =>
+      request<{ success: boolean; count: number; processes: ServerProcessItem[] }>('/admin/server/processes'),
+
+    getLiveProcesses: () =>
+      request<{ success: boolean; count: number; processes: ServerProcessItem[] }>('/admin/server/processes'),
+
+    killServerProcess: (pid: number, reason?: string) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/server/kill-process', {
+        method: 'POST',
+        body: JSON.stringify({ pid, reason })
+      }),
+
+    terminateProcess: (pid: number, reason?: string) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/server/kill-process', {
+        method: 'POST',
+        body: JSON.stringify({ pid, reason })
+      }),
+
+    // Domains & SSL
+    getDomains: () =>
+      request<{ success: boolean; domains: DomainItem[] }>('/admin/domains'),
+
+    getSslCertificates: () =>
+      request<{ success: boolean; isInProgress: boolean; certificates: any[]; problems: any[] }>('/admin/ssl/certificates'),
+
+    startAutoSslCheck: (domain?: string) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/ssl/start-check', {
+        method: 'POST',
+        body: JSON.stringify({ domain })
+      }),
+
+    runAutoSsl: () =>
+      request<{ success: boolean; message: string; result: any }>('/admin/ssl/start-check', {
+        method: 'POST'
+      }),
+
+    verifyDomainDns: (domain: string) =>
+      request<{ success: boolean; domain: string; isPointed: boolean; resolvedIps: string[]; serverIp: string; message: string }>('/admin/ssl/verify-domain', {
+        method: 'POST',
+        body: JSON.stringify({ domain })
+      }),
+
+    // Finance & Invoices
+    getFinanceOverview: () =>
+      request<{ success: boolean; revenue: FinanceOverviewData }>('/admin/finance/overview'),
+
+    getInvoices: (params?: { status?: string; search?: string }) =>
+      request<{ success: boolean; invoices: Invoice[] }>(`/admin/invoices${buildQueryString(params)}`),
+
+    createInvoice: (payload: {
+      invoiceNumber?: string;
+      invoice_number?: string;
+      customerId?: number;
+      customer_id?: number;
+      customerName?: string;
+      customer_name?: string;
+      customerEmail?: string;
+      customer_email?: string;
+      customerPhone?: string;
+      customer_phone?: string;
+      customerAddress?: string;
+      customer_address?: string;
+      dueDate?: string;
+      due_date?: string;
+      notes?: string;
+      items: any[];
+      discount?: number;
+      discount_amount?: number;
+      tax?: number;
+      tax_amount?: number;
+      dpAmount?: number;
+      dp_amount?: number;
+      balanceDue?: number;
+      balance_due?: number;
+      paymentProofUrl?: string;
+      payment_proof_url?: string;
+      status?: string;
+      period?: string;
+      domain?: string;
+    }) =>
+      request<{ success: boolean; message: string; invoice: any }>('/admin/invoices/create', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateInvoice: (id: number, payload: any) =>
+      request<{ success: boolean; message: string; invoice?: any }>(`/admin/invoices/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    updateInvoiceStatus: (id: number, status: string) =>
+      request<{ success: boolean; message: string }>(`/admin/invoices/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      }),
+
+    sendInvoiceEmail: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/invoices/${id}/send-email`, {
+        method: 'POST'
+      }),
+
+    // Payment Proofs Vault
+    getProofs: () =>
+      request<{ success: boolean; totalCount: number; proofs: PaymentProofItem[] }>('/admin/proofs'),
+
+    uploadProofs: (files: File[]) => {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file));
+      return request<{ success: boolean; message: string; uploaded: PaymentProofItem[] }>('/admin/proofs/upload', {
+        method: 'POST',
+        body: formData
+      });
+    },
+
+    deleteProof: (filename: string) =>
+      request<{ success: boolean; message: string }>(`/admin/proofs/${encodeURIComponent(filename)}`, {
+        method: 'DELETE'
+      }),
+
+    // Service Reports
+    getServiceReports: () =>
+      request<{ success: boolean; reports: ServiceReportItem[] }>('/admin/reports'),
+
+    createServiceReport: (payload: {
+      reportType: string;
+      title: string;
+      customerName: string;
+      customerEmail?: string;
+      serviceId?: number;
+      periodStart?: string;
+      periodEnd?: string;
+      status?: string;
+      workSummary: string;
+      workDetails?: any[];
+      notes?: string;
+    }) =>
+      request<{ success: boolean; message: string; reportNumber: string }>('/admin/reports', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    // Email Management & Templates
+    getEmailLogs: (params?: { status?: string; search?: string; limit?: number }) =>
+      request<{ success: boolean; stats: any; logs: EmailLogItem[] }>(`/admin/emails/logs${buildQueryString(params)}`),
+
+    getEmailTemplates: () =>
+      request<{ success: boolean; templates: EmailTemplateItem[] }>('/admin/emails/templates'),
+
+    updateEmailTemplate: (key: string, payload: Partial<EmailTemplateItem>) =>
+      request<{ success: boolean; message: string }>(`/admin/emails/templates/${key}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    resetEmailTemplate: (key: string) =>
+      request<{ success: boolean; message: string }>(`/admin/emails/templates/${key}/reset`, {
+        method: 'POST'
+      }),
+
+    sendTestEmail: (recipient: string, templateKey: string) =>
+      request<{ success: boolean; message: string }>('/admin/emails/test-send', {
+        method: 'POST',
+        body: JSON.stringify({ recipient, templateKey })
+      }),
+
+    // Activity Logs & Notifications
+    getActivityLogs: (params?: { action?: string; search?: string; limit?: number }) =>
+      request<{ success: boolean; logs: ActivityLogItem[] }>(`/admin/activity-logs${buildQueryString(params)}`),
+
+    getNotifications: () =>
+      request<{ success: boolean; unreadCount: number; notifications: AdminNotificationItem[] }>('/admin/notifications'),
+
+    // System Settings
+    getSystemSettings: () =>
+      request<{ success: boolean; settings: Record<string, any>; raw: any[] }>('/admin/system/settings'),
+
+    updateSystemSettings: (settings: Record<string, any>) =>
+      request<{ success: boolean; message: string }>('/admin/system/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ settings })
+      })
   }
 };

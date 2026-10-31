@@ -26,6 +26,7 @@ import { CustomerPortalPage } from './pages/CustomerPortalPage'
 import { InvoicePage } from './pages/InvoicePage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
+import { ProofViewerPage } from './pages/ProofViewerPage'
 
 // Automatically scrolls to top on route change unless an anchor hash is present
 function ScrollToTop() {
@@ -128,6 +129,9 @@ function App() {
               <Route path="/services/:serviceCode/setup-domain" element={<SetupDomainPage />} />
               <Route path="/portal" element={<CustomerPortalPage />} />
               <Route path="/invoice/:invoiceNumber" element={<InvoicePage />} />
+              <Route path="/invoices/:invoiceNumber" element={<InvoicePage />} />
+              <Route path="/proof-viewer" element={<ProofViewerPage />} />
+              <Route path="/proof/:filename" element={<ProofViewerPage />} />
 
               {/* Admin Portal Route */}
               <Route path="/admin" element={<AdminDashboardPage />} />
