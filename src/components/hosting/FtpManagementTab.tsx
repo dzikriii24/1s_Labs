@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { api, FtpAccount } from '../../services/api';
+import notify from '../../lib/notify';
 
 interface FtpManagementTabProps {
   serviceCode: string;
@@ -115,7 +116,13 @@ export const FtpManagementTab: React.FC<FtpManagementTabProps> = ({
   };
 
   const handleDeleteAccount = async (account: FtpAccount) => {
-    if (!window.confirm(`Hapus akun FTP '${account.username}'?`)) return;
+    const ok = await notify.confirm({
+      title: 'Hapus Akun FTP',
+      text: `Hapus akun FTP '${account.username}'?`,
+      confirmButtonText: 'Ya, Hapus',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       setIsSubmitting(true);
       const res = await api.ftp.delete(serviceCode, account.id);

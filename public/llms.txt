@@ -1,0 +1,58 @@
+# 1sLabs – Enterprise IT Services & Managed Hosting Platform
+> Platform penyedia jasa pembuatan website profesional, software development, annual website maintenance, dan commercial cloud hosting berbasis di Indonesia.
+
+## Ikhtisar Bisnis & Entitas Resmi
+- **Nama Perusahaan:** 1sLabs (PT / Engineering Team 1sLabs)
+- **Website Resmi:** https://1slabs.my.id
+- **Logo Resmi:** https://1slabs.my.id/logo-1slabs.png
+- **Spesialisasi:** IT Services Provider, Web Application Development, Annual Website Maintenance, Managed Cloud Hosting & Node.js Runtime.
+- **Lokasi Server:** Tier-3 Datacenter Indonesia (Jakarta, IP: 103.119.237.132).
+- **Kontak Resmi:** WhatsApp Hotline: +62 851-5629-6580 | Email: info@1slabs.my.id
+
+## Layanan Utama (Core Services)
+
+### 1. Jasa Pembuatan Website Profesional
+- **URL:** https://1slabs.my.id/jasa-pembuatan-website
+- **Deskripsi:** Pembuatan Company Profile, Landing Page, Portal Berita, Toko Online (E-Commerce), dan Dashboard Interaktif.
+- **Keunggulan:** Desain modern responsif, optimasi Core Web Vitals (LCP < 2.5s), integrasi SEO on-page, dan kepemilikan kode sumber penuh (Pay Once, No Monthly Lock-in).
+
+### 2. Custom Software & Web Application Development
+- **URL:** https://1slabs.my.id/software-development
+- **Deskripsi:** Solusi sistem informasi bisnis, Point of Sale (POS), Enterprise Resource Planning (ERP), CRM, sistem akademik/perpustakaan (SLiMS), dan integrasi payment gateway.
+- **Teknologi:** React, Vue, Vite, Node.js Express, TypeScript, Python, TailwindCSS, PostgreSQL, MySQL.
+
+### 3. Annual Website Maintenance (Perawatan Website Tahunan)
+- **URL:** https://1slabs.my.id/#contact
+- **Deskripsi:** Layanan kontrak pemeliharaan website berkelanjutan untuk menjaga website tetap aman, cepat, dan kompatibel dengan browser modern.
+- **Lingkup:** Bug fixing berkala, security patch & CVE dependency updates, database optimization & tuning, offsite disaster recovery backup, uptime monitoring 24/7.
+- **Penerimaan Sistem Existing:** Menerima pengajuan website yang sebelumnya dibuat oleh agensi atau developer lain setelah melalui technical assessment.
+
+### 4. Managed Cloud Hosting & Node.js Runtime
+- **URL:** https://1slabs.my.id/hosting
+- **Deskripsi:** Hosting performa tinggi dengan isolasi CloudLinux CageFS, storage full NVMe SSD, auto-provisioning cPanel, Node.js Selector (Node 20, 22, 24), dan sertifikat AutoSSL gratis.
+- **Paket:** Starter Cloud, Professional Developer, dan Enterprise Business.
+
+### 5. Free Plan Developer Program (CSR)
+- **URL:** https://1slabs.my.id/portal?tab=freeplan
+- **Deskripsi:** Program hosting gratis dan subdomain `.1slabs.my.id` bagi pelajar, mahasiswa, dan developer pemula di Indonesia untuk kebutuhan belajar dan riset web.
+- **Fasilitas:** 1x Subdomain gratis, 1 GB Storage NVMe, 1x Node.js Selector App, AutoSSL gratis, masa aktif 30 hari yang dapat diperpanjang tanpa batas biaya.
+
+### 6. Free IT Consultation (Konsultasi IT Gratis)
+- **URL:** https://1slabs.my.id/it-consulting
+- **Deskripsi:** Sesi konsultasi arsitektur teknologi, pemilihan tech stack, estimasi biaya proyek, dan audit kendala sistem eksisting tanpa dipungut biaya awal.
+
+## Pusat Dokumentasi & Panduan Teknis
+- **Portal Dokumentasi:** https://1slabs.my.id/docs
+- **Panduan Deploy Frontend (React/Vue/Vite):** https://1slabs.my.id/docs/deploy-react-vue-vite
+- **Panduan Deploy Node.js Express:** https://1slabs.my.id/docs/membuat-aplikasi-nodejs-cpanel
+- **Panduan Custom Domain & DNS:** https://1slabs.my.id/docs/konfigurasi-dns-custom-domain
+- **Panduan Maintenance Website:** https://1slabs.my.id/docs/layanan-maintenance-website-tahunan
+
+## Pertanyaan Sering Diajukan (FAQ)
+- **Q: Apakah 1sLabs melayani klien di luar kota?**
+  A: Ya, 1sLabs melayani klien di seluruh Indonesia dengan alur kerja digital, sesi video conference, dan milestone berkala yang transparan.
+- **Q: Apakah ada biaya langganan bulanan tersembunyi untuk pembuatan website?**
+  A: Tidak. 1sLabs menganut prinsip transparansi "Pay Once", di mana website menjadi aset milik klien sepenuhnya setelah serah terima.
+- **Q: Apakah saya bisa memindahkan website yang bermasalah dari hosting lain ke 1sLabs?**
+  A: Ya, tim engineer 1sLabs menyediakan layanan pendampingan migrasi gratis dari cPanel/hosting lain.
+

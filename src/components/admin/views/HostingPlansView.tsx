@@ -13,6 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { api, HostingPlan } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const HostingPlansView: React.FC = () => {
   const [plans, setPlans] = useState<HostingPlan[]>([]);
@@ -96,12 +97,12 @@ export const HostingPlansView: React.FC = () => {
       });
 
       if (res.success) {
-        alert(res.message || 'Paket hosting berhasil diperbarui.');
+        notify.success(res.message || 'Paket hosting berhasil diperbarui.');
         setSelectedPlan(null);
         await fetchPlans();
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal menyimpan perubahan paket.');
+      notify.error(err.message || 'Gagal menyimpan perubahan paket.');
     } finally {
       setSaving(false);
     }

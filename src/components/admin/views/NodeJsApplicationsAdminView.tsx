@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { api, NodeJsApp } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const NodeJsApplicationsAdminView: React.FC = () => {
   const [apps, setApps] = useState<NodeJsApp[]>([]);
@@ -42,9 +43,10 @@ export const NodeJsApplicationsAdminView: React.FC = () => {
     setActionInProgressId(appId);
     try {
       await api.nodejs.action(appId, 'restart');
+      notify.success('Aplikasi Node.js berhasil direstart.');
       await fetchApps();
     } catch (err: any) {
-      alert('Gagal restart: ' + err.message);
+      notify.error('Gagal restart: ' + (err.message || 'Error tidak diketahui'));
     } finally {
       setActionInProgressId(null);
     }

@@ -49,6 +49,7 @@ const MENU_TITLES: Record<AdminMenuKey | string, { group: string; title: string 
   'financial-reports': { group: 'FINANCE', title: 'Financial Reports' },
   invoices: { group: 'FINANCE', title: 'Invoice Management' },
   'service-reports': { group: 'FINANCE', title: 'Service Report Generator' },
+  inquiries: { group: 'COMMUNICATION', title: 'Manajemen Inquiry & Konsultasi' },
   emails: { group: 'COMMUNICATION', title: 'Email Management & Logs' },
   'email-templates': { group: 'COMMUNICATION', title: 'Email Template Customization' },
   settings: { group: 'SYSTEM', title: 'General Settings' },

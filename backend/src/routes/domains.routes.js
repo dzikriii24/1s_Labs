@@ -6,7 +6,7 @@ const dns = require('dns').promises;
 const { query, withTransaction } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { domainService, subdomainService, sslService } = require('../services/cpanel.service');
-const { cleanDomain, isValidDomain, calculateDaysRemaining } = require('../utils/helpers');
+const { cleanDomain, isValidDomain, calculateDaysRemaining, generateOrderNumber, generatePaymentNumber, generateInvoiceNumber } = require('../utils/helpers');
 const { logActivity } = require('../utils/activityLogger');
 
 const SERVER_IP = '103.119.237.132';
@@ -302,7 +302,7 @@ router.post('/custom', requireAuth, async (req, res) => {
   }
 });
 
-// POST /domains/:id/renew - Create renewal invoice / order for domain
+// POST /domains/:id/renew - Create real renewal invoice / order for domain
 router.post('/:id/renew', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -314,17 +314,71 @@ router.post('/:id/renew', requireAuth, async (req, res) => {
     const domainObj = domains[0];
     const renewalPrice = 10000; // Rp 10.000 / bulan untuk perpanjangan domain .1slabs.my.id
 
-    // Return renewal price info or proceed with order
+    // Check if there is already an existing unpaid renewal order for this domain
+    const existingOrders = await query(
+      `SELECT o.id, o.order_number, p.payment_number 
+       FROM orders o 
+       JOIN payments p ON p.order_id = o.id 
+       WHERE o.user_id = ? AND o.domain = ? AND o.type = 'renewal' AND o.status = 'unpaid'
+       LIMIT 1`,
+      [req.user.id, domainObj.domain]
+    );
+
+    if (existingOrders.length > 0) {
+      const existingOrder = existingOrders[0];
+      return res.json({
+        success: true,
+        message: `Tagihan perpanjangan domain ${domainObj.domain} sudah tersedia di menu Tagihan.`,
+        order_number: existingOrder.order_number,
+        payment_url: `/payment/${existingOrder.order_number}`
+      });
+    }
+
+    const orderNumber = generateOrderNumber();
+    const paymentNumber = generatePaymentNumber();
+    const invoiceNumber = generateInvoiceNumber();
+
+    await withTransaction(async (conn) => {
+      // 1. Create renewal order
+      const [orderRes] = await conn.query(
+        `INSERT INTO orders (order_number, user_id, plan_id, domain, domain_type, plan_name_snapshot, price_snapshot, period_snapshot, type, related_service_id, status)
+         VALUES (?, ?, 1, ?, 'existing', 'Perpanjangan Domain', ?, '1 Bulan', 'renewal', ?, 'unpaid')`,
+        [orderNumber, req.user.id, domainObj.domain, renewalPrice, domainObj.service_id || null]
+      );
+      const orderId = orderRes.insertId;
+
+      // 2. Create payment record
+      const [payRes] = await conn.query(
+        `INSERT INTO payments (payment_number, order_id, user_id, amount, method, status)
+         VALUES (?, ?, ?, ?, 'qris', 'unpaid')`,
+        [paymentNumber, orderId, req.user.id, renewalPrice]
+      );
+      const paymentId = payRes.insertId;
+
+      // 3. Create invoice record
+      await conn.query(
+        `INSERT INTO invoices (invoice_number, order_id, payment_id, user_id, service_id, amount, subtotal, status, invoice_type, plan_name, domain, period, due_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'unpaid', 'hosting_order', 'Perpanjangan Domain', ?, '1 Bulan', DATE_ADD(NOW(), INTERVAL 3 DAY))`,
+        [invoiceNumber, orderId, paymentId, req.user.id, domainObj.service_id || null, renewalPrice, renewalPrice, domainObj.domain]
+      );
+    });
+
+    logActivity({
+      actorId: req.user.id,
+      actorEmail: req.user.email,
+      actorRole: 'customer',
+      action: 'domain_renew_requested',
+      target: domainObj.domain,
+      result: 'success',
+      req
+    });
+
     return res.json({
       success: true,
-      message: `Permintaan perpanjangan domain ${domainObj.domain} siap diproses.`,
-      renewal: {
-        domain: domainObj.domain,
-        price: renewalPrice,
-        period: '/ bulan',
-        current_expires_at: domainObj.expires_at,
-        new_expires_at: new Date(new Date(domainObj.expires_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      }
+      message: `Tagihan perpanjangan domain ${domainObj.domain} berhasil dibuat.`,
+      order_number: orderNumber,
+      invoice_number: invoiceNumber,
+      payment_url: `/payment/${orderNumber}`
     });
   } catch (err) {
     console.error('Renew domain error:', err);

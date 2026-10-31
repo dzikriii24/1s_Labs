@@ -67,6 +67,7 @@ def main():
 
     # 1. Deploy Frontend (dist)
     print("\n--- [3/5] Uploading Frontend (dist) ---")
+    sftp_mkdir_p(FRONTEND_REMOTE)
     for item in os.listdir(FRONTEND_LOCAL):
         local_path = os.path.join(FRONTEND_LOCAL, item)
         remote_path = f"{FRONTEND_REMOTE}/{item}".replace('\\', '/')
@@ -81,8 +82,29 @@ def main():
             except Exception:
                 pass
 
+    # Ensure frontend .htaccess has SPA rewrite rules & excludes /api and /uploads
+    htaccess_content = (
+        "Options +FollowSymLinks\n"
+        "<IfModule mod_rewrite.c>\n"
+        "  RewriteEngine On\n"
+        "  RewriteBase /\n"
+        "  RewriteRule ^api/ - [L]\n"
+        "  RewriteRule ^uploads/ - [L]\n"
+        "  RewriteRule ^index\\.html$ - [L]\n"
+        "  RewriteCond %{REQUEST_FILENAME} !-f\n"
+        "  RewriteCond %{REQUEST_FILENAME} !-d\n"
+        "  RewriteRule . /index.html [L]\n"
+        "</IfModule>\n"
+    )
+    with sftp.file(f"{FRONTEND_REMOTE}/.htaccess", "w") as f:
+        f.write(htaccess_content)
+    print("  Created .htaccess with SPA rewrite rules.")
+
     # 2. Deploy Backend src, index.js, and package.json
     print("\n--- [4/5] Uploading Backend Code (src, index.js, package.json) ---")
+    sftp_mkdir_p(f"{BACKEND_REMOTE}/tmp")
+    sftp_mkdir_p(f"{BACKEND_REMOTE}/uploads/proofs")
+
     backend_src_local = os.path.join(BACKEND_LOCAL, "src")
     backend_src_remote = f"{BACKEND_REMOTE}/src".replace('\\', '/')
     upload_tree(backend_src_local, backend_src_remote)
@@ -101,13 +123,15 @@ def main():
 
     sftp.close()
 
-    # 3. Restart Node Application
-    print("\n--- [5/5] Restarting Node Backend Application ---")
+    # 3. Backend npm install (inside virtualenv)
+    print("\n--- [5/5] Installing Backend Dependencies and Restarting Node Application ---")
     commands = [
+        "source /home/u1zh8984/nodevenv/oneslabs-backend/22/bin/activate && cd /home/u1zh8984/oneslabs-backend && npm install --omit=dev",
+        "ln -sfn /home/u1zh8984/oneslabs-backend/uploads /home/u1zh8984/public_html/1slabs.my.id/uploads",
         "touch /home/u1zh8984/oneslabs-backend/tmp/restart.txt",
         "cloudlinux-selector restart --json --interpreter nodejs --app-root oneslabs-backend",
         "cat /home/u1zh8984/public_html/1slabs.my.id/index.html | grep -E 'assets/index'",
-        "curl -s --max-time 5 -H 'User-Agent: Mozilla/5.0' https://1slabs.my.id/api/health"
+        "curl -s --max-time 10 -H 'User-Agent: Mozilla/5.0' https://1slabs.my.id/api/health"
     ]
 
     for cmd in commands:

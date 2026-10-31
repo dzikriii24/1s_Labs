@@ -29,6 +29,7 @@ import {
   Code
 } from 'lucide-react';
 import { api, NodeJsApp, DomainRecord } from '../../services/api';
+import notify from '../../lib/notify';
 import { EditAppConfigModal } from './EditAppConfigModal';
 import { NodeFileManagerModal } from './NodeFileManagerModal';
 
@@ -150,9 +151,10 @@ export const NodeJsAppsTab: React.FC<NodeJsAppsTabProps> = ({ onNavigateToDomain
     setActionInProgressId(appId);
     try {
       await api.nodejs.action(appId, action);
+      notify.success(`Aksi ${action} berhasil dieksekusi.`);
       await fetchData();
     } catch (err: any) {
-      alert(err.message || `Gagal menjalankan ${action}`);
+      notify.error(err.message || `Gagal menjalankan ${action}`);
     } finally {
       setActionInProgressId(null);
     }
@@ -161,10 +163,11 @@ export const NodeJsAppsTab: React.FC<NodeJsAppsTabProps> = ({ onNavigateToDomain
   const handleHealthCheck = async (appId: number) => {
     setPingingAppId(appId);
     try {
-      await api.nodejs.checkHealth(appId);
+      const res = await api.nodejs.checkHealth(appId);
+      notify.success(res.message || 'Pemeriksaan status aplikasi berhasil.');
       await fetchData();
     } catch (err: any) {
-      alert('Health check error: ' + err.message);
+      notify.error('Health check error: ' + (err.message || 'Tidak ada respons'));
     } finally {
       setPingingAppId(null);
     }
@@ -208,15 +211,20 @@ export const NodeJsAppsTab: React.FC<NodeJsAppsTabProps> = ({ onNavigateToDomain
   };
 
   const handleDeleteApp = async (app: NodeJsApp) => {
-    if (!window.confirm(`Hapus aplikasi Node.js '${app.app_name}' (${app.app_url})? Direktori fisik dan konfigurasi cPanel akan dibersihkan.`)) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Hapus Aplikasi Node.js',
+      text: `Hapus aplikasi Node.js '${app.app_name}' (${app.app_url})? Direktori fisik dan konfigurasi cPanel akan dibersihkan.`,
+      confirmButtonText: 'Ya, Hapus Aplikasi',
+      isDanger: true
+    });
+    if (!ok) return;
 
     try {
       await api.nodejs.deleteApp(app.id);
+      notify.success('Aplikasi Node.js berhasil dihapus.');
       await fetchData();
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus aplikasi.');
+      notify.error(err.message || 'Gagal menghapus aplikasi.');
     }
   };
 
@@ -236,7 +244,7 @@ export const NodeJsAppsTab: React.FC<NodeJsAppsTabProps> = ({ onNavigateToDomain
 
         {isFreePlanUser && apps.length >= 1 ? (
           <button
-            onClick={() => alert('Akun Anda menggunakan program Free Plan (kuota 1 aplikasi Node.js). Silakan upgrade ke paket Cloud Hosting untuk menambah aplikasi baru.')}
+            onClick={() => notify.info('Akun Anda menggunakan program Free Plan (kuota 1 aplikasi Node.js). Silakan upgrade ke paket Cloud Hosting untuk menambah aplikasi baru.')}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-xl font-semibold text-xs transition cursor-not-allowed opacity-90 shadow-sm"
             title="Batas kuota Free Plan telah tercapai (1/1)"
           >

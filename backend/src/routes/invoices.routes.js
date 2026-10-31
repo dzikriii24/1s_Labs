@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db');
-const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 // GET /invoices - List invoices
 router.get('/', requireAuth, async (req, res) => {
@@ -38,8 +38,8 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /invoices/:invoiceNumber - Single invoice detail (Accessible by auth user, admin, or via direct link)
-router.get('/:invoiceNumber', optionalAuth, async (req, res) => {
+// GET /invoices/:invoiceNumber - Single invoice detail (Accessible by authenticated owner or admin)
+router.get('/:invoiceNumber', requireAuth, async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
     const isUserAdmin = req.user && req.user.role === 'admin';
@@ -60,7 +60,7 @@ router.get('/:invoiceNumber', optionalAuth, async (req, res) => {
     `;
     const params = [invoiceNumber];
 
-    if (req.user && !isUserAdmin) {
+    if (!isUserAdmin) {
       sql += ' AND inv.user_id = ?';
       params.push(req.user.id);
     }

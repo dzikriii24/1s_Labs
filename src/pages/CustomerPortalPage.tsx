@@ -44,6 +44,7 @@ import {
   X
 } from 'lucide-react';
 import { api, HostingService, Order, Invoice, DomainRecord, NodeJsApp, FreePlanClaim } from '../services/api';
+import notify from '../lib/notify';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
@@ -203,24 +204,30 @@ export const CustomerPortalPage: React.FC = () => {
         navigate(`/payment/${res.order.orderNumber}`);
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal membuat tagihan perpanjangan.');
+      notify.error(err.message || 'Gagal membuat tagihan perpanjangan.');
     } finally {
       setRenewingId(null);
     }
   };
 
   const handleCancelOrder = async (orderNumber: string) => {
-    if (!window.confirm(`Apakah Anda yakin ingin membatalkan pesanan #${orderNumber}? Pesanan yang dibatalkan tidak dapat diproses lagi.`)) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Batalkan Pesanan',
+      text: `Apakah Anda yakin ingin membatalkan pesanan #${orderNumber}? Pesanan yang dibatalkan tidak dapat diproses lagi.`,
+      confirmButtonText: 'Ya, Batalkan',
+      isDanger: true
+    });
+    if (!ok) return;
+
     try {
       setIsCancellingOrder(orderNumber);
       const res = await api.orders.cancel(orderNumber);
       if (res.success) {
+        notify.success('Pesanan berhasil dibatalkan.');
         await loadData();
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal membatalkan pesanan.');
+      notify.error(err.message || 'Gagal membatalkan pesanan.');
     } finally {
       setIsCancellingOrder(null);
     }
@@ -289,9 +296,9 @@ export const CustomerPortalPage: React.FC = () => {
     setIsResendingVerification(true);
     try {
       const res = await api.auth.resendVerification(user.email);
-      alert(res.message || 'Tautan verifikasi baru berhasil dikirim ke email Anda.');
+      notify.success(res.message || 'Tautan verifikasi baru berhasil dikirim ke email Anda.');
     } catch (err: any) {
-      alert(err.message || 'Gagal mengirim ulang email verifikasi.');
+      notify.error(err.message || 'Gagal mengirim ulang email verifikasi.');
     } finally {
       setIsResendingVerification(false);
     }

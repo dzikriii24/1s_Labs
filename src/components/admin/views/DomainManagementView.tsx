@@ -16,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { api, DomainItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 interface DomainManagementViewProps {
   onNavigate?: (tab: string) => void;
@@ -64,16 +65,20 @@ export const DomainManagementView: React.FC<DomainManagementViewProps> = ({ onNa
   };
 
   const handleRunAutoSsl = async () => {
-    if (!confirm('Jalankan pemeriksaan AutoSSL cPanel untuk seluruh domain yang terdaftar?')) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Pemeriksaan AutoSSL',
+      text: 'Jalankan pemeriksaan AutoSSL cPanel untuk seluruh domain yang terdaftar?',
+      confirmButtonText: 'Jalankan AutoSSL'
+    });
+    if (!ok) return;
+
     setTriggeringAutoSsl(true);
     try {
       const res = await api.admin.runAutoSsl();
-      alert(res.message || 'Pemeriksaan AutoSSL berhasil diinisiasi.');
+      notify.success(res.message || 'Pemeriksaan AutoSSL berhasil diinisiasi.');
       await fetchDomains();
     } catch (err: any) {
-      alert(err.message || 'Gagal memulai pemeriksaan AutoSSL.');
+      notify.error(err.message || 'Gagal memulai pemeriksaan AutoSSL.');
     } finally {
       setTriggeringAutoSsl(false);
     }

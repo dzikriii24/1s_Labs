@@ -35,6 +35,7 @@ import {
   Check
 } from 'lucide-react';
 import { api, FileItem } from '../../services/api';
+import notify from '../../lib/notify';
 
 interface FileManagerTabProps {
   serviceCode: string;
@@ -781,9 +782,13 @@ export const FileManagerTab: React.FC<FileManagerTabProps> = ({ serviceCode, sto
   // Extract archive (ZIP / TAR)
   const handleExtractArchive = async (item: FileItem) => {
     const targetPath = currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`;
-    if (!window.confirm(`Ekstrak berkas arsip '${item.name}' ke dalam folder saat ini?`)) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Ekstrak Berkas Arsip',
+      text: `Ekstrak berkas arsip '${item.name}' ke dalam folder saat ini?`,
+      confirmButtonText: 'Ekstrak'
+    });
+    if (!ok) return;
+
     try {
       setIsActionLoading(true);
       const res = await api.files.extract(serviceCode, targetPath);

@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { api, EmailTemplateItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const EmailTemplateEditorView: React.FC = () => {
   const [templates, setTemplates] = useState<EmailTemplateItem[]>([]);
@@ -91,43 +92,48 @@ export const EmailTemplateEditorView: React.FC = () => {
       } as any);
 
       if (res.success) {
-        alert(res.message || 'Template email berhasil disimpan.');
+        notify.success(res.message || 'Template email berhasil disimpan.');
         await fetchTemplates();
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal menyimpan template email.');
+      notify.error(err.message || 'Gagal menyimpan template email.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = async () => {
-    if (!confirm('Kembalikan template ini ke pengaturan bawaan awal? Perubahan kustom akan dihapus.')) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Reset Template',
+      text: 'Kembalikan template ini ke pengaturan bawaan awal? Perubahan kustom akan dihapus.',
+      confirmButtonText: 'Ya, Reset',
+      isDanger: true
+    });
+    if (!ok) return;
+
     try {
       const res = await api.admin.resetEmailTemplate(selectedKey);
-      alert(res.message || 'Template berhasil direset ke default.');
+      notify.success(res.message || 'Template berhasil direset ke default.');
       await fetchTemplates();
     } catch (err: any) {
-      alert(err.message || 'Gagal mereset template.');
+      notify.error(err.message || 'Gagal mereset template.');
     }
   };
 
   const handleSendTestEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testEmailAddress.trim()) {
-      alert('Alamat email tujuan pengujian wajib diisi.');
+      notify.warning('Alamat email tujuan pengujian wajib diisi.');
       return;
     }
 
     setSendingTest(true);
     try {
       const res = await api.admin.sendTestEmail(testEmailAddress.trim(), selectedKey);
-      alert(res.message || 'Email uji coba berhasil dikirim!');
+      notify.success(res.message || 'Email uji coba berhasil dikirim!');
       setShowTestModal(false);
     } catch (err: any) {
-      alert(err.message || 'Gagal mengirim email uji coba.');
+      notify.error(err.message || 'Gagal mengirim email uji coba.');
     } finally {
       setSendingTest(false);
     }

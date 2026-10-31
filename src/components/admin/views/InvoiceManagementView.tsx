@@ -26,6 +26,7 @@ import {
   Upload
 } from 'lucide-react';
 import { api, InvoiceLineItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 import { PaymentProofsVaultView } from './PaymentProofsVaultView';
 
 interface InvoiceManagementViewProps {
@@ -179,10 +180,10 @@ export const InvoiceManagementView: React.FC<InvoiceManagementViewProps> = ({ on
         } else if (typeof target === 'number') {
           handleItemChange(target, 'proof_url', uploadedUrl);
         }
-        alert(`Berkas "${file.name}" berhasil diunggah ke brankas dan tautan langsung terpasang!`);
+        notify.success(`Berkas "${file.name}" berhasil diunggah ke brankas dan tautan langsung terpasang!`);
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal mengunggah berkas bukti.');
+      notify.error(err.message || 'Gagal mengunggah berkas bukti.');
     } finally {
       setUploadingInline(false);
     }
@@ -300,11 +301,11 @@ export const InvoiceManagementView: React.FC<InvoiceManagementViewProps> = ({ on
   const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerEmail.trim()) {
-      alert('Email pelanggan wajib diisi.');
+      notify.warning('Email pelanggan wajib diisi.');
       return;
     }
     if (items.length === 0 || items.some((i) => !i.name.trim())) {
-      alert('Harap lengkapi nama setiap item tagihan.');
+      notify.warning('Harap lengkapi nama setiap item tagihan.');
       return;
     }
 
@@ -356,34 +357,38 @@ export const InvoiceManagementView: React.FC<InvoiceManagementViewProps> = ({ on
     try {
       if (editingInvoiceId) {
         const res = await api.admin.updateInvoice(editingInvoiceId, payload);
-        alert(res.message || 'Invoice berhasil diperbarui.');
+        notify.success(res.message || 'Invoice berhasil diperbarui.');
       } else {
         const res = await api.admin.createInvoice(payload);
-        alert(res.message || 'Invoice baru berhasil diterbitkan.');
+        notify.success(res.message || 'Invoice baru berhasil diterbitkan.');
       }
 
       setIsModalOpen(false);
       await fetchInvoices();
     } catch (err: any) {
-      alert(err.message || 'Gagal menyimpan invoice.');
+      notify.error(err.message || 'Gagal menyimpan invoice.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleMarkPaid = async (id: number) => {
-    if (!confirm('Tandai invoice ini sebagai Lunas (Paid)? Status layanan terkait akan disinkronkan.')) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Tandai Lunas',
+      text: 'Tandai invoice ini sebagai Lunas (Paid)? Status layanan terkait akan disinkronkan.',
+      confirmButtonText: 'Ya, Tandai Lunas'
+    });
+    if (!ok) return;
+
     try {
       const res = await api.admin.updateInvoiceStatus(id, 'paid');
-      alert(res.message || 'Status invoice diperbarui menjadi Paid.');
+      notify.success(res.message || 'Status invoice diperbarui menjadi Paid.');
       if (selectedInvoice && selectedInvoice.id === id) {
         setSelectedInvoice({ ...selectedInvoice, status: 'paid' });
       }
       await fetchInvoices();
     } catch (err: any) {
-      alert(err.message || 'Gagal memperbarui status invoice.');
+      notify.error(err.message || 'Gagal memperbarui status invoice.');
     }
   };
 
@@ -391,9 +396,9 @@ export const InvoiceManagementView: React.FC<InvoiceManagementViewProps> = ({ on
     setSendingEmail(true);
     try {
       const res = await api.admin.sendInvoiceEmail(id);
-      alert(res.message || 'Invoice resmi berhasil dikirimkan via email!');
+      notify.success(res.message || 'Invoice resmi berhasil dikirimkan via email!');
     } catch (err: any) {
-      alert(err.message || 'Gagal mengirim email invoice.');
+      notify.error(err.message || 'Gagal mengirim email invoice.');
     } finally {
       setSendingEmail(false);
     }

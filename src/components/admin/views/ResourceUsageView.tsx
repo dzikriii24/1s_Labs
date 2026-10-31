@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 import { api, ServerProcessItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const ResourceUsageView: React.FC = () => {
   const [processes, setProcesses] = useState<ServerProcessItem[]>([]);
@@ -52,18 +53,26 @@ export const ResourceUsageView: React.FC = () => {
 
   const handleTerminate = async () => {
     if (!selectedProcess) return;
+    const ok = await notify.confirm({
+      title: 'Hentikan Proses',
+      text: `Hentikan proses PID ${selectedProcess.pid} (${selectedProcess.command})?`,
+      confirmButtonText: 'Ya, Hentikan',
+      isDanger: true
+    });
+    if (!ok) return;
+
     setTerminating(true);
     try {
       const res = await api.admin.terminateProcess(selectedProcess.pid, 'SIGTERM');
       if (res.success) {
-        alert(res.message || `Proses PID ${selectedProcess.pid} berhasil dihentikan.`);
+        notify.success(res.message || `Proses PID ${selectedProcess.pid} berhasil dihentikan.`);
         setSelectedProcess(null);
         await fetchProcesses();
       } else {
-        alert(res.message || 'Gagal menghentikan proses.');
+        notify.error(res.message || 'Gagal menghentikan proses.');
       }
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan saat menghentikan proses.');
+      notify.error(err.message || 'Terjadi kesalahan saat menghentikan proses.');
     } finally {
       setTerminating(false);
     }

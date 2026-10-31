@@ -16,10 +16,10 @@ const footerNav = [
   {
     title: 'Solutions',
     links: [
-      { name: 'Managed Web Hosting', href: '#hosting' },
-      { name: 'Pay Once Software', href: '#about' },
-      { name: 'API & SLiMS Integration', href: '#services' },
-      { name: 'System Maintenance', href: '#services' }
+      { name: 'Managed Web Hosting', href: '/hosting' },
+      { name: 'Pusat Dokumentasi & Panduan', href: '/docs' },
+      { name: 'Annual Website Maintenance', href: '/#contact' },
+      { name: 'Pay Once Software', href: '/#about' }
     ]
   },
   {

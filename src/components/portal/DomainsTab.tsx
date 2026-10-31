@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import { api, DomainRecord, HostingService } from '../../services/api';
+import notify from '../../lib/notify';
 
 interface DomainsTabProps {
   onNavigateToHosting: (serviceCode?: string) => void;
@@ -565,16 +566,32 @@ export const DomainsTab: React.FC<DomainsTabProps> = ({
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setRenewingDomain(null)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Batal
                 </button>
                 <button
-                  onClick={() => {
-                    alert(`Tagihan invoice perpanjangan domain ${renewingDomain.domain} sebesar Rp 10.000 telah dibuat di menu Billing.`);
+                  onClick={async () => {
+                    const domainToRenew = renewingDomain;
                     setRenewingDomain(null);
+                    notify.loading('Memproses tagihan...', 'Sedang membuat tagihan perpanjangan domain');
+                    try {
+                      const res = await api.domains.renew(domainToRenew.id);
+                      notify.close();
+                      if (res.success) {
+                        notify.success(res.message || 'Tagihan perpanjangan domain berhasil dibuat.');
+                        if (res.order_number) {
+                          window.location.href = `/payment/${res.order_number}`;
+                        } else {
+                          loadData();
+                        }
+                      }
+                    } catch (err: any) {
+                      notify.close();
+                      notify.error(err.message || 'Gagal memproses perpanjangan domain.');
+                    }
                   }}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
                 >
                   Buat Tagihan Perpanjangan
                 </button>

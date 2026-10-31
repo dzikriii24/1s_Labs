@@ -16,6 +16,7 @@ import {
   Printer
 } from 'lucide-react';
 import { api, FinanceOverviewData } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 interface RevenueOverviewViewProps {
   viewMode?: 'overview' | 'reports';
@@ -76,7 +77,7 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
   const handleExportCsv = () => {
     const listToExport = filteredTransactions.length > 0 ? filteredTransactions : data?.recent_transactions;
     if (!listToExport || listToExport.length === 0) {
-      alert('Tidak ada transaksi untuk diekspor.');
+      notify.warning('Tidak ada transaksi untuk diekspor.');
       return;
     }
     const headers = ['ID', 'Order Ref', 'Nominal', 'Metode Pembayaran', 'Status', 'Tanggal', 'Nama Pelanggan', 'Email Pelanggan'];
@@ -154,57 +155,83 @@ export const RevenueOverviewView: React.FC<RevenueOverviewViewProps> = ({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Total Pendapatan Bersih</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <DollarSign className="w-4 h-4" />
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">Total Pendapatan</span>
+            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+              <DollarSign className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-600 mt-3">
-            {formatRupiah(data?.kpi?.total_revenue)}
+          <div className="text-lg font-bold font-mono text-emerald-600 mt-2">
+            {formatRupiah((data?.kpi as any)?.net_revenue ?? data?.kpi?.total_revenue)}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Akumulasi seluruh pembayaran sah</div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">Total lunas & sah</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Pendapatan Bulan Ini</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
-              <Calendar className="w-4 h-4" />
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">Hari Ini</span>
+            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+              <Clock className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold font-mono text-zinc-900 mt-3">
-            {formatRupiah(data?.kpi?.monthly_revenue)}
+          <div className="text-lg font-bold font-mono text-zinc-900 mt-2">
+            {formatRupiah((data?.kpi as any)?.daily_revenue || 0)}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Bulan kalender berjalan</div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">Kas masuk hari ini</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Transaksi Lunas</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">7 Hari Terakhir</span>
+            <div className="p-1.5 rounded-lg bg-sky-50 text-sky-600">
+              <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold font-mono text-zinc-900 mt-3">
-            {data?.kpi?.paid_transactions_count || 0}
+          <div className="text-lg font-bold font-mono text-zinc-900 mt-2">
+            {formatRupiah((data?.kpi as any)?.weekly_revenue || 0)}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Terverifikasi otomatis & manual</div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">1 minggu berjalan</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase text-zinc-400 font-semibold">Menunggu Verifikasi</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
-              <Clock className="w-4 h-4" />
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">Bulan Ini</span>
+            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+              <Calendar className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold font-mono text-amber-600 mt-3">
-            {data?.kpi?.pending_verification_count || 0}
+          <div className="text-lg font-bold font-mono text-zinc-900 mt-2">
+            {formatRupiah(data?.kpi?.monthly_revenue || 0)}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Bukti transfer QRIS menunggu</div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">Bulan kalender berjalan</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">Tahun Ini</span>
+            <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+              <Layers className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-lg font-bold font-mono text-zinc-900 mt-2">
+            {formatRupiah((data?.kpi as any)?.annual_revenue || (data as any)?.annualRevenue || 0)}
+          </div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">Tahun berjalan</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold">Menunggu Lunas</span>
+            <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+              <Receipt className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-lg font-bold font-mono text-amber-600 mt-2">
+            {formatRupiah((data?.kpi as any)?.outstanding_amount || 0)}
+          </div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">{data?.kpi?.outstanding_invoices_count || 0} tagihan belum dibayar</div>
         </div>
       </div>
 

@@ -16,6 +16,7 @@ const analyticsRoutes = require('./src/routes/analytics.routes');
 const freePlanRoutes = require('./src/routes/freeplan.routes');
 const domainsRoutes = require('./src/routes/domains.routes');
 const nodejsRoutes = require('./src/routes/nodejs.routes');
+const inquiriesRoutes = require('./src/routes/inquiries.routes');
 const SuspensionService = require('./src/services/suspension.service');
 
 const app = express();
@@ -85,6 +86,7 @@ apiRouter.use('/analytics', analyticsRoutes);
 apiRouter.use('/freeplan', freePlanRoutes);
 apiRouter.use('/domains', domainsRoutes);
 apiRouter.use('/nodejs', nodejsRoutes);
+apiRouter.use('/inquiries', inquiriesRoutes);
 
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);

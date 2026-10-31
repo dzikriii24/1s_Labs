@@ -15,6 +15,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const TransactionsView: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
@@ -52,7 +53,7 @@ export const TransactionsView: React.FC = () => {
   const handleVerify = async (action: 'approve' | 'reject') => {
     if (!selectedPayment) return;
     if (action === 'reject' && !rejectReason.trim()) {
-      alert('Alasan penolakan wajib diisi.');
+      notify.warning('Alasan penolakan wajib diisi.');
       return;
     }
 
@@ -65,16 +66,16 @@ export const TransactionsView: React.FC = () => {
       });
 
       if (res.success) {
-        alert(res.message || `Pembayaran berhasil di-${action === 'approve' ? 'setujui dan layanan diaktifkan' : 'tolak'}.`);
+        notify.success(res.message || `Pembayaran berhasil di-${action === 'approve' ? 'setujui dan layanan diaktifkan' : 'tolak'}.`);
         setSelectedPayment(null);
         setRejectReason('');
         setAdminNotes('');
         await fetchPayments();
       } else {
-        alert(res.message || 'Tindakan verifikasi gagal.');
+        notify.error(res.message || 'Tindakan verifikasi gagal.');
       }
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan saat memverifikasi pembayaran.');
+      notify.error(err.message || 'Terjadi kesalahan saat memverifikasi pembayaran.');
     } finally {
       setIsVerifying(false);
     }

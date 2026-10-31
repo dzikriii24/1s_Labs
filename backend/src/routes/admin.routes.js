@@ -48,11 +48,13 @@ router.get('/stats', async (req, res) => {
       "SELECT COUNT(*) as count FROM hosting_services WHERE status = 'active' AND expires_at <= DATE_ADD(NOW(), INTERVAL 14 DAY) AND expires_at >= NOW()"
     );
 
-    // Monthly revenue
+    // Monthly revenue (only paid & verified payments)
     const [monthRevenue] = await query(`
       SELECT COALESCE(SUM(amount), 0) as revenue
       FROM payments 
-      WHERE status = 'paid' AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())
+      WHERE status = 'paid' 
+        AND MONTH(COALESCE(verified_at, updated_at, created_at)) = MONTH(NOW()) 
+        AND YEAR(COALESCE(verified_at, updated_at, created_at)) = YEAR(NOW())
     `);
 
     // Recent 5 pending payments
@@ -1098,12 +1100,16 @@ router.post('/ssl/verify-domain', async (req, res) => {
 // 7. FINANCE & INVOICE MANAGEMENT
 // ==========================================
 
-// GET /admin/finance/overview - Revenue Metrics & Financial Analytics
+// GET /admin/finance/overview - Revenue Metrics & Financial Analytics (Only Paid & Verified Transactions)
 router.get('/finance/overview', async (req, res) => {
   try {
+    // 1. Overall Payments & Revenue - Only status = 'paid' counted towards revenue
     const [overall] = await query(`
       SELECT 
-        COALESCE(SUM(amount), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as gross_paid_revenue,
+        0.00 as refund_amount,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as net_revenue,
         COUNT(*) as total_transactions,
         SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as successful_payments,
         SUM(CASE WHEN status = 'pending_verification' THEN 1 ELSE 0 END) as pending_payments,
@@ -1111,51 +1117,83 @@ router.get('/finance/overview', async (req, res) => {
       FROM payments
     `);
 
+    // 2. Daily revenue (today)
+    const [daily] = await query(`
+      SELECT COALESCE(SUM(amount), 0) as daily_revenue
+      FROM payments
+      WHERE status = 'paid' 
+        AND DATE(COALESCE(verified_at, updated_at, created_at)) = CURDATE()
+    `);
+
+    // 3. Weekly revenue (last 7 days)
+    const [weekly] = await query(`
+      SELECT COALESCE(SUM(amount), 0) as weekly_revenue
+      FROM payments
+      WHERE status = 'paid' 
+        AND COALESCE(verified_at, updated_at, created_at) >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    `);
+
+    // 4. Monthly revenue (current month)
     const [monthly] = await query(`
       SELECT COALESCE(SUM(amount), 0) as monthly_revenue
       FROM payments
-      WHERE status = 'paid' AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())
+      WHERE status = 'paid' 
+        AND MONTH(COALESCE(verified_at, updated_at, created_at)) = MONTH(NOW()) 
+        AND YEAR(COALESCE(verified_at, updated_at, created_at)) = YEAR(NOW())
     `);
 
+    // 5. Annual revenue (current year)
     const [annual] = await query(`
       SELECT COALESCE(SUM(amount), 0) as annual_revenue
       FROM payments
-      WHERE status = 'paid' AND YEAR(created_at) = YEAR(NOW())
+      WHERE status = 'paid' 
+        AND YEAR(COALESCE(verified_at, updated_at, created_at)) = YEAR(NOW())
     `);
 
-    // Outstanding unpaid invoices
+    // 6. Outstanding unpaid invoices
     const [unpaid] = await query(`
       SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_outstanding
       FROM invoices
       WHERE status = 'unpaid'
     `);
 
-    // Monthly revenue timeline (last 12 months)
+    // 7. Invoices status breakdown
+    const invoiceStatusRows = await query(`
+      SELECT 
+        status, 
+        COUNT(*) as count, 
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM invoices
+      GROUP BY status
+    `);
+
+    // 8. Monthly revenue timeline (last 12 months)
     const monthlyTimeline = await query(`
       SELECT 
-        DATE_FORMAT(created_at, '%Y-%m') as month,
+        DATE_FORMAT(COALESCE(verified_at, updated_at, created_at), '%Y-%m') as month,
         COALESCE(SUM(amount), 0) as revenue,
         COUNT(*) as transaction_count
       FROM payments
-      WHERE status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      WHERE status = 'paid' 
+        AND COALESCE(verified_at, updated_at, created_at) >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY DATE_FORMAT(COALESCE(verified_at, updated_at, created_at), '%Y-%m')
       ORDER BY month ASC
     `);
 
-    // Service revenue breakdown
+    // 9. Service revenue breakdown (from verified orders)
     const serviceBreakdown = await query(`
       SELECT 
-        o.plan_name_snapshot as service_name,
+        COALESCE(o.plan_name_snapshot, 'Layanan & Domain') as service_name,
         COALESCE(SUM(p.amount), 0) as revenue,
         COUNT(p.id) as total_orders
       FROM payments p
-      JOIN orders o ON p.order_id = o.id
+      LEFT JOIN orders o ON p.order_id = o.id
       WHERE p.status = 'paid'
       GROUP BY o.plan_name_snapshot
       ORDER BY revenue DESC
     `);
 
-    // Recent transactions for accounting ledger
+    // 10. Recent transactions for accounting ledger
     const recentTransactions = await query(`
       SELECT 
         p.id,
@@ -1172,15 +1210,29 @@ router.get('/finance/overview', async (req, res) => {
       FROM payments p
       LEFT JOIN orders o ON p.order_id = o.id
       LEFT JOIN users u ON p.user_id = u.id
-      ORDER BY p.created_at DESC
-      LIMIT 50
+      ORDER BY COALESCE(p.verified_at, p.updated_at, p.created_at) DESC
+      LIMIT 100
     `);
+
+    const totalRevenue = parseFloat(overall?.total_revenue || 0);
+    const grossPaidRevenue = parseFloat(overall?.gross_paid_revenue || 0);
+    const refundAmount = parseFloat(overall?.refund_amount || 0);
+    const netRevenue = parseFloat(overall?.net_revenue || 0);
+    const dailyRevenue = parseFloat(daily?.daily_revenue || 0);
+    const weeklyRevenue = parseFloat(weekly?.weekly_revenue || 0);
+    const monthlyRevenue = parseFloat(monthly?.monthly_revenue || 0);
+    const annualRevenue = parseFloat(annual?.annual_revenue || 0);
 
     const financePayload = {
       kpi: {
-        total_revenue: parseFloat(overall?.total_revenue || 0),
-        monthly_revenue: parseFloat(monthly?.monthly_revenue || 0),
-        annual_revenue: parseFloat(annual?.annual_revenue || 0),
+        total_revenue: totalRevenue,
+        gross_paid_revenue: grossPaidRevenue,
+        refund_amount: refundAmount,
+        net_revenue: netRevenue,
+        daily_revenue: dailyRevenue,
+        weekly_revenue: weeklyRevenue,
+        monthly_revenue: monthlyRevenue,
+        annual_revenue: annualRevenue,
         paid_transactions_count: Number(overall?.successful_payments || 0),
         pending_verification_count: Number(overall?.pending_payments || 0),
         failed_payments_count: Number(overall?.failed_payments || 0),
@@ -1188,15 +1240,21 @@ router.get('/finance/overview', async (req, res) => {
         outstanding_amount: parseFloat(unpaid?.total_outstanding || 0)
       },
       recent_transactions: recentTransactions,
-      totalRevenue: parseFloat(overall?.total_revenue || 0),
-      monthlyRevenue: parseFloat(monthly?.monthly_revenue || 0),
-      annualRevenue: parseFloat(annual?.annual_revenue || 0),
+      totalRevenue,
+      grossPaidRevenue,
+      refundAmount,
+      netRevenue,
+      dailyRevenue,
+      weeklyRevenue,
+      monthlyRevenue,
+      annualRevenue,
       totalTransactions: Number(overall?.total_transactions || 0),
       successfulPayments: Number(overall?.successful_payments || 0),
       pendingPayments: Number(overall?.pending_payments || 0),
       failedPayments: Number(overall?.failed_payments || 0),
       outstandingInvoicesCount: Number(unpaid?.count || 0),
       outstandingAmount: parseFloat(unpaid?.total_outstanding || 0),
+      invoiceStatusBreakdown: invoiceStatusRows,
       timeline: monthlyTimeline,
       serviceBreakdown
     };
@@ -2918,7 +2976,12 @@ router.get('/proofs', async (req, res) => {
     let paymentRows = [];
     try {
       invoiceRows = await query('SELECT id, invoice_number, items_json FROM invoices');
-      paymentRows = await query('SELECT id, invoice_id, proof_image FROM payments WHERE proof_image IS NOT NULL');
+      paymentRows = await query(`
+        SELECT p.id, inv.invoice_number, p.proof_image 
+        FROM payments p 
+        LEFT JOIN invoices inv ON inv.payment_id = p.id 
+        WHERE p.proof_image IS NOT NULL
+      `);
     } catch (e) {
       console.warn('Could not query invoices/payments for linkage', e);
     }
@@ -2953,7 +3016,7 @@ router.get('/proofs', async (req, res) => {
         for (const p of paymentRows) {
           const pStr = String(p.proof_image || '');
           if (pStr.includes(f)) {
-            const label = p.invoice_id ? `INV-${p.invoice_id}` : `Bayar #${p.id}`;
+            const label = p.invoice_number ? p.invoice_number : `Bayar #${p.id}`;
             if (!linkedInvoices.includes(label)) {
               linkedInvoices.push(label);
             }

@@ -18,6 +18,7 @@ import {
   FileText,
   ClipboardList,
   Mail,
+  MessageSquare,
   SlidersHorizontal,
   Settings,
   Server,
@@ -50,6 +51,7 @@ export type AdminMenuKey =
   | 'invoices'
   | 'proof-vault'
   | 'service-reports'
+  | 'inquiries'
   | 'emails'
   | 'email-templates'
   | 'settings'
@@ -135,6 +137,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'COMMUNICATION',
       items: [
+        { key: 'inquiries', label: 'Inquiry & Konsultasi', icon: MessageSquare },
         { key: 'emails', label: 'Email Management', icon: Mail },
         { key: 'email-templates', label: 'Email Templates', icon: SlidersHorizontal }
       ]

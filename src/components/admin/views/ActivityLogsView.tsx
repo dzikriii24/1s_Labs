@@ -13,6 +13,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { api, ActivityLogItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const ActivityLogsView: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLogItem[]>([]);
@@ -53,7 +54,7 @@ export const ActivityLogsView: React.FC = () => {
 
   const handleExportCsv = () => {
     if (logs.length === 0) {
-      alert('Tidak ada log untuk diekspor.');
+      notify.warning('Tidak ada log untuk diekspor.');
       return;
     }
     const headers = ['ID', 'Actor Name', 'Role', 'Action', 'Target', 'IP Address', 'Result', 'Timestamp'];

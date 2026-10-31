@@ -15,6 +15,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const SslCertificatesView: React.FC = () => {
   const [certs, setCerts] = useState<any[]>([]);
@@ -48,15 +49,21 @@ export const SslCertificatesView: React.FC = () => {
   }, []);
 
   const handleTriggerAutoSsl = async () => {
-    if (!confirm('Jalankan perpanjangan sertifikat AutoSSL untuk semua domain di server?')) return;
+    const ok = await notify.confirm({
+      title: 'Perpanjangan AutoSSL',
+      text: 'Jalankan perpanjangan sertifikat AutoSSL untuk semua domain di server?',
+      confirmButtonText: 'Jalankan AutoSSL'
+    });
+    if (!ok) return;
+
     setTriggering(true);
     try {
       const res = await api.admin.runAutoSsl();
-      alert(res.message || 'Pemeriksaan AutoSSL berhasil diinisiasi.');
+      notify.success(res.message || 'Pemeriksaan AutoSSL berhasil diinisiasi.');
       setAutoSslRunning(true);
       await fetchSslData();
     } catch (err: any) {
-      alert(err.message || 'Gagal memulai AutoSSL.');
+      notify.error(err.message || 'Gagal memulai AutoSSL.');
     } finally {
       setTriggering(false);
     }

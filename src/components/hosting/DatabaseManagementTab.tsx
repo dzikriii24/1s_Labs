@@ -38,6 +38,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { api, HostingDatabase, TableItem, DatabaseBackup } from '../../services/api';
+import notify from '../../lib/notify';
 
 interface DatabaseManagementTabProps {
   serviceCode: string;
@@ -181,7 +182,13 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
   };
 
   const handleDeleteBackup = async (backup: DatabaseBackup) => {
-    if (!window.confirm(`Hapus file cadangan '${backup.filename}' dari server?`)) return;
+    const ok = await notify.confirm({
+      title: 'Hapus Cadangan',
+      text: `Hapus file cadangan '${backup.filename}' dari server?`,
+      confirmButtonText: 'Ya, Hapus',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       setDeletingBackupId(backup.id);
       const res = await api.databases.deleteBackup(serviceCode, backup.id);
@@ -298,9 +305,13 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
   };
 
   const handleDeleteDatabase = async (db: HostingDatabase) => {
-    if (!window.confirm(`PERINGATAN: Anda yakin ingin menghapus database '${db.db_name}' secara permanen? Seluruh tabel dan data akan dihapus.`)) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Hapus Database Permanen',
+      text: `PERINGATAN: Anda yakin ingin menghapus database '${db.db_name}' secara permanen? Seluruh tabel dan data akan dihapus.`,
+      confirmButtonText: 'Ya, Hapus Database',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       setIsSubmitting(true);
       const res = await api.databases.delete(serviceCode, db.id);

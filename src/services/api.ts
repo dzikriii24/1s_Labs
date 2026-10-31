@@ -366,6 +366,23 @@ export interface DomainItem {
   expires_at?: string;
 }
 
+export interface InquiryItem {
+  id: number;
+  inquiry_type: 'consultation' | 'website_development' | 'website_maintenance' | 'custom_software' | 'hosting' | 'other';
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  service_interested?: string;
+  current_website_url?: string;
+  budget_range?: string;
+  message: string;
+  status: 'new' | 'contacted' | 'in_progress' | 'converted' | 'closed';
+  admin_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FinanceOverviewData {
   totalRevenue: number;
   monthlyRevenue: number;
@@ -1568,5 +1585,38 @@ export const api = {
       }
       return data;
     }
+  },
+
+  // Contact Inquiries & Consultation API
+  inquiries: {
+    submit: (payload: {
+      name: string;
+      email: string;
+      phone?: string;
+      company?: string;
+      inquiry_type?: string;
+      service_interested?: string;
+      current_website_url?: string;
+      budget_range?: string;
+      message: string;
+    }) =>
+      request<{ success: boolean; message: string; inquiry_id: number }>('/inquiries', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    adminList: (params?: { status?: string; type?: string; search?: string; page?: number; limit?: number }) =>
+      request<{ success: boolean; inquiries: any[]; total: number; page: number; limit: number }>(`/inquiries/admin${buildQueryString(params)}`),
+
+    adminUpdate: (id: number, payload: { status?: string; admin_notes?: string }) =>
+      request<{ success: boolean; message: string }>(`/inquiries/admin/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    adminDelete: (id: number) =>
+      request<{ success: boolean; message: string }>(`/inquiries/admin/${id}`, {
+        method: 'DELETE'
+      })
   }
 };

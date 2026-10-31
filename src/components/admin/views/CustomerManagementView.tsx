@@ -22,6 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { api, CustomerDetail } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const CustomerManagementView: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -79,17 +80,23 @@ export const CustomerManagementView: React.FC = () => {
 
   const handleUpdateStatus = async (newStatus: string) => {
     if (!customerDetail) return;
-    if (!window.confirm(`Ubah status pelanggan ${customerDetail.name} menjadi '${newStatus}'?`)) return;
+    const ok = await notify.confirm({
+      title: 'Ubah Status Pelanggan',
+      text: `Ubah status pelanggan ${customerDetail.name} menjadi '${newStatus}'?`,
+      confirmButtonText: 'Ya, Ubah Status',
+      isDanger: newStatus === 'suspended' || newStatus === 'disabled'
+    });
+    if (!ok) return;
 
     try {
       const res = await api.admin.updateCustomerStatus(customerDetail.id, newStatus);
       if (res.success) {
-        alert(res.message);
+        notify.success(res.message);
         setCustomerDetail({ ...customerDetail, status: newStatus });
         loadCustomers();
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal memperbarui status pelanggan.');
+      notify.error(err.message || 'Gagal memperbarui status pelanggan.');
     }
   };
 

@@ -153,7 +153,7 @@ function wrapHtmlEmail({ title, preheader, content, callToAction, badge = 'Offic
 /**
  * Generic email dispatcher with logging & error resilience
  */
-async function sendMail({ to, subject, templateName, html, text, metadata = {} }) {
+async function sendMail({ to, subject, templateName = 'general_notification', html, text, metadata = {} }) {
   let lastError = null;
 
   try {

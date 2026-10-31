@@ -19,6 +19,7 @@ import {
   Download
 } from 'lucide-react';
 import { api, ServiceReportItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 export const ServiceReportGeneratorView: React.FC = () => {
   const [reports, setReports] = useState<ServiceReportItem[]>([]);
@@ -71,7 +72,7 @@ export const ServiceReportGeneratorView: React.FC = () => {
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerEmail.trim() || !projectTitle.trim()) {
-      alert('Email pelanggan dan judul layanan wajib diisi.');
+      notify.warning('Email pelanggan dan judul layanan wajib diisi.');
       return;
     }
 
@@ -91,12 +92,12 @@ export const ServiceReportGeneratorView: React.FC = () => {
       });
 
       if (res.success) {
-        alert(res.message || 'Laporan resmi layanan berhasil dibuat!');
+        notify.success(res.message || 'Laporan resmi layanan berhasil dibuat!');
         setActiveTab('list');
         await fetchReports();
       }
     } catch (err: any) {
-      alert(err.message || 'Gagal membuat laporan layanan.');
+      notify.error(err.message || 'Gagal membuat laporan layanan.');
     } finally {
       setSubmitting(false);
     }

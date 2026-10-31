@@ -1,5 +1,94 @@
+# robots.txt for 1sLabs (https://1slabs.my.id)
+# Optimization for Google, Bing, and AI Search Engines (GEO)
+
 User-agent: *
 Allow: /
+Allow: /jasa-pembuatan-website
+Allow: /software-development
+Allow: /it-consulting
+Allow: /hosting
+Allow: /docs
+Allow: /docs/*
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /apple-touch-icon.png
+Allow: /logo-1slabs.png
+Allow: /site.webmanifest
 
-# Sitemap Index
+# Protect Private & Authenticated Portals
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /portal
+Disallow: /portal/*
+Disallow: /api/
+Disallow: /api/*
+Disallow: /invoice/
+Disallow: /invoice/*
+Disallow: /invoices/
+Disallow: /invoices/*
+Disallow: /payment/
+Disallow: /payment/*
+Disallow: /checkout/
+Disallow: /checkout/*
+Disallow: /domain/checkout
+Disallow: /services/*/setup-domain
+Disallow: /verify-email
+Disallow: /proof/
+Disallow: /proof/*
+Disallow: /proof-viewer
+
+# AI Crawlers for Search Discovery & Educational Indexing
+User-agent: GPTBot
+Allow: /
+Allow: /docs
+Allow: /docs/*
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /apple-touch-icon.png
+Allow: /logo-1slabs.png
+Allow: /site.webmanifest
+Disallow: /admin
+Disallow: /portal
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /docs
+Allow: /docs/*
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /apple-touch-icon.png
+Allow: /logo-1slabs.png
+Allow: /site.webmanifest
+Disallow: /admin
+Disallow: /portal
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /docs
+Allow: /docs/*
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /apple-touch-icon.png
+Allow: /logo-1slabs.png
+Allow: /site.webmanifest
+Disallow: /admin
+Disallow: /portal
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /docs
+Allow: /docs/*
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /apple-touch-icon.png
+Allow: /logo-1slabs.png
+Allow: /site.webmanifest
+Disallow: /admin
+Disallow: /portal
+Disallow: /api/
+
+# Sitemaps & LLM Context
 Sitemap: https://1slabs.my.id/sitemap.xml

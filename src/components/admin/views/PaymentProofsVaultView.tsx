@@ -22,6 +22,7 @@ import {
   List
 } from 'lucide-react';
 import { api, PaymentProofItem } from '../../../services/api';
+import notify from '../../../lib/notify';
 
 interface PaymentProofsVaultViewProps {
   onSelectProof?: (url: string, item: PaymentProofItem) => void;
@@ -81,17 +82,17 @@ export const PaymentProofsVaultView: React.FC<PaymentProofsVaultViewProps> = ({
     });
 
     if (allowed.length === 0) {
-      alert('Harap unggah berkas bukti pembayaran dengan format JPG, PNG, WebP, atau PDF.');
+      notify.warning('Harap unggah berkas bukti pembayaran dengan format JPG, PNG, WebP, atau PDF.');
       return;
     }
 
     setUploading(true);
     try {
       const res = await api.admin.uploadProofs(allowed);
-      alert(res.message || `Berhasil mengunggah ${allowed.length} berkas bukti pembayaran.`);
+      notify.success(res.message || `Berhasil mengunggah ${allowed.length} berkas bukti pembayaran.`);
       await fetchProofs();
     } catch (err: any) {
-      alert(err.message || 'Gagal mengunggah berkas bukti pembayaran.');
+      notify.error(err.message || 'Gagal mengunggah berkas bukti pembayaran.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -100,15 +101,20 @@ export const PaymentProofsVaultView: React.FC<PaymentProofsVaultViewProps> = ({
   };
 
   const handleDelete = async (filename: string) => {
-    if (!confirm(`Hapus berkas bukti "${filename}" dari brankas secara permanen?`)) {
-      return;
-    }
+    const ok = await notify.confirm({
+      title: 'Hapus Berkas',
+      text: `Hapus berkas bukti "${filename}" dari brankas secara permanen?`,
+      confirmButtonText: 'Ya, Hapus',
+      isDanger: true
+    });
+    if (!ok) return;
+
     try {
       const res = await api.admin.deleteProof(filename);
-      alert(res.message || 'Berkas berhasil dihapus.');
+      notify.success(res.message || 'Berkas berhasil dihapus.');
       await fetchProofs();
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus berkas bukti.');
+      notify.error(err.message || 'Gagal menghapus berkas bukti.');
     }
   };
 

@@ -28,6 +28,7 @@ import { ActivityLogsView } from './views/ActivityLogsView';
 import { AdminManagementView } from './views/AdminManagementView';
 import { FreePlanClaimsView } from './views/FreePlanClaimsView';
 import { NodeJsApplicationsAdminView } from './views/NodeJsApplicationsAdminView';
+import { InquiriesManagementView } from './views/InquiriesManagementView';
 
 export const AdminLayout: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -136,6 +137,9 @@ export const AdminLayout: React.FC = () => {
         return <PaymentProofsVaultView key={refreshKey} />;
       case 'service-reports':
         return <ServiceReportGeneratorView key={refreshKey} />;
+      case 'inquiries':
+      case 'inquiry-management' as any:
+        return <InquiriesManagementView key={refreshKey} />;
       case 'emails':
       case 'email-management' as any:
       case 'email-logs' as any:

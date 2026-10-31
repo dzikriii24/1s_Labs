@@ -14,6 +14,7 @@ const navigation = [
   { name: 'Services', href: '#services' },
   { name: 'Hosting', href: '#hosting' },
   { name: 'Free Plan', href: '/portal?tab=freeplan' },
+  { name: 'Docs', href: '/docs' },
   { name: 'Portfolio', href: '#portfolio' },
   { name: 'Contact', href: '#contact' },
 ]
@@ -64,16 +65,16 @@ export const Header: React.FC = () => {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       className={cn(
-        'sticky z-50 transition-all duration-300 mx-auto w-full max-w-[1000px]',
+        'sticky z-50 transition-all duration-300 mx-auto w-full max-w-6xl xl:max-w-7xl',
         isScrolled 
-          ? 'top-4 py-2 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white/20 dark:bg-gray-900/20 backdrop-blur-lg border border-white/60 dark:border-white/10' 
-          : 'top-0 py-3 sm:py-4 rounded-b-[2rem] bg-white dark:bg-gray-900'
+          ? 'top-2 sm:top-4 py-2 px-3 sm:px-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white/85 dark:bg-gray-900/85 backdrop-blur-lg border border-neutral-200/80 dark:border-white/10' 
+          : 'top-0 py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-b-[2rem] bg-white dark:bg-gray-900 border-b border-neutral-100 dark:border-neutral-800/80 sm:border-b-0'
       )}
     >
-      {/* Lekukan (Inverted Corners) using CSS Masks for perfect transition sync */}
+      {/* Lekukan (Inverted Corners) using CSS Masks for perfect transition sync (only on wide screens) */}
       <div 
         className={cn(
-          "absolute top-0 -left-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          "hidden lg:block absolute top-0 -left-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
           isScrolled ? "opacity-0" : "opacity-100"
         )}
         style={{
@@ -83,7 +84,7 @@ export const Header: React.FC = () => {
       />
       <div 
         className={cn(
-          "absolute top-0 -right-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
+          "hidden lg:block absolute top-0 -right-6 w-6 h-6 bg-white dark:bg-gray-900 pointer-events-none transition-all duration-300", 
           isScrolled ? "opacity-0" : "opacity-100"
         )}
         style={{
@@ -92,11 +93,11 @@ export const Header: React.FC = () => {
         }}
       />
 
-      <nav className="px-4 sm:px-8">
+      <nav className="w-full">
         <div className="flex justify-between items-center h-12">
           {/* Logo with SEO Alt Text and Accessible Link */}
           <motion.div
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.03 }}
             className="flex-shrink-0 flex items-center"
           >
             <a
@@ -113,23 +114,23 @@ export const Header: React.FC = () => {
               <img
                 src="https://image2url.com/images/1757349056783-832654d1-b551-403e-9291-8aff487b3668.png"
                 alt="1sLabs — Jasa Pembuatan Website &amp; IT Consulting"
-                className="h-9 sm:h-12 flex dark:hidden w-auto"
+                className="h-8 sm:h-10 flex dark:hidden w-auto"
                 width="120"
-                height="48"
+                height="40"
               />
               <img
                 src="https://image2url.com/images/1757349257406-33f427d1-9c4b-43ab-951a-623b6ffade7d.png"
                 alt="1sLabs — Jasa Pembuatan Website &amp; IT Consulting"
-                className="h-9 sm:h-12 hidden dark:flex w-auto"
+                className="h-8 sm:h-10 hidden dark:flex w-auto"
                 width="120"
-                height="48"
+                height="40"
               />
             </a>
           </motion.div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex flex-1 justify-center">
-            <div className="flex items-center space-x-7">
+          {/* Desktop Navigation (Visible on lg and up with responsive gaps to prevent collisions) */}
+          <div className="hidden lg:flex flex-1 justify-center px-2 xl:px-4">
+            <div className="flex items-center gap-1 xl:gap-2 2xl:gap-3">
               {navigation.map((item) => {
                 if (item.name === 'Services') {
                   return (
@@ -141,7 +142,7 @@ export const Header: React.FC = () => {
                     >
                       <button
                         onClick={() => scrollToSection(item.href)}
-                        className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs xl:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-neutral-100/70 dark:hover:bg-neutral-800/70 transition-colors duration-150 cursor-pointer whitespace-nowrap"
                       >
                         {t(`nav.${item.name.toLowerCase()}`)}
                         <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isServicesDropdownOpen && "rotate-180")} />
@@ -194,10 +195,10 @@ export const Header: React.FC = () => {
                 return (
                   <motion.button
                     key={item.name}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => scrollToSection(item.href)}
-                    className="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-full text-xs xl:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-neutral-100/70 dark:hover:bg-neutral-800/70 transition-colors duration-150 cursor-pointer whitespace-nowrap"
                   >
                     {t(`nav.${item.name.toLowerCase()}`)}
                   </motion.button>
@@ -206,13 +207,13 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Right side buttons */}
-          <div className="hidden md:flex items-center space-x-2">
+          {/* Right side buttons (Desktop lg and up) */}
+          <div className="hidden lg:flex items-center space-x-1.5 xl:space-x-2 shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
-              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-10 min-w-[40px] min-h-[40px]"
+              className="p-1.5 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center text-xs"
               aria-label="Ganti Bahasa"
             >
               {language}
@@ -225,12 +226,12 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(prev => !prev)}
-                  className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-xs font-semibold text-gray-800 dark:text-gray-200 cursor-pointer shadow-xs"
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-all text-xs font-semibold text-neutral-800 dark:text-neutral-200 cursor-pointer shadow-xs shrink-0"
                 >
                   <div className="w-6 h-6 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-[11px] font-bold">
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <span className="max-w-[110px] truncate">{user.name || 'Akun'}</span>
+                  <span className="max-w-[95px] truncate">{user.name || 'Akun'}</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -317,7 +318,7 @@ export const Header: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black px-4 py-2 rounded-full text-xs font-semibold transition-all shadow-xs ml-1 flex items-center space-x-1"
+                className="bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs ml-1 flex items-center space-x-1.5 shrink-0 whitespace-nowrap"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Masuk</span>
@@ -328,19 +329,42 @@ export const Header: React.FC = () => {
               href="https://wa.me/6285156296580" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 px-3.5 py-2 rounded-full text-xs font-medium transition-all ml-1"
+              className="hidden xl:inline-flex bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ml-1 shrink-0 whitespace-nowrap"
             >
               {t('nav.bookNow')}
             </a>
           </div>
 
-          {/* Mobile menu button with 44x44px touch area */}
-          <div className="md:hidden flex items-center space-x-1">
-             <Button
+          {/* Mobile & Tablet controls (Visible on < lg screens) */}
+          <div className="lg:hidden flex items-center space-x-1.5 sm:space-x-2">
+            {/* Quick Access Login / Portal Button on Mobile Top Bar */}
+            {user ? (
+              <Link
+                to="/portal"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold shrink-0 transition-colors shadow-2xs"
+                aria-label="Customer Portal"
+              >
+                <div className="w-5 h-5 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-[10px] font-bold">
+                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <span className="text-[11px] font-bold max-w-[65px] truncate hidden xs:inline">{user.name?.split(' ')[0] || 'Portal'}</span>
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-full text-xs font-bold transition-all shadow-xs shrink-0"
+                aria-label="Masuk ke Akun"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Masuk</span>
+              </Link>
+            )}
+
+            <Button
               variant="ghost"
               size="sm"
               onClick={() => setLanguage(prev => prev === 'EN' ? 'ID' : 'EN')}
-              className="p-2 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center text-xs"
+              className="p-1 rounded-full font-semibold text-gray-700 dark:text-gray-300 w-8 h-8 min-w-[32px] min-h-[32px] flex items-center justify-center text-xs"
               aria-label="Ganti Bahasa"
             >
               {language}
@@ -348,10 +372,10 @@ export const Header: React.FC = () => {
             <ThemeTogglerButton direction="btt" aria-label="Ganti Tema Gelap/Terang" />
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2.5 rounded-xl text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-2 rounded-xl text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
               aria-label={isMobileMenuOpen ? "Tutup Menu" : "Buka Menu"}
             >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
@@ -363,46 +387,47 @@ export const Header: React.FC = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 mt-3 rounded-2xl overflow-hidden shadow-xl"
+              className="lg:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 mt-3 rounded-2xl overflow-hidden shadow-xl"
             >
-              <div className="pt-2 pb-3 px-2 space-y-1">
-                {navigation.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => scrollToSection(item.href)}
-                    className="block w-full text-left px-3.5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors duration-200 min-h-[42px]"
-                  >
-                    {t(`nav.${item.name.toLowerCase()}`)}
-                  </button>
-                ))}
-
-                {/* Account / Portal Mobile Links */}
-                <div className="pt-2 pb-2 border-t border-gray-100 dark:border-gray-800">
-                  <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                    Akun & Layanan:
-                  </div>
-                  {user ? (
-                    <div className="space-y-1">
-                      <div className="px-3.5 py-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl mb-1">
-                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+              <div className="pt-3 pb-3 px-3 space-y-2">
+                {/* Prominent Account / Portal Card in Mobile Menu */}
+                {user ? (
+                  <div className="p-3 bg-neutral-50 dark:bg-neutral-800/80 rounded-2xl border border-neutral-200/80 dark:border-neutral-700/80">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-200/60 dark:border-neutral-700/60">
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-bold shrink-0">
+                          {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+                        </div>
                       </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                        user.role === 'admin'
+                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                      }`}>
+                        {user.role === 'admin' ? 'Administrator' : 'Pelanggan'}
+                      </span>
+                    </div>
 
+                    <div className="space-y-1">
                       {user.role === 'admin' ? (
                         <Link
                           to="/admin"
                           onClick={() => setIsMobileMenuOpen(false)}
-                          className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                          className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
                         >
                           <ShieldCheck className="w-4 h-4" />
-                          <span>Panel Administrator</span>
+                          <span>Dashboard Administrator</span>
                         </Link>
                       ) : (
                         <>
                           <Link
                             to="/portal?tab=services"
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
                           >
                             <Server className="w-4 h-4 text-emerald-500" />
                             <span>Layanan Hosting Saya</span>
@@ -411,16 +436,16 @@ export const Header: React.FC = () => {
                           <Link
                             to="/portal?tab=orders"
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
                           >
                             <CreditCard className="w-4 h-4 text-blue-500" />
-                            <span>Riwayat Pesanan</span>
+                            <span>Riwayat Pesanan & Tagihan</span>
                           </Link>
 
                           <Link
                             to="/portal?tab=profile"
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
                           >
                             <User className="w-4 h-4 text-purple-500" />
                             <span>Profil Akun & Keamanan</span>
@@ -434,46 +459,69 @@ export const Header: React.FC = () => {
                           setIsMobileMenuOpen(false);
                           logout();
                         }}
-                        className="w-full flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-left cursor-pointer"
+                        className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-left cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Keluar / Logout</span>
                       </button>
                     </div>
-                  ) : (
+                  </div>
+                ) : (
+                  <div className="p-3 bg-neutral-50 dark:bg-neutral-800/80 rounded-2xl border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">Customer & Developer Portal</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Kelola hosting, domain & aplikasi</p>
+                    </div>
                     <Link
                       to="/login"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-3.5 py-2 text-xs font-semibold text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-bold shadow-xs transition-all shrink-0"
                     >
-                      Masuk ke Portal Hosting
+                      <User className="w-3.5 h-3.5" />
+                      <span>Masuk</span>
                     </Link>
-                  )}
+                  </div>
+                )}
+
+                {/* Main Navigation Links */}
+                <div className="py-1 space-y-0.5">
+                  {navigation.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => scrollToSection(item.href)}
+                      className="block w-full text-left px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors duration-200 min-h-[40px] flex items-center"
+                    >
+                      {t(`nav.${item.name.toLowerCase()}`)}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Subpage SEO Links */}
+                {/* Subpage Special Landing Pages */}
                 <div className="pt-2 pb-1 border-t border-gray-100 dark:border-gray-800">
                   <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                     Halaman Layanan Khusus:
                   </div>
-                  {serviceLandingLinks.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-3.5 py-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg"
-                    >
-                      {link.name}
-                    </a>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1">
+                    {serviceLandingLinks.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block px-3 py-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                      >
+                        {link.name}
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="pt-3 px-2 pb-1">
+                {/* Bottom WhatsApp CTA */}
+                <div className="pt-2">
                   <a 
                     href="https://wa.me/6285156296580" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="block w-full bg-[#1A1A1A] hover:bg-black text-white px-5 py-3 rounded-full text-xs font-semibold transition-all text-center min-h-[44px] flex items-center justify-center"
+                    className="block w-full bg-[#1A1A1A] hover:bg-black text-white px-5 py-3 rounded-2xl text-xs font-semibold transition-all text-center min-h-[44px] flex items-center justify-center shadow-xs"
                   >
                     {t('nav.bookNow')} (WhatsApp)
                   </a>
