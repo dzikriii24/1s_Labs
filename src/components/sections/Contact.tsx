@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Mail,
@@ -14,7 +14,11 @@ import {
   Globe,
   Sparkles,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Calendar,
+  CalendarCheck,
+  Video,
+  FileText
 } from 'lucide-react';
 import { api } from '../../services/api';
 import notify from '../../lib/notify';
@@ -65,8 +69,20 @@ const quickTopics = [
   { label: 'Konsultasi IT Gratis', msg: 'Halo 1sLabs, saya ingin konsultasi teknis gratis dan minta estimasi biaya proyek.' }
 ];
 
+const AVAILABLE_TIME_SLOTS = [
+  '09:30 - 10:30 WIB',
+  '11:00 - 12:00 WIB',
+  '13:30 - 14:30 WIB',
+  '15:00 - 16:00 WIB',
+  '16:30 - 17:30 WIB',
+  '19:30 - 20:30 WIB'
+];
+
 export const Contact = () => {
-  // Form state
+  // Mode Tab: 'meeting' (default for outreach clicks) vs 'inquiry'
+  const [activeTab, setActiveTab] = useState<'meeting' | 'inquiry'>('meeting');
+
+  // Inquiry Form state
   const [inquiryType, setInquiryType] = useState<string>('consultation');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -75,25 +91,41 @@ export const Contact = () => {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [budgetRange, setBudgetRange] = useState('');
   const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submittingInquiry, setSubmittingInquiry] = useState(false);
+  const [submittedInquiry, setSubmittedInquiry] = useState(false);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.15 }
-    }
-  };
+  // Meeting Form state
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" }
+  const [meetingDate, setMeetingDate] = useState(tomorrowStr);
+  const [meetingTime, setMeetingTime] = useState(AVAILABLE_TIME_SLOTS[0]);
+  const [meetingContactPerson, setMeetingContactPerson] = useState('');
+  const [meetingCompany, setMeetingCompany] = useState('');
+  const [meetingEmail, setMeetingEmail] = useState('');
+  const [meetingPhone, setMeetingPhone] = useState('');
+  const [meetingPlatform, setMeetingPlatform] = useState('Google Meet');
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [submittingMeeting, setSubmittingMeeting] = useState(false);
+  const [submittedMeetingData, setSubmittedMeetingData] = useState<any>(null);
+
+  // Auto-detect URL hash or search params
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      const search = new URLSearchParams(window.location.search);
+      if (search.get('action') === 'inquiry' || search.get('tab') === 'inquiry') {
+        setActiveTab('inquiry');
+      } else {
+        // Default to meeting scheduler for email CTA visitors
+        setActiveTab('meeting');
+      }
+      if (search.get('company')) setMeetingCompany(search.get('company') || '');
+      if (search.get('email')) setMeetingEmail(search.get('email') || '');
+      if (search.get('contact')) setMeetingContactPerson(search.get('contact') || '');
     }
-  };
+  }, []);
 
   const handleSubmitInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +134,7 @@ export const Contact = () => {
       return;
     }
 
-    setSubmitting(true);
+    setSubmittingInquiry(true);
     try {
       const res = await api.inquiries.submit({
         name: name.trim(),
@@ -116,7 +148,7 @@ export const Contact = () => {
       });
 
       if (res.success) {
-        setSubmitted(true);
+        setSubmittedInquiry(true);
         notify.success(
           'Permintaan konsultasi / inquiry Anda telah tersimpan. Engineer 1sLabs akan menghubungi Anda segera!',
           'Inquiry Terkirim'
@@ -131,7 +163,60 @@ export const Contact = () => {
     } catch (err: any) {
       notify.error(err.message || 'Gagal mengirimkan inquiry. Silakan gunakan WhatsApp hotline.');
     } finally {
-      setSubmitting(false);
+      setSubmittingInquiry(false);
+    }
+  };
+
+  const handleSubmitMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!meetingContactPerson.trim()) {
+      notify.error('Nama kontak person wajib diisi.');
+      return;
+    }
+    if (!meetingEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(meetingEmail.trim())) {
+      notify.error('Alamat email valid wajib diisi.');
+      return;
+    }
+    if (!meetingDate) {
+      notify.error('Silakan tentukan tanggal meeting.');
+      return;
+    }
+    if (!meetingTime) {
+      notify.error('Silakan pilih jam meeting.');
+      return;
+    }
+
+    setSubmittingMeeting(true);
+    try {
+      const res = await api.meetings.schedule({
+        company_name: meetingCompany.trim() || undefined,
+        contact_person: meetingContactPerson.trim(),
+        email: meetingEmail.trim(),
+        phone: meetingPhone.trim() || undefined,
+        meeting_date: meetingDate,
+        meeting_time: meetingTime,
+        platform: meetingPlatform,
+        notes: meetingNotes.trim() || undefined
+      });
+
+      if (res.success) {
+        setSubmittedMeetingData({
+          companyName: meetingCompany,
+          contactPerson: meetingContactPerson,
+          email: meetingEmail,
+          meetingDate,
+          meetingTime,
+          platform: meetingPlatform
+        });
+        notify.success(
+          'Jadwal diskusi Anda telah terdaftar. Kami telah mengirimkan konfirmasi ke email Anda!',
+          'Jadwal Diskusi Dikonfirmasi'
+        );
+      }
+    } catch (err: any) {
+      notify.error(err.message || 'Gagal menjadwalkan meeting. Silakan coba kembali.');
+    } finally {
+      setSubmittingMeeting(false);
     }
   };
 
@@ -147,16 +232,20 @@ export const Contact = () => {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="text-center mb-8 sm:mb-12"
         >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Respon Cepat Tim Engineer 1sLabs</span>
+          </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-neutral-900 dark:text-white font-['Mori',_sans-serif] mb-2 sm:mb-4">
             Diskusikan Kebutuhan Digital Anda.
           </h2>
 
           <p className="text-xs sm:text-base md:text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto leading-relaxed px-2">
-            Ingin membuat website baru, butuh perawatan tahunan untuk sistem existing, atau ingin berkonsultasi mengenai arsitektur cloud? Tim engineer 1sLabs siap mendengarkan.
+            Ingin membuat website baru, butuh perawatan tahunan untuk sistem existing, atau mengatur meeting online bersama engineer 1sLabs? Kami siap membantu.
           </p>
         </motion.div>
 
-        {/* 2-Column: Left Contact Cards, Right Inquiry Form */}
+        {/* 2-Column: Left Contact Cards, Right Form (Meeting & Inquiry Tabs) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
           
           {/* Left Column: Direct Contact & Quick Topics (5 cols) */}
@@ -240,212 +329,471 @@ export const Contact = () => {
             </div>
           </div>
 
-          {/* Right Column: Interactive Consultation & Maintenance Form (7 cols) */}
+          {/* Right Column: Tabbed Forms (Meeting Scheduler & Inquiry) (7 cols) */}
           <div className="lg:col-span-7">
             <div className="rounded-3xl p-6 sm:p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
-              <div className="mb-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 font-['Mori',_sans-serif]">
-                  <Send className="w-5 h-5 text-indigo-600" />
-                  Formulir Konsultasi & Permintaan Layanan
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Kirimkan rincian kebutuhan proyek atau website Anda. Data akan langsung terhubung ke database dan ditinjau tim teknis 1sLabs.
-                </p>
+              
+              {/* Tab Selector */}
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('meeting')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'meeting'
+                      ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <CalendarCheck className="w-4 h-4" />
+                  <span>Jadwalkan Diskusi / Meeting</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('inquiry')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'inquiry'
+                      ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Kirim Pesan / Inquiry</span>
+                </button>
               </div>
 
-              {submitted ? (
-                <div className="p-8 text-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-md">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-base font-bold text-emerald-900 dark:text-emerald-200">
-                    Inquiry Berhasil Terkirim!
-                  </h4>
-                  <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 max-w-md mx-auto">
-                    Terima kasih telah mempercayakan kebutuhan Anda kepada 1sLabs. Tim konsultan kami akan menghubungi Anda melalui email atau WhatsApp dalam kurun waktu kurang dari 24 jam kerja.
-                  </p>
-                  <button
-                    onClick={() => setSubmitted(false)}
-                    className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
-                  >
-                    Kirim Inquiry Lainnya
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmitInquiry} className="space-y-4">
-                  {/* Select Service Type */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      Pilih Jenis Kebutuhan Layanan *
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'consultation', label: 'Konsultasi IT Gratis' },
-                        { id: 'website_development', label: 'Pembuatan Website' },
-                        { id: 'website_maintenance', label: 'Maintenance Website' },
-                        { id: 'custom_software', label: 'Custom Web App' },
-                        { id: 'hosting', label: 'Hosting & Domain' },
-                        { id: 'other', label: 'Kebutuhan Lainnya' }
-                      ].map((type) => (
-                        <button
-                          key={type.id}
-                          type="button"
-                          onClick={() => setInquiryType(type.id)}
-                          className={`px-3 py-2 text-xs font-semibold rounded-xl border text-left transition-all cursor-pointer ${
-                            inquiryType === type.id
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                              : 'bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                          }`}
-                        >
-                          {type.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Name & Email Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Nama Lengkap *
-                      </label>
-                      <div className="relative">
-                        <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="cth. Budi Pratama"
-                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Alamat Email *
-                      </label>
-                      <div className="relative">
-                        <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="cth. budi@perusahaan.com"
-                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phone & Company Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Nomor WhatsApp / HP
-                      </label>
-                      <div className="relative">
-                        <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                        <input
-                          type="text"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="cth. 081234567890"
-                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Nama Bisnis / Instansi (Opsional)
-                      </label>
-                      <div className="relative">
-                        <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                        <input
-                          type="text"
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="cth. PT Sinergi Nusantara"
-                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Existing Website & Budget */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Website Yang Sudah Ada (Jika Ada)
-                      </label>
-                      <div className="relative">
-                        <Globe className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                        <input
-                          type="text"
-                          value={websiteUrl}
-                          onChange={(e) => setWebsiteUrl(e.target.value)}
-                          placeholder="cth. https://perusahaanlama.com"
-                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        Estimasi Budget (Opsional)
-                      </label>
-                      <select
-                        value={budgetRange}
-                        onChange={(e) => setBudgetRange(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+              {/* TAB 1: MEETING SCHEDULER */}
+              {activeTab === 'meeting' && (
+                <div>
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 font-['Mori',_sans-serif]">
+                        <Calendar className="w-5 h-5 text-indigo-600" />
+                        Pilih Tanggal & Jam Online Meeting
+                      </h3>
+                      <a
+                        href="/schedule"
+                        className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
                       >
-                        <option value="">Pilih Rentang Biaya</option>
-                        <option value="< Rp 2 Juta">&lt; Rp 2.000.000</option>
-                        <option value="Rp 2 - 5 Juta">Rp 2.000.000 - Rp 5.000.000</option>
-                        <option value="Rp 5 - 15 Juta">Rp 5.000.000 - Rp 15.000.000</option>
-                        <option value="> Rp 15 Juta">&gt; Rp 15.000.000 (Custom Enterprise)</option>
-                        <option value="Fleksibel / Sesuai Assessment">Fleksibel / Sesuai Hasil Assessment</option>
-                      </select>
+                        Buka Halaman Penuh &rarr;
+                      </a>
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Pilih waktu yang nyaman bagi Anda untuk berdiskusi langsung dengan technical lead 1sLabs.
+                    </p>
                   </div>
 
-                  {/* Message */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Deskripsi Kebutuhan & Ekspektasi Proyek *
-                    </label>
-                    <textarea
-                      required
-                      rows={4}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Jelaskan secara ringkas fitur apa saja yang Anda butuhkan, permasalahan pada website lama jika ada, atau kendala teknis yang ingin diselesaikan..."
-                      className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-                    ></textarea>
-                  </div>
+                  {submittedMeetingData ? (
+                    <div className="p-6 text-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-md">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-bold text-emerald-900 dark:text-emerald-200">
+                        Jadwal Diskusi Berhasil Dibuat!
+                      </h4>
+                      <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 max-w-md mx-auto">
+                        Terima kasih, <strong>{submittedMeetingData.contactPerson}</strong>. Pertemuan dijadwalkan pada <strong>{submittedMeetingData.meetingDate}</strong> jam <strong>{submittedMeetingData.meetingTime}</strong> via {submittedMeetingData.platform}.
+                      </p>
+                      <div className="pt-2 flex flex-wrap gap-2 justify-center">
+                        <a
+                          href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Diskusi Proyek 1sLabs - ${submittedMeetingData.companyName || submittedMeetingData.contactPerson}`)}&dates=${submittedMeetingData.meetingDate.replace(/-/g, '')}T093000Z/${submittedMeetingData.meetingDate.replace(/-/g, '')}T103000Z&details=${encodeURIComponent(`Online meeting via ${submittedMeetingData.platform}. Kontak: ${submittedMeetingData.email}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Simpan ke Google Calendar</span>
+                        </a>
+                        <button
+                          onClick={() => setSubmittedMeetingData(null)}
+                          className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-xs font-semibold rounded-xl cursor-pointer"
+                        >
+                          Buat Jadwal Baru
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubmitMeeting} className="space-y-4">
+                      {/* Contact Person & Company */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nama Kontak Person *
+                          </label>
+                          <div className="relative">
+                            <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              required
+                              value={meetingContactPerson}
+                              onChange={(e) => setMeetingContactPerson(e.target.value)}
+                              placeholder="cth. Budi Setiawan"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
 
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Mengirimkan Inquiry ke Database...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span>Kirim Permintaan Konsultasi & Estimasi</span>
-                      </>
-                    )}
-                  </button>
-                </form>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nama Perusahaan / Bisnis (Opsional)
+                          </label>
+                          <div className="relative">
+                            <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              value={meetingCompany}
+                              onChange={(e) => setMeetingCompany(e.target.value)}
+                              placeholder="cth. Adrie Basuki Batik"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Email & Phone */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Alamat Email *
+                          </label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="email"
+                              required
+                              value={meetingEmail}
+                              onChange={(e) => setMeetingEmail(e.target.value)}
+                              placeholder="cth. contact@perusahaan.com"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nomor WhatsApp / HP
+                          </label>
+                          <div className="relative">
+                            <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              value={meetingPhone}
+                              onChange={(e) => setMeetingPhone(e.target.value)}
+                              placeholder="cth. 081234567890"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Meeting Date & Platform */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Tanggal Diskusi *
+                          </label>
+                          <div className="relative">
+                            <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="date"
+                              required
+                              min={tomorrowStr}
+                              value={meetingDate}
+                              onChange={(e) => setMeetingDate(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Platform Diskusi
+                          </label>
+                          <div className="relative">
+                            <Video className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <select
+                              value={meetingPlatform}
+                              onChange={(e) => setMeetingPlatform(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                            >
+                              <option value="Google Meet">Google Meet (Rekomendasi)</option>
+                              <option value="Zoom Meeting">Zoom Meeting</option>
+                              <option value="WhatsApp Video Call">WhatsApp Video Call</option>
+                              <option value="Offline / Tatap Muka">Offline / Tatap Muka (Bandung & Sekitarnya)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Time Slots */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                          Pilih Jam Diskusi *
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {AVAILABLE_TIME_SLOTS.map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setMeetingTime(slot)}
+                              className={`py-2 px-2.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                meetingTime === slot
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                              }`}
+                            >
+                              <Clock className="w-3 h-3" />
+                              <span>{slot.replace(' WIB', '')}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Catatan / Kebutuhan Diskusi (Notes)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={meetingNotes}
+                          onChange={(e) => setMeetingNotes(e.target.value)}
+                          placeholder="cth. Ingin membahas rencana redesign website toko online & penawaran hosting tahunan..."
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                        ></textarea>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submittingMeeting}
+                        className="w-full py-3 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {submittingMeeting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Mendaftarkan Jadwal Pertemuan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CalendarCheck className="w-4 h-4" />
+                            <span>Konfirmasi Jadwal Online Meeting</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
+
+              {/* TAB 2: INQUIRY FORM */}
+              {activeTab === 'inquiry' && (
+                <div>
+                  <div className="mb-5">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 font-['Mori',_sans-serif]">
+                      <Send className="w-5 h-5 text-indigo-600" />
+                      Formulir Konsultasi & Permintaan Layanan
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Kirimkan rincian kebutuhan proyek atau website Anda. Data akan langsung ditinjau oleh tim teknis 1sLabs.
+                    </p>
+                  </div>
+
+                  {submittedInquiry ? (
+                    <div className="p-8 text-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-md">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-bold text-emerald-900 dark:text-emerald-200">
+                        Inquiry Berhasil Terkirim!
+                      </h4>
+                      <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 max-w-md mx-auto">
+                        Terima kasih telah mempercayakan kebutuhan Anda kepada 1sLabs. Tim konsultan kami akan menghubungi Anda melalui email atau WhatsApp dalam kurun waktu kurang dari 24 jam kerja.
+                      </p>
+                      <button
+                        onClick={() => setSubmittedInquiry(false)}
+                        className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+                      >
+                        Kirim Inquiry Lainnya
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubmitInquiry} className="space-y-4">
+                      {/* Select Service Type */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                          Pilih Jenis Kebutuhan Layanan *
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {[
+                            { id: 'consultation', label: 'Konsultasi IT Gratis' },
+                            { id: 'website_development', label: 'Pembuatan Website' },
+                            { id: 'website_maintenance', label: 'Maintenance Website' },
+                            { id: 'custom_software', label: 'Custom Web App' },
+                            { id: 'hosting', label: 'Hosting & Domain' },
+                            { id: 'other', label: 'Kebutuhan Lainnya' }
+                          ].map((type) => (
+                            <button
+                              key={type.id}
+                              type="button"
+                              onClick={() => setInquiryType(type.id)}
+                              className={`px-3 py-2 text-xs font-semibold rounded-xl border text-left transition-all cursor-pointer ${
+                                inquiryType === type.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                              }`}
+                            >
+                              {type.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Name & Email Row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nama Lengkap *
+                          </label>
+                          <div className="relative">
+                            <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              required
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              placeholder="cth. Budi Pratama"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Alamat Email *
+                          </label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="email"
+                              required
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="cth. budi@perusahaan.com"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Phone & Company Row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nomor WhatsApp / HP
+                          </label>
+                          <div className="relative">
+                            <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="cth. 081234567890"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Nama Bisnis / Instansi (Opsional)
+                          </label>
+                          <div className="relative">
+                            <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              value={company}
+                              onChange={(e) => setCompany(e.target.value)}
+                              placeholder="cth. PT Sinergi Nusantara"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Existing Website & Budget */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Website Yang Sudah Ada (Jika Ada)
+                          </label>
+                          <div className="relative">
+                            <Globe className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              type="text"
+                              value={websiteUrl}
+                              onChange={(e) => setWebsiteUrl(e.target.value)}
+                              placeholder="cth. https://perusahaanlama.com"
+                              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Estimasi Budget (Opsional)
+                          </label>
+                          <select
+                            value={budgetRange}
+                            onChange={(e) => setBudgetRange(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                          >
+                            <option value="">Pilih Rentang Biaya</option>
+                            <option value="< Rp 2 Juta">&lt; Rp 2.000.000</option>
+                            <option value="Rp 2 - 5 Juta">Rp 2.000.000 - Rp 5.000.000</option>
+                            <option value="Rp 5 - 15 Juta">Rp 5.000.000 - Rp 15.000.000</option>
+                            <option value="> Rp 15 Juta">&gt; Rp 15.000.000 (Custom Enterprise)</option>
+                            <option value="Fleksibel / Sesuai Assessment">Fleksibel / Sesuai Hasil Assessment</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Message */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Deskripsi Kebutuhan & Ekspektasi Proyek *
+                        </label>
+                        <textarea
+                          required
+                          rows={4}
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="Jelaskan secara ringkas fitur apa saja yang Anda butuhkan, permasalahan pada website lama jika ada, atau kendala teknis yang ingin diselesaikan..."
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/80 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                        ></textarea>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submittingInquiry}
+                        className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {submittingInquiry ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Mengirimkan Inquiry ke Database...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            <span>Kirim Permintaan Konsultasi & Estimasi</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
 
@@ -457,3 +805,4 @@ export const Contact = () => {
 };
 
 export default Contact;
+

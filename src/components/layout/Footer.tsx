@@ -28,6 +28,7 @@ const footerNav = [
       { name: 'About 1sLabs', href: '#about' },
       { name: 'Verified Portfolio', href: '#portfolio' },
       { name: 'Experience & Partners', href: '#experience-partners' },
+      { name: 'Workplace & Remote Policy', href: '/workplace-policy' },
       { name: 'FAQ & Consultation', href: '#contact' }
     ]
   }

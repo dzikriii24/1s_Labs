@@ -1063,6 +1063,7 @@ async function sendInvoiceEmail({ to, name, invoice, invoiceUrl }) {
 }
 
 module.exports = {
+  getTransporter,
   sendMail,
   wrapHtmlEmail,
   sendVerificationEmail,

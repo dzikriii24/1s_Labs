@@ -29,10 +29,26 @@ import { AdminManagementView } from './views/AdminManagementView';
 import { FreePlanClaimsView } from './views/FreePlanClaimsView';
 import { NodeJsApplicationsAdminView } from './views/NodeJsApplicationsAdminView';
 import { InquiriesManagementView } from './views/InquiriesManagementView';
+import { FeedbackManagementView } from './views/FeedbackManagementView';
+import { DocsManagementView } from './views/DocsManagementView';
+import { MarketingView } from './views/marketing/MarketingView';
+import notify from '../../lib/notify';
 
 export const AdminLayout: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as AdminMenuKey) || 'dashboard';
+  const { user, logout } = useAuth();
+  const isMarketingUser = user?.role === 'marketing';
+
+  const isMarketingAllowedTab = (tab: string) => {
+    return (
+      tab.startsWith('marketing') ||
+      ['feedback', 'inquiries', 'emails', 'email-templates', 'docs-management'].includes(tab)
+    );
+  };
+
+  const initialTab = isMarketingUser
+    ? 'marketing'
+    : ((searchParams.get('tab') as AdminMenuKey) || 'dashboard');
 
   const [activeTab, setActiveTab] = useState<AdminMenuKey>(initialTab);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -43,8 +59,6 @@ export const AdminLayout: React.FC = () => {
   // Notifications and badge counts
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([]);
   const [pendingVerificationsCount, setPendingVerificationsCount] = useState<number>(0);
-
-  const { user, logout } = useAuth();
 
   const loadHeaderBadges = async () => {
     try {
@@ -67,16 +81,27 @@ export const AdminLayout: React.FC = () => {
     loadHeaderBadges();
   }, [refreshKey]);
 
-  // Sync tab with URL search parameter
+  // Sync tab with URL search parameter & enforce marketing access
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab') as AdminMenuKey;
+    if (isMarketingUser) {
+      if (!tabFromUrl || !isMarketingAllowedTab(tabFromUrl)) {
+        setActiveTab('marketing');
+        setSearchParams({ tab: 'marketing' });
+        return;
+      }
+    }
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [searchParams]);
+  }, [searchParams, isMarketingUser]);
 
   const handleSelectTab = (tab: AdminMenuKey | string) => {
     const validTab = tab as AdminMenuKey;
+    if (isMarketingUser && !isMarketingAllowedTab(validTab)) {
+      notify.warning('Sebagai tim Marketing, akses Anda difokuskan pada Growth & Intelligence serta Communication.');
+      return;
+    }
     setActiveTab(validTab);
     setSearchParams({ tab: validTab });
     setMobileSidebarOpen(false);
@@ -96,6 +121,33 @@ export const AdminLayout: React.FC = () => {
         return <OverviewDashboardView key={refreshKey} onNavigate={handleSelectTab} />;
       case 'analytics':
         return <AnalyticsDashboardView key={refreshKey} />;
+      case 'marketing':
+      case 'marketing-overview':
+      case 'marketing-indonesia':
+      case 'marketing-international':
+      case 'marketing-prospects':
+      case 'marketing-research':
+      case 'marketing-ai-agent':
+      case 'marketing-sources':
+      case 'marketing-contacts':
+      case 'marketing-campaigns':
+      case 'marketing-inbox':
+      case 'marketing-followups':
+      case 'marketing-analytics':
+      case 'marketing-settings': {
+        const sub = (
+          activeTab === 'marketing' || activeTab === 'marketing-overview'
+            ? 'overview'
+            : activeTab.replace('marketing-', '')
+        ) as any;
+        return (
+          <MarketingView
+            key={refreshKey}
+            initialSubtab={sub}
+            onNavigateSubtab={(newSub) => handleSelectTab(`marketing-${newSub}` as AdminMenuKey)}
+          />
+        );
+      }
       case 'freeplan-claims':
         return <FreePlanClaimsView key={refreshKey} />;
       case 'nodejs-manager':
@@ -137,6 +189,9 @@ export const AdminLayout: React.FC = () => {
         return <PaymentProofsVaultView key={refreshKey} />;
       case 'service-reports':
         return <ServiceReportGeneratorView key={refreshKey} />;
+      case 'feedback':
+      case 'meeting-feedback' as any:
+        return <FeedbackManagementView key={refreshKey} />;
       case 'inquiries':
       case 'inquiry-management' as any:
         return <InquiriesManagementView key={refreshKey} />;
@@ -146,6 +201,9 @@ export const AdminLayout: React.FC = () => {
         return <EmailManagementView key={refreshKey} onNavigate={handleSelectTab} />;
       case 'email-templates':
         return <EmailTemplateEditorView key={refreshKey} />;
+      case 'docs-management':
+      case 'docs' as any:
+        return <DocsManagementView key={refreshKey} />;
       case 'settings':
       case 'general-settings' as any:
         return <GeneralSettingsView key={refreshKey} />;

@@ -1,14 +1,52 @@
+export type UserRole = 'super_admin' | 'marketing' | 'pengguna' | 'admin' | 'customer' | string;
+
 export interface User {
   id: number;
   email: string;
   name: string;
   phone?: string | null;
-  role: 'customer' | 'admin';
+  role: UserRole;
   email_verified: boolean;
   status?: string;
   createdAt?: string;
   activeServicesCount?: number;
   pendingOrdersCount?: number;
+}
+
+export interface CompanyEmailAccount {
+  email: string;
+  user: string;
+  domain: string;
+  login?: string;
+  diskused: string | number;
+  diskquota: string | number;
+  humandiskused: string;
+  humandiskquota: string;
+  diskusedpercent: number;
+  suspended_login: boolean;
+  suspended_incoming: boolean;
+  mtime?: string | null;
+}
+
+export interface AdminUserItem {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: 'super_admin' | 'marketing' | 'pengguna' | 'admin' | 'customer';
+  status: 'active' | 'suspended';
+  email_verified: boolean | number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AdminUserStats {
+  total: number;
+  super_admin_count: number;
+  marketing_count: number;
+  pengguna_count: number;
+  active_count: number;
+  suspended_count: number;
 }
 
 export interface HostingPlan {
@@ -383,6 +421,23 @@ export interface InquiryItem {
   updated_at: string;
 }
 
+export interface MeetingScheduleItem {
+  id: number;
+  company_name: string | null;
+  contact_person: string;
+  email: string;
+  phone: string | null;
+  meeting_date: string;
+  meeting_time: string;
+  platform: string;
+  notes: string | null;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'rescheduled' | 'cancelled';
+  admin_notes: string | null;
+  source_campaign_id?: number | null;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface FinanceOverviewData {
   totalRevenue: number;
   monthlyRevenue: number;
@@ -651,6 +706,318 @@ export interface AnalyticsResponse {
   devices: { device: string; count: number }[];
   recentActivity: AnalyticsEvent[];
   timeline: AnalyticsTimelineItem[];
+}
+
+export interface MarketingCompany {
+  id: number;
+  name: string;
+  normalized_name: string;
+  category: string;
+  business_type?: string | null;
+  business_scale?: string | null;
+  industry?: string | null;
+  description?: string | null;
+  country?: string | null;
+  is_international?: boolean | number;
+  currency?: string | null;
+  language?: string | null;
+  timezone?: string | null;
+  province?: string | null;
+  city?: string | null;
+  full_address?: string | null;
+  website_url?: string | null;
+  normalized_domain?: string | null;
+  google_maps_url?: string | null;
+  phone?: string | null;
+  normalized_phone?: string | null;
+  whatsapp_number?: string | null;
+  email?: string | null;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  contact_page_url?: string | null;
+  social_media_url?: string | null;
+  has_website: boolean | number;
+  website_status?: string | null;
+  ssl_status?: string | null;
+  is_mobile_responsive?: boolean | number | null;
+  performance_score?: number | null;
+  last_website_checked?: string | null;
+  digital_presence_findings?: string | null;
+  lead_score: number;
+  lead_grade: 'cold' | 'warm' | 'hot' | string;
+  lead_score_breakdown?: string[] | string | null;
+  potential_needs_json?: string[] | string | null;
+  recommended_services_json?: string[] | string | null;
+  status: string;
+  outreach_eligibility: 'eligible' | 'ineligible' | 'needs_review' | string;
+  outreach_ineligible_reason?: string | null;
+  primary_source_name?: string | null;
+  is_priority?: boolean | number;
+  is_archived?: boolean | number;
+  is_deleted?: boolean | number;
+  deleted_at?: string | null;
+  admin_notes?: string | null;
+  tags?: string | null;
+  contacts_count?: number;
+  first_discovered_at: string;
+  last_discovered_at: string;
+  enrichment_count: number;
+  last_enriched_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketingContact {
+  id: number;
+  company_id: number;
+  company_name?: string;
+  company_website?: string;
+  company_city?: string;
+  full_name: string;
+  position?: string | null;
+  role_category: string;
+  email?: string | null;
+  phone?: string | null;
+  channel?: string | null;
+  profile_url?: string | null;
+  source_url?: string | null;
+  contact_type?: string;
+  contact_value?: string | null;
+  confidence_score?: number;
+  source_name?: string;
+  notes?: string | null;
+  is_primary: boolean | number;
+  outreach_eligible: boolean | number;
+  verification_status: 'verified' | 'unverified' | 'unknown' | 'bounced' | 'Verified' | 'Likely Correct' | 'Invalid' | string;
+  created_at: string;
+}
+
+export interface MarketingSource {
+  id: number;
+  name: string;
+  url?: string | null;
+  source_type: string;
+  data_category?: string | null;
+  collection_method: string;
+  permission_notes?: string | null;
+  schedule_cron: string;
+  rate_limit_per_minute: number;
+  max_records_per_run: number;
+  is_active: boolean | number;
+  health_status: 'healthy' | 'degraded' | 'failing' | 'idle';
+  total_records_collected: number;
+  last_successful_run?: string | null;
+  last_failed_run?: string | null;
+  last_error_message?: string | null;
+}
+
+export interface MarketingJob {
+  id: number;
+  source_id: number;
+  target_sector?: string | null;
+  target_province?: string | null;
+  target_city?: string | null;
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  records_found: number;
+  records_saved: number;
+  records_duplicate: number;
+  records_enriched: number;
+  error_summary?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+}
+
+export interface MarketingCampaign {
+  id: number;
+  name: string;
+  template_id?: number | null;
+  target_industry?: string | null;
+  target_province?: string | null;
+  target_category?: string | null;
+  target_lead_score_min: number;
+  subject: string;
+  body_html: string;
+  status: 'draft' | 'scheduled' | 'running' | 'paused' | 'completed' | 'cancelled';
+  scheduled_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  total_recipients: number;
+  sent_count: number;
+  delivered_count: number;
+  failed_count: number;
+  bounced_count: number;
+  responded_count: number;
+  interested_count: number;
+  unsubscribed_count: number;
+  created_at: string;
+}
+
+export interface MarketingEmailTemplate {
+  id: number;
+  name: string;
+  category: string;
+  subject: string;
+  body_html: string;
+  body_text?: string | null;
+  variables_json?: string[] | string | null;
+  is_default: boolean | number;
+}
+
+export interface MarketingEmailCandidate {
+  id: number;
+  name: string;
+  email: string;
+  business_scale?: string | null;
+  category?: string | null;
+  country?: string | null;
+  city?: string | null;
+  province?: string | null;
+  is_international?: boolean | number;
+  company_status: string;
+  last_contacted_at?: string | null;
+  contacted_times: number;
+  email_sent_count: number;
+  last_sent_at?: string | null;
+  contact_person_name?: string | null;
+  contact_person_position?: string | null;
+  contact_person_email?: string | null;
+  contact_person_id?: number | null;
+}
+
+export interface MarketingEmailLogItem {
+  id: number;
+  campaign_id?: number | null;
+  campaign_name?: string | null;
+  company_id?: number | null;
+  current_company_name?: string | null;
+  company_name?: string | null;
+  country?: string | null;
+  is_international?: boolean | number;
+  contact_id?: number | null;
+  contact_position?: string | null;
+  recipient_name?: string | null;
+  recipient_email: string;
+  subject: string;
+  body_html?: string | null;
+  message_id?: string | null;
+  status: 'sent' | 'failed' | 'rejected' | string;
+  error_details?: string | null;
+  sent_at: string;
+}
+
+export interface MarketingCampaignRecipient {
+  id: number;
+  campaign_id: number;
+  company_id: number;
+  contact_id?: number | null;
+  recipient_email: string;
+  recipient_name?: string | null;
+  company_name?: string | null;
+  comp_name?: string | null;
+  city?: string | null;
+  province?: string | null;
+  is_international?: boolean | number;
+  country?: string | null;
+  status: 'pending' | 'sent' | 'failed' | 'skipped' | 'unsubscribed';
+  error_message?: string | null;
+  sent_at?: string | null;
+  created_at: string;
+}
+
+export interface MarketingEmailReply {
+  id: number;
+  campaign_id?: number | null;
+  company_id?: number | null;
+  company_name?: string | null;
+  company_email?: string | null;
+  company_phone?: string | null;
+  from_email: string;
+  from_name?: string | null;
+  subject: string;
+  body_text: string;
+  received_at: string;
+  classification: string;
+  ai_summary?: string | null;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  status: 'unread' | 'read' | 'assigned' | 'replied' | 'closed';
+  admin_notes?: string | null;
+}
+
+export interface MarketingFollowup {
+  id: number;
+  company_id: number;
+  company_name?: string | null;
+  company_phone?: string | null;
+  company_email?: string | null;
+  company_city?: string | null;
+  title: string;
+  notes?: string | null;
+  due_date: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'completed' | 'cancelled';
+  completed_at?: string | null;
+}
+
+export interface MarketingSuppression {
+  id: number;
+  email?: string | null;
+  domain?: string | null;
+  reason: string;
+  notes?: string | null;
+  source: string;
+  suppressed_at: string;
+}
+
+export interface MarketingAiLog {
+  id: number;
+  model: string;
+  purpose: string;
+  company_id?: number | null;
+  status: string;
+  latency_ms: number;
+  input_snapshot?: string | null;
+  created_at: string;
+}
+
+export interface MarketingStatsResponse {
+  success: boolean;
+  stats: {
+    total_prospects: number;
+    total_umkm: number;
+    total_companies: number;
+    new_today: number;
+    new_this_week: number;
+    new_this_month: number;
+    verified_count: number;
+    with_email_count: number;
+    outreach_eligible_count: number;
+    emails_sent_today: number;
+    remaining_quota_today: number;
+    max_daily_quota: number;
+    total_sent: number;
+    total_failed: number;
+    total_responded: number;
+    total_interested: number;
+    total_consultations: number;
+    total_converted: number;
+  };
+  quota: {
+    date: string;
+    sent_count: number;
+    max_limit: number;
+    remaining_quota: number;
+    is_quota_exhausted: boolean;
+  };
+  todaysDiscovery: MarketingCompany[];
+  aiActivities: MarketingAiLog[];
+  charts: {
+    bySource: { source: string; count: number }[];
+    bySector: { sector: string; count: number }[];
+    byProvince: { province: string; count: number }[];
+    dailyGrowth: { date: string; count: number }[];
+    funnel: { stage: string; count: number }[];
+  };
 }
 
 const API_BASE = '/api';
@@ -1616,6 +1983,478 @@ export const api = {
 
     adminDelete: (id: number) =>
       request<{ success: boolean; message: string }>(`/inquiries/admin/${id}`, {
+        method: 'DELETE'
+      })
+  },
+
+  meetings: {
+    schedule: (payload: {
+      company_name?: string;
+      contact_person: string;
+      email: string;
+      phone?: string;
+      meeting_date: string;
+      meeting_time: string;
+      platform?: string;
+      notes?: string;
+      source_campaign_id?: number;
+    }) =>
+      request<{ success: boolean; message: string; scheduleId: number; data: any }>('/meetings/schedule', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    adminList: (params?: { status?: string; search?: string; from_date?: string; to_date?: string; page?: number; limit?: number }) =>
+      request<{
+        success: boolean;
+        meetings: MeetingScheduleItem[];
+        stats: {
+          total: number;
+          scheduled: number;
+          confirmed: number;
+          completed: number;
+          cancelled: number;
+          today_meetings: number;
+        };
+      }>(`/meetings/admin${buildQueryString(params)}`),
+
+    adminUpdate: (id: number, payload: { status?: string; meeting_date?: string; meeting_time?: string; platform?: string; admin_notes?: string }) =>
+      request<{ success: boolean; message: string }>(`/meetings/admin/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    adminDelete: (id: number) =>
+      request<{ success: boolean; message: string }>(`/meetings/admin/${id}`, {
+        method: 'DELETE'
+      })
+  },
+
+  // Marketing Intelligence & Automation API
+  marketing: {
+    getStats: () =>
+      request<MarketingStatsResponse>('/admin/marketing/stats'),
+
+    getCompanies: (params?: {
+      search?: string;
+      category?: string;
+      industry?: string;
+      province?: string;
+      city?: string;
+      status?: string;
+      outreach_eligibility?: string;
+      lead_grade?: string;
+      has_website?: string | boolean;
+      sortBy?: string;
+      sortDir?: string;
+      page?: number;
+      limit?: number;
+    }) =>
+      request<{ success: boolean; data: MarketingCompany[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+        `/admin/marketing/companies${buildQueryString(params)}`
+      ),
+
+    getCompany: (id: number) =>
+      request<{
+        success: boolean;
+        company: MarketingCompany;
+        contacts: MarketingContact[];
+        audits: any[];
+        sources: any[];
+        emailLogs: any[];
+        followups: any[];
+      }>(`/admin/marketing/companies/${id}`),
+
+    createCompany: (payload: Partial<MarketingCompany>) =>
+      request<{ success: boolean; message: string; data: MarketingCompany }>('/admin/marketing/companies', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateCompany: (id: number, payload: Partial<MarketingCompany>) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/companies/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteCompany: (id: number, permanent = false) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/companies/${id}?permanent=${permanent}`, {
+        method: 'DELETE'
+      }),
+
+    restoreCompany: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/companies/${id}/restore`, {
+        method: 'POST'
+      }),
+
+    togglePriority: (id: number) =>
+      request<{ success: boolean; is_priority: boolean; message: string }>(`/admin/marketing/companies/${id}/priority`, {
+        method: 'POST'
+      }),
+
+    toggleArchive: (id: number) =>
+      request<{ success: boolean; is_archived: boolean; message: string }>(`/admin/marketing/companies/${id}/archive`, {
+        method: 'POST'
+      }),
+
+    importCompanies: (rows: any[], options?: any) =>
+      request<{ success: boolean; message: string; imported: number; duplicates: number; errors: any[] }>('/admin/marketing/companies/import', {
+        method: 'POST',
+        body: JSON.stringify({ rows, ...options })
+      }),
+
+    enrichCompany: (id: number) =>
+      request<{ success: boolean; message: string; enriched: any }>(`/admin/marketing/companies/${id}/enrich`, {
+        method: 'POST'
+      }),
+
+    recoverCompanyContact: (id: number) =>
+      request<{ success: boolean; result: any }>(`/admin/marketing/companies/${id}/recover-contact`, {
+        method: 'POST'
+      }),
+
+    runBatchContactRecovery: (payload: { companyIds?: number[]; filter?: string; limit?: number }) =>
+      request<{ success: boolean; result: any }>('/admin/marketing/recovery/run', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    getRecoveryStats: () =>
+      request<{ success: boolean; stats: any }>('/admin/marketing/recovery/stats'),
+
+    auditWebsite: (id: number) =>
+      request<{ success: boolean; message: string; audit: any }>(`/admin/marketing/companies/${id}/audit-website`, {
+        method: 'POST'
+      }),
+
+    getContacts: (params?: { search?: string; role?: string; outreach_eligible?: string | boolean; page?: number; limit?: number }) =>
+      request<{ success: boolean; data: MarketingContact[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+        `/admin/marketing/contacts${buildQueryString(params)}`
+      ),
+
+    getCompanyContacts: (companyId: number) =>
+      request<{ success: boolean; data: MarketingContact[] }>(`/admin/marketing/companies/${companyId}/contacts`),
+
+    addCompanyContact: (companyId: number, payload: Partial<MarketingContact>) =>
+      request<{ success: boolean; message: string; data: MarketingContact }>(`/admin/marketing/companies/${companyId}/contacts`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    addContact: (payload: Partial<MarketingContact>) =>
+      request<{ success: boolean; message: string; contact_id: number }>('/admin/marketing/contacts', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateContact: (id: number, payload: Partial<MarketingContact>) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/contacts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteContact: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/contacts/${id}`, {
+        method: 'DELETE'
+      }),
+
+    setPrimaryContact: (contactId: number) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/contacts/${contactId}/primary`, {
+        method: 'POST'
+      }),
+
+    getSources: () =>
+      request<{ success: boolean; sources: MarketingSource[]; jobs: MarketingJob[] }>('/admin/marketing/sources'),
+
+    addSource: (payload: Partial<MarketingSource>) =>
+      request<{ success: boolean; message: string; source_id: number }>('/admin/marketing/sources', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateSource: (id: number, payload: Partial<MarketingSource>) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/sources/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    runSource: (id: number, payload?: { sector?: string; province?: string; city?: string; limit?: number }) =>
+      request<{ success: boolean; message: string; result: any }>(`/admin/marketing/sources/${id}/run`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {})
+      }),
+
+    getCampaigns: () =>
+      request<{ success: boolean; campaigns: MarketingCampaign[]; templates: MarketingEmailTemplate[]; quota: any }>('/admin/marketing/campaigns'),
+
+    getEmailCandidates: (params?: { scope?: string; status?: string; search?: string }) =>
+      request<{ success: boolean; data: MarketingEmailCandidate[] }>(`/admin/marketing/campaigns/candidates${buildQueryString(params)}`),
+
+    getEmailLogs: (params?: { page?: number; limit?: number; search?: string; status?: string; company_id?: number }) =>
+      request<{ success: boolean; data: MarketingEmailLogItem[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+        `/admin/marketing/email-logs${buildQueryString(params)}`
+      ),
+
+    getCampaignRecipients: (campaignId: number) =>
+      request<{ success: boolean; data: MarketingCampaignRecipient[] }>(`/admin/marketing/campaigns/${campaignId}/recipients`),
+
+    createCampaign: (payload: {
+      name: string;
+      template_id?: number;
+      target_industry?: string;
+      target_province?: string;
+      target_category?: string;
+      target_lead_score_min?: number;
+      subject: string;
+      body_html: string;
+      target_company_ids?: number[];
+      avoid_recently_contacted?: boolean;
+    }) =>
+      request<{ success: boolean; message: string; campaign_id: number; total_recipients: number; skipped_duplicates?: number }>('/admin/marketing/campaigns', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    sendTestEmail: (campaignId: number, testEmail?: string) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/campaigns/${campaignId}/send-test`, {
+        method: 'POST',
+        body: JSON.stringify({ test_email: testEmail })
+      }),
+
+    startCampaign: (campaignId: number, recipientIds?: number[]) =>
+      request<{ success: boolean; message: string; sentCount: number; failedCount: number; skippedDuplicates?: number; remainingInCampaign: number }>(
+        `/admin/marketing/campaigns/${campaignId}/start`,
+        { method: 'POST', body: JSON.stringify({ recipient_ids: recipientIds }) }
+      ),
+
+    getTemplates: () =>
+      request<{ success: boolean; templates: MarketingEmailTemplate[] }>('/admin/marketing/templates'),
+
+    createTemplate: (payload: Partial<MarketingEmailTemplate>) =>
+      request<{ success: boolean; message: string; template_id: number }>('/admin/marketing/templates', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateTemplate: (id: number, payload: Partial<MarketingEmailTemplate>) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/templates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    getInbox: () =>
+      request<{ success: boolean; replies: MarketingEmailReply[] }>('/admin/marketing/inbox'),
+
+    updateInboxStatus: (id: number, payload: { classification?: string; status?: string; admin_notes?: string }) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/inbox/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    getFollowups: () =>
+      request<{ success: boolean; followups: MarketingFollowup[] }>('/admin/marketing/followups'),
+
+    createFollowup: (payload: { company_id: number; title: string; notes?: string; due_date: string; priority?: string }) =>
+      request<{ success: boolean; message: string; followup_id: number }>('/admin/marketing/followups', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateFollowup: (id: number, payload: Partial<MarketingFollowup>) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/followups/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    getSuppressions: () =>
+      request<{ success: boolean; suppressions: MarketingSuppression[] }>('/admin/marketing/suppressions'),
+
+    addSuppression: (payload: { email: string; reason?: string; notes?: string }) =>
+      request<{ success: boolean; message: string }>('/admin/marketing/suppressions', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteSuppression: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/suppressions/${id}`, {
+        method: 'DELETE'
+      }),
+
+    getSettings: () =>
+      request<{ success: boolean; settings: Record<string, string>; raw: any[] }>('/admin/marketing/settings'),
+
+    saveSettings: (payload: Record<string, string>) =>
+      request<{ success: boolean; message: string }>('/admin/marketing/settings', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    getAiLogs: () =>
+      request<{ success: boolean; logs: MarketingAiLog[] }>('/admin/marketing/ai-logs'),
+
+    testAiPrompt: (prompt: string, model?: string) =>
+      request<{ success: boolean; result: any }>('/admin/marketing/ai-test', {
+        method: 'POST',
+        body: JSON.stringify({ prompt, model })
+      })
+  },
+
+  companyEmails: {
+    list: () =>
+      request<{
+        success: boolean;
+        domain: string;
+        accounts: CompanyEmailAccount[];
+        count: number;
+        webmailUrl: string;
+        cpanelUrl: string;
+      }>('/admin/company-emails'),
+
+    create: (payload: { username: string; password: string; quota?: number }) =>
+      request<{
+        success: boolean;
+        message: string;
+        data?: any;
+      }>('/admin/company-emails', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    changePassword: (username: string, password: string) =>
+      request<{ success: boolean; message: string }>(`/admin/company-emails/${encodeURIComponent(username)}/password`, {
+        method: 'PUT',
+        body: JSON.stringify({ password })
+      }),
+
+    changeQuota: (username: string, quota: number) =>
+      request<{ success: boolean; message: string }>(`/admin/company-emails/${encodeURIComponent(username)}/quota`, {
+        method: 'PUT',
+        body: JSON.stringify({ quota })
+      }),
+
+    delete: (username: string) =>
+      request<{ success: boolean; message: string }>(`/admin/company-emails/${encodeURIComponent(username)}`, {
+        method: 'DELETE'
+      })
+  },
+
+  adminUsers: {
+    list: (params?: { role?: string; status?: string; search?: string; limit?: number; offset?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.role) q.set('role', params.role);
+      if (params?.status) q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.offset) q.set('offset', String(params.offset));
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      return request<{
+        success: boolean;
+        users: AdminUserItem[];
+        stats: AdminUserStats;
+      }>(`/admin/users${qs}`);
+    },
+
+    create: (payload: { name: string; email: string; password: string; phone?: string; role: string }) =>
+      request<{
+        success: boolean;
+        message: string;
+        user?: AdminUserItem;
+      }>('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateRole: (id: number, role: string) =>
+      request<{ success: boolean; message: string; user?: AdminUserItem }>(`/admin/users/${id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role })
+      }),
+
+    updateStatus: (id: number, status: 'active' | 'suspended') =>
+      request<{ success: boolean; message: string }>(`/admin/users/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      }),
+
+    resetPassword: (id: number, password: string) =>
+      request<{ success: boolean; message: string }>(`/admin/users/${id}/password`, {
+        method: 'PUT',
+        body: JSON.stringify({ password })
+      }),
+
+    delete: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/users/${id}`, {
+        method: 'DELETE'
+      })
+  },
+
+  docs: {
+    getAll: () =>
+      request<{
+        success: boolean;
+        categories: any[];
+        totalArticles: number;
+        articles: any[];
+      }>('/docs'),
+
+    getAdminAll: () =>
+      request<{
+        success: boolean;
+        articles: any[];
+      }>('/docs/admin/all'),
+
+    getBySlug: (slug: string) =>
+      request<{
+        success: boolean;
+        article: any;
+      }>(`/docs/${encodeURIComponent(slug)}`),
+
+    create: (payload: {
+      title: string;
+      slug?: string;
+      category: string;
+      categoryTitle?: string;
+      description?: string;
+      readingTime?: string;
+      keywords?: string | string[];
+      content: string;
+      status?: 'published' | 'draft';
+    }) =>
+      request<{
+        success: boolean;
+        message: string;
+        articleId?: number;
+        slug?: string;
+      }>('/docs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    update: (id: number, payload: Partial<{
+      title: string;
+      slug: string;
+      category: string;
+      categoryTitle: string;
+      description: string;
+      readingTime: string;
+      keywords: string | string[];
+      content: string;
+      status: 'published' | 'draft';
+    }>) =>
+      request<{
+        success: boolean;
+        message: string;
+        slug?: string;
+      }>(`/docs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    delete: (id: number) =>
+      request<{
+        success: boolean;
+        message: string;
+      }>(`/docs/${id}`, {
         method: 'DELETE'
       })
   }

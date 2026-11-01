@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireAdminOrMarketing } = require('../middleware/auth');
 const { sendMail } = require('../services/email.service');
 const { logActivity } = require('../utils/activityLogger');
 
@@ -183,7 +183,7 @@ router.post('/', async (req, res) => {
 // ==========================================
 // 2. ADMIN: GET /inquiries - List Inquiries
 // ==========================================
-router.get('/admin', requireAuth, requireAdmin, async (req, res) => {
+router.get('/admin', requireAuth, requireAdminOrMarketing, async (req, res) => {
   try {
     const { status, type, search, page = 1, limit = 50 } = req.query;
     let sql = 'SELECT * FROM contact_inquiries WHERE 1=1';
@@ -234,7 +234,7 @@ router.get('/admin', requireAuth, requireAdmin, async (req, res) => {
 // ==========================================
 // 3. ADMIN: PATCH /inquiries/:id - Update Status
 // ==========================================
-router.patch('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
+router.patch('/admin/:id', requireAuth, requireAdminOrMarketing, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;

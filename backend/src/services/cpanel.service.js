@@ -549,6 +549,163 @@ const systemProcessService = {
   }
 };
 
+// === EMAIL ACCOUNT OPERATIONS (cPanel POP/IMAP) ===
+const emailAccountService = {
+  /**
+   * List all POP/IMAP email accounts from cPanel filtered by domain.
+   * Default domain is '1slabs.my.id'.
+   */
+  async listAccounts(domain = '1slabs.my.id') {
+    const raw = await execUapi('Email', 'list_pops_with_disk');
+    const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : []);
+    
+    // Filter specifically by target domain
+    const filtered = list.filter(item => {
+      if (!domain) return true;
+      return (item.domain || '').toLowerCase() === domain.toLowerCase();
+    });
+
+    return filtered.map(item => ({
+      email: item.email || `${item.user}@${item.domain}`,
+      user: item.user,
+      domain: item.domain,
+      login: item.login || item.email,
+      diskused: item.diskused,
+      diskquota: item.diskquota,
+      humandiskused: item.humandiskused || `${item.diskused || 0} MB`,
+      humandiskquota: item.humandiskquota || (item.diskquota === 'unlimited' ? 'Unlimited' : `${item.diskquota} MB`),
+      diskusedpercent: item.diskusedpercent || 0,
+      suspended_login: Boolean(item.suspended_login),
+      suspended_incoming: Boolean(item.suspended_incoming),
+      mtime: item.mtime ? new Date(item.mtime * 1000).toISOString() : null
+    }));
+  },
+
+  /**
+   * Check if an email account username already exists on domain
+   */
+  async accountExists(username, domain = '1slabs.my.id') {
+    const accounts = await this.listAccounts(domain);
+    const cleanUser = String(username).trim().toLowerCase();
+    return accounts.some(a => (a.user || '').toLowerCase() === cleanUser);
+  },
+
+  /**
+   * Create a new company email account in cPanel.
+   * Locked to domain '1slabs.my.id' with duplicate prevention.
+   */
+  async createAccount({ username, password, quota = 500, domain = '1slabs.my.id' }) {
+    if (!username || !password) {
+      throw new Error('Username dan kata sandi email wajib diisi.');
+    }
+
+    const cleanUser = String(username).trim().toLowerCase().replace(/@.*$/, '');
+    if (!/^[a-z0-9._-]+$/.test(cleanUser)) {
+      throw new Error('Username email hanya boleh memuat huruf kecil, angka, titik, strip (-), atau underscore (_).');
+    }
+
+    if (password.length < 8) {
+      throw new Error('Kata sandi email minimal harus 8 karakter.');
+    }
+
+    // Check duplicate
+    const exists = await this.accountExists(cleanUser, domain);
+    if (exists) {
+      throw new Error(`Email "${cleanUser}@${domain}" sudah terdaftar di cPanel! Mohon gunakan nama/prefix lain.`);
+    }
+
+    const parsedQuota = parseInt(quota, 10);
+    const quotaParam = isNaN(parsedQuota) || parsedQuota <= 0 ? 0 : parsedQuota;
+
+    const res = await execUapi('Email', 'add_pop', {
+      email: cleanUser,
+      password: String(password),
+      domain: domain,
+      quota: quotaParam
+    });
+
+    return {
+      success: true,
+      email: `${cleanUser}@${domain}`,
+      user: cleanUser,
+      domain,
+      quota: quotaParam === 0 ? 'unlimited' : `${quotaParam} MB`,
+      raw: res
+    };
+  },
+
+  /**
+   * Change password for existing cPanel email account
+   */
+  async changePassword({ username, password, domain = '1slabs.my.id' }) {
+    const cleanUser = String(username).trim().toLowerCase().replace(/@.*$/, '');
+    if (!cleanUser || !password || password.length < 8) {
+      throw new Error('Username dan kata sandi baru (min. 8 karakter) wajib diisi.');
+    }
+
+    const res = await execUapi('Email', 'passwd_pop', {
+      email: cleanUser,
+      password: String(password),
+      domain
+    });
+
+    return {
+      success: true,
+      email: `${cleanUser}@${domain}`,
+      raw: res
+    };
+  },
+
+  /**
+   * Edit storage quota for existing cPanel email account
+   */
+  async editQuota({ username, quota, domain = '1slabs.my.id' }) {
+    const cleanUser = String(username).trim().toLowerCase().replace(/@.*$/, '');
+    const parsedQuota = parseInt(quota, 10);
+    const quotaParam = isNaN(parsedQuota) || parsedQuota <= 0 ? 0 : parsedQuota;
+
+    const res = await execUapi('Email', 'edit_pop_quota', {
+      email: cleanUser,
+      quota: quotaParam,
+      domain
+    });
+
+    return {
+      success: true,
+      email: `${cleanUser}@${domain}`,
+      quota: quotaParam === 0 ? 'unlimited' : `${quotaParam} MB`,
+      raw: res
+    };
+  },
+
+  /**
+   * Delete email account from cPanel
+   */
+  async deleteAccount({ username, domain = '1slabs.my.id' }) {
+    const cleanUser = String(username).trim().toLowerCase().replace(/@.*$/, '');
+    if (!cleanUser) {
+      throw new Error('Username email yang ingin dihapus wajib diisi.');
+    }
+
+    // Protected accounts safeguard
+    const protectedAccounts = ['info', 'admin', 'dzikri'];
+    if (protectedAccounts.includes(cleanUser)) {
+      throw new Error(`Akun sistem "${cleanUser}@${domain}" dilindungi dan tidak dapat dihapus melalui antarmuka ini.`);
+    }
+
+    const res = await execUapi('Email', 'delete_pop', {
+      email: cleanUser,
+      domain
+    });
+
+    return {
+      success: true,
+      email: `${cleanUser}@${domain}`,
+      raw: res
+    };
+  }
+};
+
 module.exports = {
   execUapi,
   execSelector,
@@ -561,5 +718,6 @@ module.exports = {
   resourceService,
   sslService,
   systemProcessService,
+  emailAccountService,
   HAS_UAPI
 };

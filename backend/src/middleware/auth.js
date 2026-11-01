@@ -79,11 +79,37 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
+function isSuperAdmin(user) {
+  return Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
+}
+
+function isMarketing(user) {
+  return Boolean(user && user.role === 'marketing');
+}
+
+function canAccessAdmin(user) {
+  return isSuperAdmin(user) || isMarketing(user);
+}
+
 function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || !isSuperAdmin(req.user)) {
     return res.status(403).json({
       success: false,
-      message: 'Akses terbatas untuk administrator sistem.'
+      message: 'Akses terbatas untuk Super Administrator sistem.'
+    });
+  }
+  next();
+}
+
+function requireSuperAdmin(req, res, next) {
+  return requireAdmin(req, res, next);
+}
+
+function requireAdminOrMarketing(req, res, next) {
+  if (!req.user || !canAccessAdmin(req.user)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Akses terbatas untuk tim Administrator atau Marketing.'
     });
   }
   next();
@@ -102,8 +128,8 @@ function requireVerifiedEmail(req, res, next) {
     });
   }
 
-  // Admins always bypass email verification restriction
-  if (req.user.role === 'admin') {
+  // Admins & Marketing always bypass email verification restriction
+  if (canAccessAdmin(req.user)) {
     return next();
   }
 
@@ -123,6 +149,11 @@ module.exports = {
   requireAuth,
   optionalAuth,
   requireAdmin,
+  requireSuperAdmin,
+  requireAdminOrMarketing,
   requireVerifiedEmail,
+  isSuperAdmin,
+  isMarketing,
+  canAccessAdmin,
   JWT_SECRET
 };

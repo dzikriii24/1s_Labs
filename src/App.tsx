@@ -30,6 +30,8 @@ const InvoicePage = React.lazy(() => import('./pages/InvoicePage').then(m => ({ 
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
 const ProofViewerPage = React.lazy(() => import('./pages/ProofViewerPage').then(m => ({ default: m.ProofViewerPage })));
 const DocumentationPage = React.lazy(() => import('./pages/DocumentationPage').then(m => ({ default: m.DocumentationPage })));
+const MeetingSchedulePage = React.lazy(() => import('./pages/MeetingSchedulePage').then(m => ({ default: m.MeetingSchedulePage })));
+const WorkplacePolicyPage = React.lazy(() => import('./pages/WorkplacePolicyPage').then(m => ({ default: m.WorkplacePolicyPage })));
 
 // Loading spinner fallback during chunk loading
 function PageLoadingFallback() {
@@ -136,6 +138,14 @@ function App() {
                 <Route path="/software-development" element={<ServiceLandingPage serviceKey="custom-software" />} />
                 <Route path="/it-consulting" element={<ServiceLandingPage serviceKey="it-consulting" />} />
                 <Route path="/hosting" element={<ServiceLandingPage serviceKey="hosting" />} />
+                
+                {/* Meeting & Discussion Scheduling Routes */}
+                <Route path="/schedule" element={<MeetingSchedulePage />} />
+                <Route path="/meeting" element={<MeetingSchedulePage />} />
+                
+                {/* Workplace & Remote Policy (LinkedIn Company Page & Public) */}
+                <Route path="/workplace-policy" element={<WorkplacePolicyPage />} />
+                <Route path="/kebijakan-tempat-kerja" element={<Navigate to="/workplace-policy" replace />} />
                 
                 {/* Documentation Center Routes */}
                 <Route path="/docs" element={<DocumentationPage />} />

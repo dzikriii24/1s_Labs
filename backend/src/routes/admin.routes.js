@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const dns = require('dns').promises;
 const { query, withTransaction } = require('../db');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireSuperAdmin, requireAdminOrMarketing } = require('../middleware/auth');
 const { uploadPaymentProof } = require('../middleware/upload');
 const { generateInvoiceNumber, generateServiceCode } = require('../utils/helpers');
 const { ensureServiceRoot } = require('../utils/fileSandbox');
@@ -28,8 +28,8 @@ const {
   wrapHtmlEmail
 } = require('../services/email.service');
 
-// All routes here require admin access
-router.use(requireAuth, requireAdmin);
+// All routes here require administrative or marketing auth
+router.use(requireAuth, requireAdminOrMarketing);
 
 // ==========================================
 // 1. OVERVIEW & ADMIN STATS

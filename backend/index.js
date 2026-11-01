@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const dns = require('dns');
+try { dns.setDefaultResultOrder('ipv4first'); } catch {}
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { testConnection } = require('./src/db');
@@ -17,7 +19,13 @@ const freePlanRoutes = require('./src/routes/freeplan.routes');
 const domainsRoutes = require('./src/routes/domains.routes');
 const nodejsRoutes = require('./src/routes/nodejs.routes');
 const inquiriesRoutes = require('./src/routes/inquiries.routes');
+const meetingsRoutes = require('./src/routes/meetings.routes');
+const marketingRoutes = require('./src/routes/marketing.routes');
+const companyEmailsRoutes = require('./src/routes/companyEmails.routes');
+const usersRoutes = require('./src/routes/users.routes');
+const docsRoutes = require('./src/routes/docs.routes');
 const SuspensionService = require('./src/services/suspension.service');
+const { runDailyAutomatedDiscovery } = require('./src/services/marketing/discoveryScheduler.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,6 +95,14 @@ apiRouter.use('/freeplan', freePlanRoutes);
 apiRouter.use('/domains', domainsRoutes);
 apiRouter.use('/nodejs', nodejsRoutes);
 apiRouter.use('/inquiries', inquiriesRoutes);
+apiRouter.use('/meetings', meetingsRoutes);
+apiRouter.use('/admin/meetings', meetingsRoutes);
+apiRouter.use('/admin/marketing', marketingRoutes);
+apiRouter.use('/marketing', marketingRoutes);
+apiRouter.use('/admin/company-emails', companyEmailsRoutes);
+apiRouter.use('/admin/users', usersRoutes);
+apiRouter.use('/docs', docsRoutes);
+apiRouter.use('/admin/docs', docsRoutes);
 
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);
@@ -121,6 +137,24 @@ setInterval(() => {
   SuspensionService.checkAndSuspendExpiredServices().catch(err => {
     console.warn('[SuspensionService Periodic Error]:', err.message);
   });
+}, 30 * 60 * 1000);
+
+// Daily Automated Marketing Discovery (checks every hour for 06:00 WIB)
+let lastDiscoveryDate = null;
+setInterval(() => {
+  try {
+    const nowJakarta = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    const hour = nowJakarta.getHours();
+    const dateStr = nowJakarta.toISOString().slice(0, 10);
+    if (hour === 6 && lastDiscoveryDate !== dateStr) {
+      lastDiscoveryDate = dateStr;
+      runDailyAutomatedDiscovery().catch(err => {
+        console.warn('[Automated Discovery Scheduler Error]:', err.message);
+      });
+    }
+  } catch (err) {
+    console.warn('[Scheduler Check Error]:', err.message);
+  }
 }, 30 * 60 * 1000);
 
 // Start Server (Passenger and Standalone compatible)

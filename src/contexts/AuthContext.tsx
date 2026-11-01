@@ -6,6 +6,9 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isMarketing: boolean;
+  canAccessAdmin: boolean;
   isEmailVerified: boolean;
   isLoading: boolean;
   login: (credentials: { email: string; password: string }) => Promise<User>;
@@ -83,11 +86,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('oneslabs_user', JSON.stringify(updated));
   };
 
+  const isSuperAdmin = Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
+  const isMarketing = Boolean(user && user.role === 'marketing');
+  const canAccessAdmin = isSuperAdmin || isMarketing;
+  const isAdmin = canAccessAdmin;
+
   const value: AuthContextType = {
     user,
     token,
     isAuthenticated: !!user && !!token,
-    isAdmin: user?.role === 'admin',
+    isAdmin,
+    isSuperAdmin,
+    isMarketing,
+    canAccessAdmin,
     isEmailVerified: !!user?.email_verified,
     isLoading,
     login,
