@@ -435,6 +435,136 @@ const nodejsService = {
   }
 };
 
+// === PYTHON APPLICATIONS (CloudLinux Selector) ===
+const pythonService = {
+  async getAvailableVersions() {
+    try {
+      const res = await execSelector(['get', '--json', '--interpreter', 'python']);
+      const versions = res?.available_versions ? Object.keys(res.available_versions) : ['3.11.17', '3.9.23', '3.8.20', '3.7.17'];
+      return versions;
+    } catch (err) {
+      console.warn('[pythonService getAvailableVersions error]:', err.message);
+      return ['3.11.17', '3.9.23', '3.8.20'];
+    }
+  },
+
+  async listApplications() {
+    try {
+      const res = await execSelector(['get', '--json', '--interpreter', 'python', '--user', 'u1zh8984']);
+      const apps = [];
+      const versions = res?.available_versions || {};
+      for (const [ver, verData] of Object.entries(versions)) {
+        const userApps = verData?.users?.['u1zh8984']?.applications || {};
+        for (const [appName, appData] of Object.entries(userApps)) {
+          apps.push({
+            app_name: appName,
+            version: ver,
+            ...appData
+          });
+        }
+      }
+      return apps;
+    } catch (err) {
+      console.warn('[pythonService listApplications error]:', err.message);
+      return [];
+    }
+  },
+
+  async createApplication({ appRoot, appUri, domain, version = '3.11.17', startupFile = 'passenger_wsgi.py', entryPoint = 'application' }) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const cleanUri = appUri ? appUri.trim().replace(/^\/+/, '') : '';
+    const cleanDomain = domain.trim().toLowerCase();
+    const args = [
+      'create', '--json', '--interpreter', 'python',
+      '--app-root', cleanRoot,
+      '--app-uri', cleanUri,
+      '--domain', cleanDomain,
+      '--version', version,
+      '--startup-file', startupFile,
+      '--entry-point', entryPoint
+    ];
+    return execSelector(args);
+  },
+
+  async updateApplication({ appRoot, newVersion, startupFile, newAppRoot, envVars }) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const args = ['set', '--json', '--interpreter', 'python', '--app-root', cleanRoot];
+    if (newVersion) args.push('--new-version', newVersion);
+    if (startupFile) args.push('--startup-file', startupFile);
+    if (newAppRoot) args.push('--new-app-root', newAppRoot.trim().replace(/^\/+/, ''));
+    if (envVars && typeof envVars === 'object') {
+      args.push('--env-vars', JSON.stringify(envVars));
+    }
+    return execSelector(args);
+  },
+
+  async startApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['start', '--json', '--interpreter', 'python', '--app-root', cleanRoot]);
+  },
+
+  async stopApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['stop', '--json', '--interpreter', 'python', '--app-root', cleanRoot]);
+  },
+
+  async restartApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    const restartFile = path.join('/home/u1zh8984', cleanRoot, 'tmp', 'restart.txt');
+    try {
+      if (fs.existsSync(path.dirname(restartFile))) {
+        fs.utimesSync(restartFile, new Date(), new Date());
+      }
+    } catch (e) {
+      // ignore
+    }
+    return execSelector(['restart', '--json', '--interpreter', 'python', '--app-root', cleanRoot]);
+  },
+
+  async destroyApplication(appRoot) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector(['destroy', '--json', '--interpreter', 'python', '--app-root', cleanRoot]);
+  },
+
+  async installModules({ appRoot, requirementsFile = 'requirements.txt' }) {
+    const cleanRoot = appRoot.trim().replace(/^\/+/, '');
+    return execSelector([
+      'install-modules', '--json', '--interpreter', 'python',
+      '--app-root', cleanRoot,
+      '--requirements-file', requirementsFile
+    ]);
+  },
+
+  async checkHealth(url) {
+    const startTime = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': '1sLabs-HealthMonitor/1.0' }
+      });
+      clearTimeout(timeoutId);
+      const responseTimeMs = Date.now() - startTime;
+      return {
+        healthy: res.status >= 200 && res.status < 400,
+        status: res.status,
+        statusText: res.statusText,
+        responseTimeMs,
+        checkedAt: new Date().toISOString()
+      };
+    } catch (err) {
+      return {
+        healthy: false,
+        status: 0,
+        statusText: err.name === 'AbortError' ? 'Timeout' : err.message,
+        responseTimeMs: Date.now() - startTime,
+        checkedAt: new Date().toISOString()
+      };
+    }
+  }
+};
+
 // === RESOURCE & SERVER HEALTH (CloudLinux LVE / cPanel UAPI) ===
 const resourceService = {
   async getUsages() {
@@ -573,7 +703,9 @@ const emailAccountService = {
       diskused: item.diskused,
       diskquota: item.diskquota,
       humandiskused: item.humandiskused || `${item.diskused || 0} MB`,
-      humandiskquota: item.humandiskquota || (item.diskquota === 'unlimited' ? 'Unlimited' : `${item.diskquota} MB`),
+      humandiskquota: (item.diskquota === 'unlimited' || item.diskquota === 0 || item.diskquota === '0' || item.humandiskquota === 'None' || (typeof item.humandiskquota === 'string' && item.humandiskquota.toLowerCase() === 'unlimited'))
+        ? 'Unlimited'
+        : (item.humandiskquota || `${item.diskquota} MB`),
       diskusedpercent: item.diskusedpercent || 0,
       suspended_login: Boolean(item.suspended_login),
       suspended_incoming: Boolean(item.suspended_incoming),
@@ -715,6 +847,7 @@ module.exports = {
   domainService,
   subdomainService,
   nodejsService,
+  pythonService,
   resourceService,
   sslService,
   systemProcessService,

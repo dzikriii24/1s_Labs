@@ -84,6 +84,43 @@ router.post('/schedule', async (req, res) => {
 
     const scheduleId = insertRes && insertRes.insertId ? insertRes.insertId : null;
 
+    // Automatically update marketing CRM & campaign stats if from an outreach lead
+    (async () => {
+      try {
+        if (campaignId) {
+          const [recipient] = await query(
+            'SELECT id, status, response_at FROM marketing_campaign_recipients WHERE campaign_id = ? AND recipient_email = ?',
+            [campaignId, cleanEmail]
+          );
+          if (!recipient || recipient.status !== 'responded') {
+            await query(
+              'UPDATE marketing_campaigns SET interested_count = interested_count + 1, responded_count = responded_count + 1 WHERE id = ?',
+              [campaignId]
+            );
+          }
+          if (recipient) {
+            await query(
+              'UPDATE marketing_campaign_recipients SET status = "responded", response_at = NOW() WHERE id = ?',
+              [recipient.id]
+            );
+          }
+        }
+
+        // Update company status to Consultation Scheduled & Hot Lead
+        await query(
+          `UPDATE marketing_companies 
+           SET status = 'Consultation Scheduled', 
+               lead_score = GREATEST(lead_score, 90), 
+               lead_grade = 'hot', 
+               updated_at = NOW() 
+           WHERE email = ? OR (name = ? AND name IS NOT NULL)`,
+          [cleanEmail, cleanCompany]
+        );
+      } catch (markErr) {
+        console.warn('[Meeting marketing sync warning]:', markErr.message);
+      }
+    })();
+
     // Send async email notification to admin & confirmation to prospect
     (async () => {
       try {

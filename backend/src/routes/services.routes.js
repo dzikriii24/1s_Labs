@@ -17,11 +17,12 @@ router.get('/', requireAuth, async (req, res) => {
       FROM hosting_services s
       JOIN hosting_plans p ON s.plan_id = p.id
       JOIN users u ON s.user_id = u.id
+      WHERE (p.plan_type = 'hosting' OR p.plan_type IS NULL) AND p.slug != 'subdomain-1slabs'
     `;
     const params = [];
 
     if (!isUserAdmin) {
-      sql += ' WHERE s.user_id = ?';
+      sql += ' AND s.user_id = ?';
       params.push(req.user.id);
     }
 
@@ -75,7 +76,7 @@ router.get('/:serviceCode', requireAuth, async (req, res) => {
       JOIN users u ON s.user_id = u.id
       LEFT JOIN orders o ON s.order_id = o.id
       LEFT JOIN invoices inv ON inv.service_id = s.id OR inv.order_id = o.id
-      WHERE s.service_code = ?
+      WHERE s.service_code = ? AND (p.plan_type = 'hosting' OR p.plan_type IS NULL) AND p.slug != 'subdomain-1slabs'
     `;
     const params = [serviceCode];
 

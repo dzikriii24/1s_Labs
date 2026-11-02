@@ -32,7 +32,26 @@ export const Header: React.FC = () => {
   const [isServicesDropdownOpen, setIsServicesDropdownOpen] = useState(false)
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const { language, setLanguage, t } = useLanguage()
-  const { user, logout } = useAuth()
+  const { user, logout, canAccessAdmin, isMarketing, isSuperAdmin } = useAuth()
+
+  const getRoleBadge = (role?: string) => {
+    if (role === 'super_admin' || role === 'admin') {
+      return {
+        label: 'Super Admin',
+        badgeClass: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+      };
+    }
+    if (role === 'marketing') {
+      return {
+        label: 'Marketing',
+        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+      };
+    }
+    return {
+      label: 'Pelanggan 1sLabs',
+      badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+    };
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -247,24 +266,20 @@ export const Header: React.FC = () => {
                       <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
                         <p className="font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
                         <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
-                        <span className={`mt-1.5 inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          user.role === 'admin'
-                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                        }`}>
-                          {user.role === 'admin' ? 'Administrator' : 'Pelanggan 1sLabs'}
+                        <span className={`mt-1.5 inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getRoleBadge(user.role).badgeClass}`}>
+                          {getRoleBadge(user.role).label}
                         </span>
                       </div>
 
                       <div className="py-1">
-                        {user.role === 'admin' ? (
+                        {canAccessAdmin ? (
                           <Link
                             to="/admin"
                             onClick={() => setIsProfileDropdownOpen(false)}
                             className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
                           >
-                            <ShieldCheck className="w-4 h-4 text-rose-500" />
-                            <span>Dashboard Admin</span>
+                            <ShieldCheck className={`w-4 h-4 ${isMarketing ? 'text-blue-500' : 'text-purple-500'}`} />
+                            <span>{isMarketing ? 'Portal Marketing & Admin' : 'Dashboard Admin'}</span>
                           </Link>
                         ) : (
                           <>
@@ -403,24 +418,24 @@ export const Header: React.FC = () => {
                           <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                        user.role === 'admin'
-                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                      }`}>
-                        {user.role === 'admin' ? 'Administrator' : 'Pelanggan'}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${getRoleBadge(user.role).badgeClass}`}>
+                        {getRoleBadge(user.role).label}
                       </span>
                     </div>
 
                     <div className="space-y-1">
-                      {user.role === 'admin' ? (
+                      {canAccessAdmin ? (
                         <Link
                           to="/admin"
                           onClick={() => setIsMobileMenuOpen(false)}
-                          className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
+                          className={`flex items-center space-x-2 px-3 py-2 text-xs font-semibold rounded-xl ${
+                            isMarketing
+                              ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+                              : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                          }`}
                         >
                           <ShieldCheck className="w-4 h-4" />
-                          <span>Dashboard Administrator</span>
+                          <span>{isMarketing ? 'Portal Marketing & Admin' : 'Dashboard Administrator'}</span>
                         </Link>
                       ) : (
                         <>

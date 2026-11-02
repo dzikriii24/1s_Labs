@@ -207,6 +207,76 @@ export interface NodeJsApp {
   }[];
 }
 
+export interface LaravelDeployment {
+  id: number;
+  app_id: number;
+  deployment_number: number;
+  source_type: string;
+  status: string;
+  file_size_bytes?: number;
+  logs?: string;
+  deployed_at: string;
+}
+
+export interface LaravelApp {
+  id: number;
+  user_id: number;
+  service_id?: number;
+  domain_id?: number;
+  app_name: string;
+  app_root: string;
+  full_app_root?: string;
+  app_uri: string;
+  domain: string;
+  app_url: string;
+  php_version: string;
+  app_mode: 'production' | 'development';
+  status: 'running' | 'stopped' | 'error';
+  health_status: 'healthy' | 'unhealthy' | 'unknown';
+  last_health_check?: string;
+  last_response_time_ms?: number;
+  last_http_status?: number;
+  last_error?: string;
+  last_restart_at?: string;
+  deployment_count: number;
+  created_at: string;
+  updated_at?: string;
+  owner_name?: string;
+  owner_email?: string;
+  deployments?: LaravelDeployment[];
+}
+
+export interface PythonApp {
+  app_name: string;
+  domain?: string;
+  app_uri?: string;
+  app_url?: string;
+  version: string;
+  app_status: 'started' | 'stopped' | string;
+  status?: 'running' | 'stopped' | string;
+  startup_file?: string;
+  entry_point?: string;
+  app_version?: number;
+  config_files?: string[];
+  env_vars?: Record<string, string>;
+  virtualenv?: {
+    activate_path: string;
+  };
+  health_status?: 'healthy' | 'error' | 'unknown';
+  last_response_time_ms?: number;
+  created_at?: string;
+}
+
+export interface OccupiedEndpoint {
+  id: number;
+  app_name: string;
+  domain: string;
+  app_uri: string;
+  app_url: string;
+  platform: 'nodejs' | 'laravel';
+  status: string;
+}
+
 export interface HostingService {
   id: number;
   service_code: string;
@@ -351,20 +421,36 @@ export interface HostingOverviewStats {
 
 export interface ServerMonitoringData {
   server: {
-    status: 'healthy' | 'warning' | 'critical';
+    status: 'healthy' | 'warning' | 'critical' | 'optimal' | 'high_usage' | 'emergency';
     uptime: string;
     timestamp: string;
-    serverIp: string;
+    serverIp?: string;
+    ip?: string;
     hostname: string;
+    os?: string;
+    cpanel_version?: string;
+    load_average?: string;
     services: { name: string; value: string; status: number; type: string }[];
   };
   resources: {
-    cpu: { usage: number; maximum: number; percent: number };
-    memory: { usageBytes: number; maximumBytes: number; percent: number };
-    entryProcesses: { usage: number; maximum: number; percent: number };
-    numberProcesses: { usage: number; maximum: number; percent: number };
-    iops: { usage: number; maximum: number };
-    io: { usageBytes: number; maximumBytes: number };
+    cpu: { usage: number; maximum: number; percent: number; used?: number; limit?: number };
+    memory: {
+      usageBytes: number;
+      maximumBytes: number;
+      percent: number;
+      used_mb?: number;
+      limit_mb?: number;
+      used_formatted?: string;
+      limit_formatted?: string;
+    };
+    entry_processes?: { used: number; limit: number; percent: number };
+    entryProcesses: { usage: number; maximum: number; percent: number; used?: number; limit?: number };
+    processes?: { used: number; limit: number; percent: number };
+    numberProcesses: { usage: number; maximum: number; percent: number; used?: number; limit?: number };
+    iops: { usage: number; maximum: number; used?: number; limit?: number };
+    io: { usageBytes: number; maximumBytes: number; usage_formatted?: string; limit_formatted?: string; used_kbps?: number; percent?: number };
+    disk?: { used_formatted?: string; database_formatted?: string; used_bytes?: number };
+    inodes?: { used_formatted?: string; used?: number };
     diskUsageBytes: number;
     databaseDiskBytes: number;
     postgresDiskBytes: number;
@@ -380,14 +466,49 @@ export interface ServerMonitoringData {
     postgresDatabases: number;
   };
   alerts: { level: 'warning' | 'critical'; resource: string; message: string }[];
+  adaptive?: {
+    status: {
+      level: string;
+      badge: 'optimal' | 'warning' | 'high_usage' | 'critical' | 'emergency';
+      dominantPct: number;
+      hysteresisActive: boolean;
+      cooldownRemainingSec?: number;
+    };
+    settings: any;
+    topConsumers: {
+      cpu: ServerProcessItem[];
+      memory: ServerProcessItem[];
+    };
+    prediction: {
+      trend: string;
+      risk: string;
+    };
+    history: any[];
+    recentLogs: any[];
+  };
 }
 
 export interface ServerProcessItem {
   pid: number;
+  ppid?: number;
   cpu: number;
-  mem: number;
-  elapsed: string;
+  mem?: number;
+  memory?: number;
+  rss_mb?: number;
+  vsz_mb?: number;
+  threads?: number;
+  status?: string;
+  elapsed?: string;
+  elapsed_time?: string;
+  time?: string;
+  user?: string;
   command: string;
+  args?: string;
+  appName?: string;
+  category?: 'critical' | 'background' | 'idle_unnecessary';
+  prunable?: boolean;
+  safetyReason?: string;
+  isDuplicateWorker?: boolean;
 }
 
 export interface DomainItem {
@@ -936,12 +1057,50 @@ export interface MarketingEmailReply {
   from_name?: string | null;
   subject: string;
   body_text: string;
+  body_html?: string | null;
   received_at: string;
   classification: string;
   ai_summary?: string | null;
   sentiment: 'positive' | 'neutral' | 'negative';
   status: 'unread' | 'read' | 'assigned' | 'replied' | 'closed';
   admin_notes?: string | null;
+}
+
+export interface MarketingChatMessage {
+  id: string;
+  db_id?: number;
+  direction: 'outgoing' | 'incoming';
+  sender_name?: string;
+  sender_email?: string;
+  recipient_email?: string;
+  subject?: string;
+  body: string;
+  body_html?: string;
+  timestamp: string;
+  status?: string;
+  classification?: string;
+  sentiment?: 'positive' | 'neutral' | 'negative';
+  ai_summary?: string;
+  admin_notes?: string;
+}
+
+export interface MarketingConversationThread {
+  customer_email: string;
+  customer_name?: string;
+  company_id?: number | null;
+  company_name?: string | null;
+  company_category?: string | null;
+  company_phone?: string | null;
+  company_status?: string;
+  unread_count: number;
+  last_message_text: string;
+  last_message_at: string;
+  last_direction: 'outgoing' | 'incoming';
+  classification: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  ai_summary?: string | null;
+  message_count: number;
+  messages: MarketingChatMessage[];
 }
 
 export interface MarketingFollowup {
@@ -982,8 +1141,35 @@ export interface MarketingAiLog {
 
 export interface MarketingStatsResponse {
   success: boolean;
+  counts?: {
+    total_prospects?: number;
+    total_small_business?: number;
+    total_indonesia?: number;
+    total_international?: number;
+    without_contacts?: number;
+    without_contacts_indonesia?: number;
+    with_contacts?: number;
+    with_contacts_indonesia?: number;
+    with_whatsapp_count?: number;
+    with_whatsapp_indonesia?: number;
+    high_potential_count?: number;
+    high_potential_indonesia?: number;
+    contacted_count?: number;
+    not_contacted_count?: number;
+    contacted_indonesia?: number;
+    not_contacted_indonesia?: number;
+    [key: string]: any;
+  };
   stats: {
     total_prospects: number;
+    total_small_business?: number;
+    total_indonesia?: number;
+    without_contacts?: number;
+    with_contacts?: number;
+    with_whatsapp_count?: number;
+    high_potential_count?: number;
+    contacted_count?: number;
+    not_contacted_count?: number;
     total_umkm: number;
     total_companies: number;
     new_today: number;
@@ -1059,7 +1245,7 @@ export function buildQueryString(params?: Record<string, any>): string {
   return str ? `?${str}` : '';
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit = {}, retries = 2): Promise<T> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 
@@ -1071,10 +1257,25 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+  } catch (netErr: any) {
+    if (retries > 0 && (!options.method || options.method === 'GET')) {
+      await new Promise(r => setTimeout(r, 1200));
+      return request<T>(endpoint, options, retries - 1);
+    }
+    throw new Error('Gagal terhubung ke jaringan server. Periksa koneksi internet Anda.');
+  }
+
+  // Handle transient 502/503/504 errors during Passenger/LiteSpeed restart
+  if ([502, 503, 504].includes(response.status) && retries > 0) {
+    await new Promise(r => setTimeout(r, 1200));
+    return request<T>(endpoint, options, retries - 1);
+  }
 
   const rawText = await response.text();
   let data: any;
@@ -1086,7 +1287,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       window.location.href = '/login?expired=1';
       throw new Error('Sesi login telah kedaluwarsa. Silakan masuk kembali.');
     }
-    throw new Error(rawText ? `Server (${response.status}): ${rawText.slice(0, 150)}` : `Gagal menghubungi server (Status ${response.status})`);
+
+    if (response.status === 503) {
+      throw new Error('Server backend sedang memuat ulang proses (503 Service Unavailable). Silakan tunggu beberapa detik dan coba lagi.');
+    }
+    if (response.status === 502) {
+      throw new Error('Gateway server sedang sibuk (502 Bad Gateway). Silakan coba lagi.');
+    }
+    if (response.status === 504) {
+      throw new Error('Batas waktu koneksi server terlampaui (504 Gateway Timeout).');
+    }
+
+    const cleanText = rawText.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+    throw new Error(cleanText ? `Server (${response.status}): ${cleanText.slice(0, 120)}` : `Gagal menghubungi server (Status ${response.status})`);
   }
 
   if (!response.ok || data.success === false) {
@@ -1355,6 +1568,11 @@ export const api = {
     list: (serviceCode: string) =>
       request<DatabaseListResponse>(`/services/${serviceCode}/databases`),
 
+    sync: (serviceCode: string) =>
+      request<{ success: boolean; message: string; syncedCount: number }>(`/services/${serviceCode}/databases/sync`, {
+        method: 'POST'
+      }),
+
     create: (serviceCode: string, payload: { nameSuffix: string; customPassword?: string }) =>
       request<{ success: boolean; message: string; database: any }>(`/services/${serviceCode}/databases`, {
         method: 'POST',
@@ -1540,6 +1758,28 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ pid, reason })
       }),
+
+    // Intelligent Resource Management & Adaptive Optimization
+    runOptimization: (dryRun?: boolean) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/server/optimization/run', {
+        method: 'POST',
+        body: JSON.stringify({ dryRun })
+      }),
+
+    getOptimizationSettings: () =>
+      request<{ success: boolean; settings: any }>('/admin/server/optimization/settings'),
+
+    updateOptimizationSettings: (settings: any) =>
+      request<{ success: boolean; message: string; settings: any }>('/admin/server/optimization/settings', {
+        method: 'POST',
+        body: JSON.stringify(settings)
+      }),
+
+    getOptimizationLogs: () =>
+      request<{ success: boolean; count: number; logs: any[] }>('/admin/server/optimization/logs'),
+
+    getDatabaseAudit: () =>
+      request<{ success: boolean; audit: any }>('/admin/server/database/audit'),
 
     // Domains & SSL
     getDomains: () =>
@@ -1728,7 +1968,10 @@ export const api = {
       request<{ success: boolean; message: string }>(`/admin/hosting/${id}/unsuspend`, { method: 'POST' }),
 
     getAdminNodeJsApps: () =>
-      request<{ success: boolean; applications: NodeJsApp[] }>('/admin/nodejs/apps')
+      request<{ success: boolean; applications: NodeJsApp[] }>('/admin/nodejs/apps'),
+
+    getAdminLaravelApps: () =>
+      request<{ success: boolean; applications: LaravelApp[] }>('/admin/laravel/apps')
   },
 
   // Free Plan User API
@@ -1776,6 +2019,12 @@ export const api = {
   nodejs: {
     getVersions: () =>
       request<{ success: boolean; versions: string[]; default: string }>('/nodejs/versions'),
+
+    getOccupiedEndpoints: () =>
+      request<{
+        success: boolean;
+        endpoints: OccupiedEndpoint[];
+      }>('/nodejs/occupied-endpoints'),
 
     listApps: () =>
       request<{ success: boolean; applications: NodeJsApp[] }>('/nodejs/apps'),
@@ -1954,6 +2203,374 @@ export const api = {
     }
   },
 
+  // Laravel Application Manager API
+  laravel: {
+    getVersions: () =>
+      request<{ success: boolean; versions: string[]; default: string }>('/laravel/versions'),
+
+    getOccupiedEndpoints: () =>
+      request<{
+        success: boolean;
+        endpoints: OccupiedEndpoint[];
+      }>('/laravel/occupied-endpoints'),
+
+    listApps: () =>
+      request<{ success: boolean; applications: LaravelApp[] }>('/laravel/apps'),
+
+    getApp: (id: number) =>
+      request<{ success: boolean; application: LaravelApp }>(`/laravel/apps/${id}`),
+
+    createApp: (payload: {
+      app_name: string;
+      domain: string;
+      app_uri?: string;
+      php_version?: string;
+      app_mode?: string;
+      env_vars?: Record<string, string>;
+    }) =>
+      request<{ success: boolean; message: string; application: any }>('/laravel/apps', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    deployZip: async (id: number, zipFile: File): Promise<{ success: boolean; message: string; deployment?: any }> => {
+      const formData = new FormData();
+      formData.append('zipFile', zipFile);
+      const token = getAuthToken();
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/laravel/apps/${id}/deploy`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Gagal mengunggah dan mendeploy file ZIP Laravel.');
+      }
+      return data;
+    },
+
+    runArtisan: (id: number, command: string) =>
+      request<{ success: boolean; command: string; output: string; error?: string }>(`/laravel/apps/${id}/artisan`, {
+        method: 'POST',
+        body: JSON.stringify({ command })
+      }),
+
+    getEnv: (id: number) =>
+      request<{ success: boolean; content: string }>(`/laravel/apps/${id}/env`),
+
+    updateEnv: (id: number, content: string) =>
+      request<{ success: boolean; message: string }>(`/laravel/apps/${id}/env`, {
+        method: 'PUT',
+        body: JSON.stringify({ content })
+      }),
+
+    getLogs: (id: number) =>
+      request<{ success: boolean; logs: string }>(`/laravel/apps/${id}/logs`),
+
+    checkHealth: (id: number) =>
+      request<{
+        success: boolean;
+        health: {
+          healthy: boolean;
+          status: number;
+          statusText: string;
+          responseTimeMs: number;
+          checkedAt: string;
+          url: string;
+        };
+      }>(`/laravel/apps/${id}/health-check`, {
+        method: 'POST'
+      }),
+
+    deleteApp: (id: number) =>
+      request<{ success: boolean; message: string }>(`/laravel/apps/${id}`, {
+        method: 'DELETE'
+      }),
+
+    action: (id: number, action: 'start' | 'stop' | 'restart') =>
+      request<{ success: boolean; message: string }>(`/laravel/apps/${id}/action`, {
+        method: 'POST',
+        body: JSON.stringify({ action })
+      }),
+
+    runComposerInstall: (id: number) =>
+      request<{ success: boolean; message: string; output: string }>(`/laravel/apps/${id}/composer-install`, {
+        method: 'POST'
+      }),
+
+    files: {
+      list: (appId: number, path: string = '/') =>
+        request<FileListResponse>(`/laravel/apps/${appId}/files?path=${encodeURIComponent(path)}`),
+
+      getContent: (appId: number, path: string) =>
+        request<FileContentResponse>(`/laravel/apps/${appId}/files/read?path=${encodeURIComponent(path)}`),
+
+      saveContent: (appId: number, path: string, content: string, restart: boolean = false) =>
+        request<{ success: boolean; message: string }>(`/laravel/apps/${appId}/files/write`, {
+          method: 'POST',
+          body: JSON.stringify({ path, content, restart })
+        }),
+
+      createFile: (appId: number, path: string, name: string, content: string = '') =>
+        request<{ success: boolean; message: string }>(`/laravel/apps/${appId}/files/create-file`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name, content })
+        }),
+
+      createFolder: (appId: number, path: string, name: string) =>
+        request<{ success: boolean; message: string }>(`/laravel/apps/${appId}/files/create-folder`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name })
+        }),
+
+      delete: (appId: number, path: string) =>
+        request<{ success: boolean; message: string }>(`/laravel/apps/${appId}/files`, {
+          method: 'DELETE',
+          body: JSON.stringify({ path })
+        }),
+
+      rename: (appId: number, oldPath: string, newPath: string) =>
+        request<{ success: boolean; message: string }>(`/laravel/apps/${appId}/files/rename`, {
+          method: 'POST',
+          body: JSON.stringify({ oldPath, newPath })
+        }),
+
+      getDownloadUrl: (appId: number, path: string) => {
+        const token = getAuthToken();
+        return `/api/laravel/apps/${appId}/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}`;
+      },
+
+      uploadWithProgress: (
+        appId: number,
+        path: string,
+        formData: FormData,
+        onProgress?: (loaded: number, total: number) => void,
+        signal?: AbortSignal
+      ): Promise<{ success: boolean; message: string }> => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const token = getAuthToken();
+          const url = `${API_BASE}/laravel/apps/${appId}/files/upload?path=${encodeURIComponent(path)}`;
+
+          xhr.open('POST', url, true);
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
+
+          if (onProgress && xhr.upload) {
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                onProgress(event.loaded, event.total);
+              }
+            };
+          }
+
+          if (signal) {
+            signal.addEventListener('abort', () => {
+              xhr.abort();
+              reject(new Error('Unggahan dibatalkan.'));
+            });
+          }
+
+          xhr.onload = () => {
+            try {
+              const json = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300 && json.success) {
+                resolve(json);
+              } else {
+                reject(new Error(json.message || 'Gagal mengunggah file ke direktori Laravel.'));
+              }
+            } catch (e) {
+              reject(new Error('Respon server tidak valid saat upload.'));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Koneksi jaringan terputus saat mengunggah.'));
+          xhr.send(formData);
+        });
+      }
+    }
+  },
+
+  // Python Application Manager API (CloudLinux Selector)
+  python: {
+    getVersions: () =>
+      request<{ success: boolean; versions: string[]; default: string }>('/python/versions'),
+
+    getOccupiedEndpoints: () =>
+      request<{
+        success: boolean;
+        endpoints: OccupiedEndpoint[];
+      }>('/python/occupied-endpoints'),
+
+    getApps: () =>
+      request<{ success: boolean; apps: PythonApp[] }>('/python/apps'),
+
+    createApp: (data: {
+      appName: string;
+      targetDomain: string;
+      appUri?: string;
+      pythonVersion?: string;
+      startupFile?: string;
+      entryPoint?: string;
+    }) =>
+      request<{ success: boolean; message: string; data: any }>('/python/apps', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    action: (appName: string, action: 'start' | 'stop' | 'restart') =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/action`, {
+        method: 'POST',
+        body: JSON.stringify({ action })
+      }),
+
+    restartApp: (appName: string) =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/restart`, { method: 'POST' }),
+
+    startApp: (appName: string) =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/start`, { method: 'POST' }),
+
+    stopApp: (appName: string) =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/stop`, { method: 'POST' }),
+
+    destroyApp: (appName: string) =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}`, { method: 'DELETE' }),
+
+    installModules: (appName: string, requirementsFile: string = 'requirements.txt') =>
+      request<{ success: boolean; message: string; data: any }>(`/python/apps/${encodeURIComponent(appName)}/install-modules`, {
+        method: 'POST',
+        body: JSON.stringify({ requirementsFile })
+      }),
+
+    checkHealth: (appName: string) =>
+      request<{
+        success: boolean;
+        health: {
+          healthy: boolean;
+          status: number;
+          statusText: string;
+          responseTimeMs: number;
+          checkedAt: string;
+          url: string;
+        };
+      }>(`/python/apps/${encodeURIComponent(appName)}/health-check`, {
+        method: 'POST'
+      }),
+
+    getLogs: (appName: string) =>
+      request<{ success: boolean; logs: string }>(`/python/apps/${encodeURIComponent(appName)}/logs`),
+
+    getEnv: (appName: string) =>
+      request<{ success: boolean; content: string }>(`/python/apps/${encodeURIComponent(appName)}/env`),
+
+    updateEnv: (appName: string, content: string) =>
+      request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/env`, {
+        method: 'PUT',
+        body: JSON.stringify({ content })
+      }),
+
+    files: {
+      list: (appName: string, path: string = '/') =>
+        request<FileListResponse>(`/python/apps/${encodeURIComponent(appName)}/files?path=${encodeURIComponent(path)}`),
+
+      getContent: (appName: string, path: string) =>
+        request<FileContentResponse>(`/python/apps/${encodeURIComponent(appName)}/files/read?path=${encodeURIComponent(path)}`),
+
+      saveContent: (appName: string, path: string, content: string, restart: boolean = false) =>
+        request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/files/write`, {
+          method: 'POST',
+          body: JSON.stringify({ path, content, restart })
+        }),
+
+      createFile: (appName: string, path: string, name: string, content: string = '') =>
+        request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/files/create-file`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name, content })
+        }),
+
+      createFolder: (appName: string, path: string, name: string) =>
+        request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/files/create-folder`, {
+          method: 'POST',
+          body: JSON.stringify({ path, name })
+        }),
+
+      delete: (appName: string, path: string) =>
+        request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/files`, {
+          method: 'DELETE',
+          body: JSON.stringify({ path })
+        }),
+
+      rename: (appName: string, oldPath: string, newPath: string) =>
+        request<{ success: boolean; message: string }>(`/python/apps/${encodeURIComponent(appName)}/files/rename`, {
+          method: 'POST',
+          body: JSON.stringify({ oldPath, newPath })
+        }),
+
+      getDownloadUrl: (appName: string, path: string) => {
+        const token = getAuthToken();
+        return `/api/python/apps/${encodeURIComponent(appName)}/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}`;
+      },
+
+      uploadWithProgress: (
+        appName: string,
+        path: string,
+        formData: FormData,
+        onProgress?: (loaded: number, total: number) => void,
+        signal?: AbortSignal
+      ): Promise<{ success: boolean; message: string }> => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const token = getAuthToken();
+
+          xhr.open('POST', `/api/python/apps/${encodeURIComponent(appName)}/files/upload`);
+          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+          if (xhr.upload && onProgress) {
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                onProgress(event.loaded, event.total);
+              }
+            };
+          }
+
+          if (signal) {
+            signal.addEventListener('abort', () => {
+              xhr.abort();
+              reject(new Error('Unggahan dibatalkan.'));
+            });
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                resolve(res);
+              } catch {
+                resolve({ success: true, message: 'File berhasil diunggah' });
+              }
+            } else {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                reject(new Error(res.message || `Unggahan gagal (${xhr.status})`));
+              } catch {
+                reject(new Error(`Unggahan gagal dengan status ${xhr.status}`));
+              }
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Terjadi kesalahan jaringan saat mengunggah file.'));
+          formData.append('path', path);
+          xhr.send(formData);
+        });
+      }
+    }
+  },
+
   // Contact Inquiries & Consultation API
   inquiries: {
     submit: (payload: {
@@ -2045,6 +2662,15 @@ export const api = {
       outreach_eligibility?: string;
       lead_grade?: string;
       has_website?: string | boolean;
+      scope?: string;
+      business_scale?: string;
+      missing_field?: string;
+      contact_filter?: string;
+      contacted_status?: string;
+      is_new?: string | boolean;
+      is_priority?: string | boolean;
+      is_archived?: string | boolean;
+      is_deleted?: string | boolean;
       sortBy?: string;
       sortDir?: string;
       page?: number;
@@ -2072,7 +2698,7 @@ export const api = {
       }),
 
     updateCompany: (id: number, payload: Partial<MarketingCompany>) =>
-      request<{ success: boolean; message: string }>(`/admin/marketing/companies/${id}`, {
+      request<{ success: boolean; message: string; company?: MarketingCompany }>(`/admin/marketing/companies/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       }),
@@ -2127,6 +2753,40 @@ export const api = {
         method: 'POST'
       }),
 
+    generateEmailDraft: (companyId: number, data?: { recipient_name?: string; objective?: string; language?: string }) =>
+      request<{
+        success: boolean;
+        draft: {
+          subject: string;
+          preview_text: string;
+          body_text: string;
+          highlights: string[];
+          recipient_email: string;
+          recipient_name: string;
+          company_name: string;
+        };
+      }>(`/admin/marketing/companies/${companyId}/generate-email`, {
+        method: 'POST',
+        body: JSON.stringify(data || {})
+      }),
+
+    sendDirectEmail: (
+      companyId: number,
+      data: {
+        recipient_email: string;
+        recipient_name?: string;
+        contact_id?: number;
+        subject: string;
+        message_text: string;
+        allow_duplicate?: boolean;
+        update_company_email?: boolean;
+      }
+    ) =>
+      request<{ success: boolean; message: string; result?: any }>(`/admin/marketing/companies/${companyId}/send-direct-email`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
     getContacts: (params?: { search?: string; role?: string; outreach_eligible?: string | boolean; page?: number; limit?: number }) =>
       request<{ success: boolean; data: MarketingContact[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
         `/admin/marketing/contacts${buildQueryString(params)}`
@@ -2159,7 +2819,7 @@ export const api = {
       }),
 
     setPrimaryContact: (contactId: number) =>
-      request<{ success: boolean; message: string }>(`/admin/marketing/contacts/${contactId}/primary`, {
+      request<{ success: boolean; message: string; company?: MarketingCompany }>(`/admin/marketing/contacts/${contactId}/primary`, {
         method: 'POST'
       }),
 
@@ -2215,6 +2875,42 @@ export const api = {
         body: JSON.stringify(payload)
       }),
 
+    updateCampaign: (campaignId: number, payload: {
+      name?: string;
+      template_id?: number;
+      target_industry?: string;
+      target_province?: string;
+      target_category?: string;
+      target_lead_score_min?: number;
+      subject?: string;
+      body_html?: string;
+      target_company_ids?: number[];
+      avoid_recently_contacted?: boolean;
+      reset_to_draft?: boolean;
+    }) =>
+      request<{
+        success: boolean;
+        message: string;
+        campaign_id: number;
+        total_recipients: number;
+        skipped_duplicates?: number;
+        status?: string;
+      }>(`/admin/marketing/campaigns/${campaignId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteCampaign: (campaignId: number) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/campaigns/${campaignId}`, {
+        method: 'DELETE'
+      }),
+
+    resendCampaign: (campaignId: number, payload?: { subject?: string; body_html?: string; reset_all_recipients?: boolean }) =>
+      request<{ success: boolean; message: string }>(`/admin/marketing/campaigns/${campaignId}/resend`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {})
+      }),
+
     sendTestEmail: (campaignId: number, testEmail?: string) =>
       request<{ success: boolean; message: string }>(`/admin/marketing/campaigns/${campaignId}/send-test`, {
         method: 'POST',
@@ -2239,6 +2935,29 @@ export const api = {
     updateTemplate: (id: number, payload: Partial<MarketingEmailTemplate>) =>
       request<{ success: boolean; message: string }>(`/admin/marketing/templates/${id}`, {
         method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    syncInbox: () =>
+      request<{ success: boolean; scanned: number; imported: number; message: string }>('/admin/marketing/inbox/sync', {
+        method: 'POST'
+      }),
+
+    getThreads: (search?: string) =>
+      request<{ success: boolean; threads: MarketingConversationThread[] }>(
+        `/admin/marketing/inbox/threads${search ? `?search=${encodeURIComponent(search)}` : ''}`
+      ),
+
+    sendInboxReply: (payload: {
+      recipient_email: string;
+      recipient_name?: string;
+      company_id?: number | null;
+      subject?: string;
+      message_text: string;
+      in_reply_to?: string;
+    }) =>
+      request<{ success: boolean; message: string; data: any }>('/admin/marketing/inbox/send-reply', {
+        method: 'POST',
         body: JSON.stringify(payload)
       }),
 

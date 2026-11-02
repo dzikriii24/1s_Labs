@@ -216,15 +216,18 @@ async function sendMarketingEmail({ campaignId, companyId, contactId, recipientE
     ctaBadge = 'Peluang Kerjasama Rasmi 1sLabs';
   }
 
-  // Target URL for scheduling: includes query params for instant pre-fill
-  const scheduleUrl = `https://1slabs.my.id/schedule?company=${encodeURIComponent(companyName || '')}&email=${encodeURIComponent(cleanEmail)}&contact=${encodeURIComponent(recipientName || '')}`;
+  // Target URL for scheduling: includes query params for instant pre-fill and campaign tracking
+  const scheduleUrl = `https://1slabs.my.id/schedule?company=${encodeURIComponent(companyName || '')}&email=${encodeURIComponent(cleanEmail)}&contact=${encodeURIComponent(recipientName || '')}&campaign=${campaignId || ''}`;
+
+  // Route CTA through click & interest tracking endpoint
+  const actionUrl = `${APP_URL}/api/marketing/track/click?camp=${campaignId || 0}&company=${companyId || 0}&email=${encodeURIComponent(cleanEmail)}&target=${encodeURIComponent(scheduleUrl)}`;
 
   const styledHtml = wrapHtmlEmail({
     title: finalSubject,
     preheader: ctaPreheader,
     content: rawBody,
     callToAction: {
-      url: scheduleUrl,
+      url: actionUrl,
       text: ctaText
     },
     badge: ctaBadge

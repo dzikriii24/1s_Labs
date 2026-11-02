@@ -29,6 +29,8 @@ import {
   X
 } from 'lucide-react';
 import { api, MarketingCompany, MarketingContact } from '../../../../services/api';
+import Swal from 'sweetalert2';
+import { notify } from '../../../../lib/notify';
 import { CreateBusinessModal } from './CreateBusinessModal';
 import { AddContactModal } from './AddContactModal';
 import { BulkImportModal } from './BulkImportModal';
@@ -49,6 +51,8 @@ export const IndonesiaBusinessTab: React.FC = () => {
   const [selectedScale, setSelectedScale] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCity, setSelectedCity] = useState('all');
+  const [selectedContactedStatus, setSelectedContactedStatus] = useState<'all' | 'contacted' | 'not_contacted'>('all');
+  const [selectedContactFilter, setSelectedContactFilter] = useState<'all' | 'no_contacts' | 'no_email' | 'has_email' | 'has_whatsapp' | 'complete'>('all');
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -69,27 +73,36 @@ export const IndonesiaBusinessTab: React.FC = () => {
     withoutContacts: number;
     withWhatsapp: number;
     highPotential: number;
+    contactedCount: number;
+    notContactedCount: number;
   }>({
     totalSmallBiz: 0,
     withContacts: 0,
     withoutContacts: 0,
     withWhatsapp: 0,
-    highPotential: 0
+    highPotential: 0,
+    contactedCount: 0,
+    notContactedCount: 0
   });
 
   const fetchStats = async () => {
     try {
       const res = await api.marketing.getStats();
-      if (res && res.success && res.counts) {
+      if (res && res.success) {
+        const data = (res.counts || res.stats || {}) as any;
         setStats({
-          totalSmallBiz: res.counts.total_small_business || res.counts.total_prospects || 0,
-          withContacts: (res.counts.total_prospects || 0) - (res.counts.without_contacts || 0),
-          withoutContacts: res.counts.without_contacts || 0,
-          withWhatsapp: res.counts.with_whatsapp_count || 0,
-          highPotential: res.counts.high_potential_count || 0
+          totalSmallBiz: data.total_small_business || data.total_indonesia || data.total_prospects || 0,
+          withContacts: data.with_contacts_indonesia || data.with_contacts || Math.max(0, (data.total_prospects || 0) - (data.without_contacts || 0)),
+          withoutContacts: data.without_contacts_indonesia || data.without_contacts || 0,
+          withWhatsapp: data.with_whatsapp_indonesia || data.with_whatsapp_count || 0,
+          highPotential: data.high_potential_indonesia || data.high_potential_count || 0,
+          contactedCount: data.contacted_indonesia || data.contacted_count || 0,
+          notContactedCount: data.not_contacted_indonesia || data.not_contacted_count || 0
         });
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Failed to load marketing stats:', e);
+    }
   };
 
   const fetchCompanies = async () => {
@@ -104,6 +117,8 @@ export const IndonesiaBusinessTab: React.FC = () => {
         business_scale: selectedScale !== 'all' ? selectedScale : undefined,
         category: selectedCategory !== 'all' ? selectedCategory : undefined,
         city: selectedCity !== 'all' ? selectedCity : undefined,
+        contacted_status: selectedContactedStatus !== 'all' ? selectedContactedStatus : undefined,
+        contact_filter: selectedContactFilter !== 'all' ? selectedContactFilter : undefined,
         is_deleted: '0',
         is_archived: '0'
       };
@@ -111,7 +126,7 @@ export const IndonesiaBusinessTab: React.FC = () => {
       if (activeTab === 'new') {
         params.is_new = '1';
       } else if (activeTab === 'without_contacts') {
-        params.missing_field = 'no_contacts';
+        params.contact_filter = 'no_contacts';
       }
 
       const res = await api.marketing.getCompanies(params);
@@ -132,7 +147,7 @@ export const IndonesiaBusinessTab: React.FC = () => {
 
   useEffect(() => {
     fetchCompanies();
-  }, [page, activeTab, selectedScale, selectedCategory, selectedCity]);
+  }, [page, activeTab, selectedScale, selectedCategory, selectedCity, selectedContactedStatus, selectedContactFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,8 +159,9 @@ export const IndonesiaBusinessTab: React.FC = () => {
     try {
       await api.marketing.togglePriority(company.id);
       setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, is_priority: !c.is_priority } : c));
+      notify.toast(company.is_priority ? 'Prioritas dinonaktifkan' : 'Ditandai sebagai prioritas', 'info');
     } catch (err: any) {
-      alert(`Gagal mengubah status prioritas: ${err.message}`);
+      notify.error(err.message, 'Gagal Mengubah Status Prioritas');
     }
   };
 
@@ -154,40 +170,186 @@ export const IndonesiaBusinessTab: React.FC = () => {
       await api.marketing.toggleArchive(company.id);
       setCompanies(prev => prev.filter(c => c.id !== company.id));
       setTotal(prev => Math.max(0, prev - 1));
+      notify.toast(company.is_archived ? 'Bisnis dipulihkan dari arsip' : 'Bisnis berhasil diarsipkan', 'success');
     } catch (err: any) {
-      alert(`Gagal mengarsipkan bisnis: ${err.message}`);
+      notify.error(err.message, 'Gagal Mengarsipkan Bisnis');
     }
   };
 
   const handleDelete = async (company: MarketingCompany) => {
-    if (!confirm(`Pindahkan bisnis "${company.name}" ke tempat sampah?`)) return;
+    const confirmed = await notify.confirm({
+      title: 'Hapus Bisnis?',
+      text: `Pindahkan bisnis "${company.name}" ke tempat sampah?`,
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
+      isDanger: true
+    });
+    if (!confirmed) return;
     try {
       await api.marketing.deleteCompany(company.id, false);
       setCompanies(prev => prev.filter(c => c.id !== company.id));
       setTotal(prev => Math.max(0, prev - 1));
       fetchStats();
+      notify.toast(`"${company.name}" dipindahkan ke tempat sampah`, 'success');
     } catch (err: any) {
-      alert(`Gagal menghapus bisnis: ${err.message}`);
+      notify.error(err.message, 'Gagal Menghapus Bisnis');
     }
   };
 
-  const handleSingleRecover = async (companyId: number) => {
+  const handleSingleRecover = async (companyId: number, companyName?: string) => {
+    const confirmResult = await Swal.fire({
+      title: 'Mulai Pemulihan Kontak?',
+      html: `Gemini AI akan meriset titik kontak (WhatsApp, Instagram, Website, Email) untuk <b>${companyName || 'bisnis ini'}</b> dari Google Maps, web crawling, dan direktori online.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Mulai Riset AI',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#18181b',
+      cancelButtonColor: '#71717a',
+      customClass: {
+        popup: 'rounded-3xl border border-zinc-200 shadow-2xl font-sans',
+        title: 'text-lg font-bold text-zinc-900',
+        htmlContainer: 'text-xs text-zinc-600',
+        confirmButton: 'px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer',
+        cancelButton: 'px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer'
+      }
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    Swal.fire({
+      title: 'Sedang Meriset Kontak...',
+      html: `
+        <div style="font-size: 13px; color: #52525b; margin-top: 6px;">
+          Gemini AI sedang mencari kontak untuk <b>${companyName || 'bisnis ini'}</b>...
+        </div>
+        <div style="font-size: 11px; color: #a1a1aa; margin-top: 4px;">
+          Menelusuri WhatsApp, Instagram, Google Maps, dan website resmi.
+        </div>
+      `,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      customClass: {
+        popup: 'rounded-3xl border border-zinc-200 shadow-2xl font-sans'
+      }
+    });
+
     try {
-      setIsLoading(true);
       const res = await api.marketing.recoverCompanyContact(companyId);
       if (res.success) {
-        alert(`Pemulihan kontak untuk "${res.result.company.name}" selesai!\n${res.result.newContactPoints} titik kontak baru ditemukan.`);
+        const comp = res.result?.company;
+        const newPoints = res.result?.newContactPoints || 0;
+
+        let contactRowsHtml = '';
+        if (comp?.whatsapp_number) {
+          contactRowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e4e4e7;">
+              <span style="color: #047857; font-weight: 600;">WhatsApp</span>
+              <a href="https://wa.me/${comp.whatsapp_number.replace(/[^0-9]/g, '')}" target="_blank" style="color: #065f46; font-family: monospace; font-weight: bold; text-decoration: none;">${comp.whatsapp_number}</a>
+            </div>
+          `;
+        }
+        if (comp?.instagram_url) {
+          contactRowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e4e4e7;">
+              <span style="color: #be185d; font-weight: 600;">Instagram</span>
+              <a href="${comp.instagram_url.startsWith('http') ? comp.instagram_url : 'https://instagram.com/' + comp.instagram_url.replace('@', '')}" target="_blank" style="color: #9d174d; text-decoration: none;">${comp.instagram_url}</a>
+            </div>
+          `;
+        }
+        if (comp?.email) {
+          contactRowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e4e4e7;">
+              <span style="color: #1d4ed8; font-weight: 600;">Email</span>
+              <a href="mailto:${comp.email}" style="color: #1e40af; font-family: monospace; text-decoration: none;">${comp.email}</a>
+            </div>
+          `;
+        }
+        if (comp?.phone) {
+          contactRowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e4e4e7;">
+              <span style="color: #3f3f46; font-weight: 600;">Telepon</span>
+              <span style="font-family: monospace; color: #18181b;">${comp.phone}</span>
+            </div>
+          `;
+        }
+        if (comp?.website_url) {
+          contactRowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
+              <span style="color: #4338ca; font-weight: 600;">Website</span>
+              <a href="${comp.website_url.startsWith('http') ? comp.website_url : 'https://' + comp.website_url}" target="_blank" style="color: #3730a3; text-decoration: none; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${comp.website_url}</a>
+            </div>
+          `;
+        }
+
+        const modalHtml = `
+          <div style="text-align: left; font-size: 13px; margin-top: 8px;">
+            <p style="color: #3f3f46; margin-bottom: 12px;">
+              Pemulihan kontak untuk <b>${comp?.name || companyName || 'bisnis'}</b> berhasil diselesaikan.
+            </p>
+            ${
+              newPoints > 0
+                ? `
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;">
+                  <div style="font-size: 11px; font-family: monospace; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 6px;">Titik Kontak Tersimpan</div>
+                  ${contactRowsHtml}
+                </div>
+                <div style="color: #059669; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                  <span>✓</span> <span>Ditemukan <b>${newPoints}</b> titik kontak baru & tersimpan ke database.</span>
+                </div>
+              `
+                : `
+                <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 14px; padding: 12px 14px; color: #b45309; font-size: 12px;">
+                  ℹ️ Belum ditemukan kontak publik baru tambahan untuk bisnis ini.
+                </div>
+              `
+            }
+          </div>
+        `;
+
+        await Swal.fire({
+          icon: newPoints > 0 ? 'success' : 'info',
+          title: newPoints > 0 ? 'Kontak Berhasil Ditemukan!' : 'Pemulihan Selesai',
+          html: modalHtml,
+          confirmButtonText: 'Tutup',
+          confirmButtonColor: '#18181b',
+          customClass: {
+            popup: 'rounded-3xl border border-zinc-200 shadow-2xl font-sans',
+            title: 'text-lg font-bold text-zinc-900',
+            confirmButton: 'px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer'
+          }
+        });
+
         fetchCompanies();
         fetchStats();
       }
     } catch (err: any) {
-      alert(`Pemulihan kontak gagal: ${err.message}`);
-    } finally {
-      setIsLoading(false);
+      Swal.fire({
+        icon: 'error',
+        title: 'Pemulihan Kontak Gagal',
+        text: err.message || 'Terjadi kesalahan saat memulihkan kontak.',
+        confirmButtonColor: '#18181b',
+        customClass: {
+          popup: 'rounded-3xl border border-zinc-200 shadow-2xl font-sans',
+          confirmButton: 'px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer'
+        }
+      });
     }
   };
 
   const handleRunBatchRecovery = async () => {
+    const confirmed = await notify.confirm({
+      title: 'Jalankan Pemulihan Batch?',
+      text: `Mulai riset mendalam kontak untuk ${recoveryLimit} UMKM/bisnis menggunakan Gemini AI?`,
+      confirmButtonText: 'Mulai Pemulihan Batch',
+      cancelButtonText: 'Batal'
+    });
+    if (!confirmed) return;
+
     setIsRecovering(true);
     setRecoveryProgress(null);
     try {
@@ -199,9 +361,19 @@ export const IndonesiaBusinessTab: React.FC = () => {
         setRecoveryProgress(res.result);
         fetchCompanies();
         fetchStats();
+        Swal.fire({
+          icon: 'success',
+          title: 'Pemulihan Batch Selesai',
+          html: `Berhasil memproses <b>${res.result.processed}</b> bisnis dengan total <b>${res.result.totalNewPoints}</b> titik kontak baru.`,
+          confirmButtonColor: '#18181b',
+          customClass: {
+            popup: 'rounded-3xl border border-zinc-200 shadow-2xl font-sans',
+            confirmButton: 'px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer'
+          }
+        });
       }
     } catch (err: any) {
-      alert(`Gagal menjalankan pemulihan batch: ${err.message}`);
+      notify.error(err.message, 'Gagal Menjalankan Pemulihan Batch');
     } finally {
       setIsRecovering(false);
     }
@@ -250,45 +422,85 @@ export const IndonesiaBusinessTab: React.FC = () => {
       </div>
 
       {/* KPI Stats Widgets */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div
+          onClick={() => {
+            setSelectedContactedStatus('all');
+            setSelectedContactFilter('all');
+          }}
+          className={`bg-white border rounded-2xl p-3.5 shadow-xs transition-all cursor-pointer hover:border-zinc-400 ${
+            selectedContactedStatus === 'all' && selectedContactFilter === 'all' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200'
+          }`}
+        >
           <span className="text-[11px] text-zinc-500 font-medium block">Total Usaha Kecil</span>
           <span className="text-xl font-bold font-mono text-zinc-900 mt-0.5 block">
             {stats.totalSmallBiz.toLocaleString()}
           </span>
-          <span className="text-[10px] text-zinc-400 mt-1 block">UMKM & Local Store</span>
+          <span className="text-[10px] text-zinc-400 mt-0.5 block">UMKM & Local Store</span>
         </div>
 
-        <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] text-emerald-600 font-medium block">Memiliki Kontak</span>
-          <span className="text-xl font-bold font-mono text-emerald-700 mt-0.5 block">
+        <div
+          onClick={() => setSelectedContactedStatus(selectedContactedStatus === 'contacted' ? 'all' : 'contacted')}
+          className={`bg-white border rounded-2xl p-3.5 shadow-xs transition-all cursor-pointer hover:border-emerald-400 ${
+            selectedContactedStatus === 'contacted' ? 'border-emerald-600 ring-1 ring-emerald-600 bg-emerald-50/20' : 'border-zinc-200'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-emerald-700 font-medium block">Sudah Dihubungi</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          </div>
+          <span className="text-xl font-bold font-mono text-emerald-800 mt-0.5 block">
+            {stats.contactedCount.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-emerald-600/70 mt-0.5 block">Pernah dioutreach</span>
+        </div>
+
+        <div
+          onClick={() => setSelectedContactedStatus(selectedContactedStatus === 'not_contacted' ? 'all' : 'not_contacted')}
+          className={`bg-white border rounded-2xl p-3.5 shadow-xs transition-all cursor-pointer hover:border-zinc-400 ${
+            selectedContactedStatus === 'not_contacted' ? 'border-zinc-900 ring-1 ring-zinc-900 bg-zinc-100/30' : 'border-zinc-200'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-zinc-600 font-medium block">Belum Dihubungi</span>
+            <Clock className="w-3.5 h-3.5 text-zinc-400" />
+          </div>
+          <span className="text-xl font-bold font-mono text-zinc-900 mt-0.5 block">
+            {stats.notContactedCount.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-zinc-400 mt-0.5 block">Siap outreach baru</span>
+        </div>
+
+        <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs">
+          <span className="text-[11px] text-blue-600 font-medium block">Memiliki Kontak</span>
+          <span className="text-xl font-bold font-mono text-blue-700 mt-0.5 block">
             {stats.withContacts.toLocaleString()}
           </span>
-          <span className="text-[10px] text-emerald-600/70 mt-1 block">WhatsApp / Email / Telp</span>
+          <span className="text-[10px] text-blue-600/70 mt-0.5 block">WA / Email / Telp</span>
         </div>
 
-        <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] text-amber-600 font-medium block">Belum Punya Kontak</span>
-          <span className="text-xl font-bold font-mono text-amber-700 mt-0.5 block">
+        <div
+          onClick={() => setSelectedContactFilter(selectedContactFilter === 'no_contacts' ? 'all' : 'no_contacts')}
+          className={`bg-white border rounded-2xl p-3.5 shadow-xs transition-all cursor-pointer hover:border-amber-400 ${
+            selectedContactFilter === 'no_contacts' ? 'border-amber-500 ring-1 ring-amber-500 bg-amber-50/20' : 'border-zinc-200'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-amber-700 font-medium block">Belum Ada Kontak</span>
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+          </div>
+          <span className="text-xl font-bold font-mono text-amber-800 mt-0.5 block">
             {stats.withoutContacts.toLocaleString()}
           </span>
-          <span className="text-[10px] text-amber-600/70 mt-1 block">Perlu Contact Recovery</span>
+          <span className="text-[10px] text-amber-600/70 mt-0.5 block">Perlu Recovery</span>
         </div>
 
-        <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] text-blue-600 font-medium block">Kanal WhatsApp Aktif</span>
-          <span className="text-xl font-bold font-mono text-blue-700 mt-0.5 block">
-            {stats.withWhatsapp.toLocaleString()}
-          </span>
-          <span className="text-[10px] text-blue-600/70 mt-1 block">Chat langsung pelanggan</span>
-        </div>
-
-        <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
+        <div className="bg-white border border-zinc-200 rounded-2xl p-3.5 shadow-xs">
           <span className="text-[11px] text-purple-600 font-medium block">High Potential</span>
           <span className="text-xl font-bold font-mono text-purple-700 mt-0.5 block">
             {stats.highPotential.toLocaleString()}
           </span>
-          <span className="text-[10px] text-purple-600/70 mt-1 block">Skor Kebutuhan ≥ 70</span>
+          <span className="text-[10px] text-purple-600/70 mt-0.5 block">Skor Kebutuhan ≥ 70</span>
         </div>
       </div>
 
@@ -495,9 +707,9 @@ export const IndonesiaBusinessTab: React.FC = () => {
         /* VIEW 2: BUSINESS LIST & DIRECTORY */
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs">
-            <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="relative md:col-span-1">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs space-y-3">
+            <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+              <div className="relative sm:col-span-2">
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
@@ -508,10 +720,56 @@ export const IndonesiaBusinessTab: React.FC = () => {
                 />
               </div>
 
+              {/* Filter 1: Status Outreach / Hubungi */}
+              <div>
+                <select
+                  value={selectedContactedStatus}
+                  onChange={e => {
+                    setSelectedContactedStatus(e.target.value as any);
+                    setPage(1);
+                  }}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer font-medium ${
+                    selectedContactedStatus !== 'all'
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold'
+                      : 'bg-white text-zinc-900 border-zinc-200'
+                  }`}
+                >
+                  <option value="all">Semua Status Outreach</option>
+                  <option value="contacted">✅ Sudah Dihubungi</option>
+                  <option value="not_contacted">⏳ Belum Dihubungi</option>
+                </select>
+              </div>
+
+              {/* Filter 2: Kelengkapan Kontak */}
+              <div>
+                <select
+                  value={selectedContactFilter}
+                  onChange={e => {
+                    setSelectedContactFilter(e.target.value as any);
+                    setPage(1);
+                  }}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer font-medium ${
+                    selectedContactFilter !== 'all'
+                      ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
+                      : 'bg-white text-zinc-900 border-zinc-200'
+                  }`}
+                >
+                  <option value="all">Semua Status Kontak</option>
+                  <option value="no_contacts">⚠️ Belum Ada Kontak</option>
+                  <option value="no_email">✉️ Belum Memiliki Email</option>
+                  <option value="has_email">📬 Memiliki Email</option>
+                  <option value="has_whatsapp">💬 Memiliki WhatsApp</option>
+                  <option value="complete">⭐ Kontak Lengkap (Email & WA)</option>
+                </select>
+              </div>
+
               <div>
                 <select
                   value={selectedScale}
-                  onChange={e => setSelectedScale(e.target.value)}
+                  onChange={e => {
+                    setSelectedScale(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
                   <option value="all">Semua Skala Usaha</option>
@@ -528,10 +786,13 @@ export const IndonesiaBusinessTab: React.FC = () => {
               <div>
                 <select
                   value={selectedCategory}
-                  onChange={e => setSelectedCategory(e.target.value)}
+                  onChange={e => {
+                    setSelectedCategory(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
-                  <option value="all">Semua Kategori Bisnis</option>
+                  <option value="all">Semua Kategori</option>
                   <option value="Coffee Shop">Coffee Shop & Cafe</option>
                   <option value="Restaurant">Restoran & Kuliner</option>
                   <option value="Bakery & Toko Kue">Bakery & Toko Kue</option>
@@ -546,14 +807,21 @@ export const IndonesiaBusinessTab: React.FC = () => {
                   <option value="UMKM">UMKM Umum</option>
                 </select>
               </div>
+            </form>
 
-              <div>
+            {/* Active Filters Row & City Filter */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-100 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Filter Lokasi:</span>
                 <select
                   value={selectedCity}
-                  onChange={e => setSelectedCity(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                  onChange={e => {
+                    setSelectedCity(e.target.value);
+                    setPage(1);
+                  }}
+                  className="px-2.5 py-1 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-800 cursor-pointer"
                 >
-                  <option value="all">Semua Kota (Prioritas Indonesia)</option>
+                  <option value="all">Semua Kota (Indonesia)</option>
                   <option value="Bandung">Bandung</option>
                   <option value="Cimahi">Cimahi</option>
                   <option value="Kab. Bandung">Kab. Bandung</option>
@@ -568,8 +836,30 @@ export const IndonesiaBusinessTab: React.FC = () => {
                   <option value="Semarang">Semarang</option>
                   <option value="Yogyakarta">Yogyakarta</option>
                 </select>
+
+                {(search || selectedScale !== 'all' || selectedCategory !== 'all' || selectedCity !== 'all' || selectedContactedStatus !== 'all' || selectedContactFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setSelectedScale('all');
+                      setSelectedCategory('all');
+                      setSelectedCity('all');
+                      setSelectedContactedStatus('all');
+                      setSelectedContactFilter('all');
+                      setPage(1);
+                    }}
+                    className="px-2.5 py-1 text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3 h-3" /> Reset Semua Filter
+                  </button>
+                )}
               </div>
-            </form>
+
+              <span className="text-[11px] text-zinc-500 font-mono">
+                Ditemukan <strong>{total}</strong> bisnis
+              </span>
+            </div>
           </div>
 
           {/* Business Table */}
@@ -602,6 +892,10 @@ export const IndonesiaBusinessTab: React.FC = () => {
                   <tbody className="divide-y divide-zinc-200 text-zinc-700">
                     {companies.map(c => {
                       const hasContact = !!c.email || !!c.phone || !!c.whatsapp_number;
+                      const isContacted = (c.contacted_times && c.contacted_times > 0) ||
+                        ['Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted'].includes(c.status) ||
+                        !!c.last_contacted_at;
+
                       return (
                         <tr key={c.id} className="hover:bg-zinc-50/70 transition-colors">
                           <td className="py-3 px-4 text-center">
@@ -635,10 +929,27 @@ export const IndonesiaBusinessTab: React.FC = () => {
                                   </a>
                                 )}
                               </button>
-                              <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
                                   {c.business_scale || 'Small Business'}
                                 </span>
+
+                                {/* Badge Status Outreach (Sudah / Belum Dihubungi) */}
+                                {isContacted ? (
+                                  <span
+                                    className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1"
+                                    title={c.last_contacted_at ? `Terakhir dihubungi: ${new Date(c.last_contacted_at).toLocaleDateString('id-ID')}` : 'Sudah pernah dihubungi'}
+                                  >
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    Sudah Dihubungi{c.contacted_times && c.contacted_times > 1 ? ` (${c.contacted_times}x)` : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-medium px-2 py-0.2 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 flex items-center gap-1">
+                                    <Clock className="w-2.5 h-2.5 text-zinc-400" />
+                                    Belum Dihubungi
+                                  </span>
+                                )}
+
                                 {c.contacts_count !== undefined && c.contacts_count > 0 && (
                                   <span className="text-[10px] font-mono text-zinc-400">
                                     • {c.contacts_count} kontak
@@ -662,53 +973,64 @@ export const IndonesiaBusinessTab: React.FC = () => {
                           </td>
 
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {c.whatsapp_number ? (
-                                <a
-                                  href={`https://wa.me/${c.whatsapp_number.replace(/[^0-9]/g, '')}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
-                                  title="Chat WhatsApp Langsung"
-                                >
-                                  <MessageCircle className="w-3 h-3 text-emerald-600" />
-                                  <span>{c.whatsapp_number}</span>
-                                </a>
-                              ) : c.phone ? (
-                                <span className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 text-[11px] font-mono flex items-center gap-1">
-                                  <Phone className="w-3 h-3 text-zinc-500" />
-                                  <span>{c.phone}</span>
-                                </span>
-                              ) : null}
-
-                              {c.email && (
-                                <a
-                                  href={`mailto:${c.email}`}
-                                  className="px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
-                                  title="Kirim Email"
-                                >
-                                  <Mail className="w-3 h-3 text-blue-600" />
-                                  <span>{c.email}</span>
-                                </a>
-                              )}
-
-                              {c.instagram_url && (
-                                <a
-                                  href={c.instagram_url.startsWith('http') ? c.instagram_url : `https://instagram.com/${c.instagram_url.replace('@', '')}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-2 py-0.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
-                                  title="Instagram"
-                                >
-                                  <Instagram className="w-3 h-3 text-pink-600" />
-                                  <span>{c.instagram_url.startsWith('http') ? '@ig' : c.instagram_url}</span>
-                                </a>
-                              )}
-
-                              {!hasContact && (
-                                <span className="text-[10px] text-amber-600 font-mono px-2 py-0.5 bg-amber-50 rounded-md border border-amber-200">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {!hasContact ? (
+                                <span className="text-[10px] text-amber-700 font-semibold px-2 py-0.5 bg-amber-50 rounded-md border border-amber-200 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 text-amber-600" />
                                   Belum Ada Kontak
                                 </span>
+                              ) : (
+                                <>
+                                  {c.whatsapp_number ? (
+                                    <a
+                                      href={`https://wa.me/${c.whatsapp_number.replace(/[^0-9]/g, '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
+                                      title="Chat WhatsApp Langsung"
+                                    >
+                                      <MessageCircle className="w-3 h-3 text-emerald-600" />
+                                      <span>{c.whatsapp_number}</span>
+                                    </a>
+                                  ) : c.phone ? (
+                                    <span className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 text-[11px] font-mono flex items-center gap-1">
+                                      <Phone className="w-3 h-3 text-zinc-500" />
+                                      <span>{c.phone}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-zinc-400 font-mono px-1.5 py-0.5 bg-zinc-50 rounded border border-zinc-200" title="Belum memiliki nomor WhatsApp / Telepon">
+                                      Tanpa WA
+                                    </span>
+                                  )}
+
+                                  {c.email ? (
+                                    <a
+                                      href={`mailto:${c.email}`}
+                                      className="px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
+                                      title="Kirim Email"
+                                    >
+                                      <Mail className="w-3 h-3 text-blue-600" />
+                                      <span>{c.email}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-[9px] text-zinc-400 font-mono px-1.5 py-0.5 bg-zinc-50 rounded border border-zinc-200" title="Belum memiliki email">
+                                      Tanpa Email
+                                    </span>
+                                  )}
+
+                                  {c.instagram_url && (
+                                    <a
+                                      href={c.instagram_url.startsWith('http') ? c.instagram_url : `https://instagram.com/${c.instagram_url.replace('@', '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="px-2 py-0.5 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-mono flex items-center gap-1 transition-colors"
+                                      title="Instagram"
+                                    >
+                                      <Instagram className="w-3 h-3 text-pink-600" />
+                                      <span>{c.instagram_url.startsWith('http') ? '@ig' : c.instagram_url}</span>
+                                    </a>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -733,7 +1055,7 @@ export const IndonesiaBusinessTab: React.FC = () => {
                               {!hasContact && (
                                 <button
                                   type="button"
-                                  onClick={() => handleSingleRecover(c.id)}
+                                  onClick={() => handleSingleRecover(c.id, c.name)}
                                   className="p-1.5 text-amber-600 hover:text-amber-800 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
                                   title="Jalankan Contact Recovery (Gemini)"
                                 >

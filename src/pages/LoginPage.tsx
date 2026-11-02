@@ -24,7 +24,8 @@ export const LoginPage: React.FC = () => {
 
     try {
       const user = await login({ email, password });
-      if (user.role === 'admin') {
+      const canAccessAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'marketing';
+      if (canAccessAdmin) {
         navigate('/admin');
       } else if (redirectPath) {
         navigate(redirectPath);

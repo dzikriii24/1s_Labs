@@ -218,6 +218,57 @@ router.post('/', requireAuth, verifyService, async (req, res) => {
   }
 });
 
+// POST /databases/sync - Sync existing cPanel databases with service
+router.post('/sync', requireAuth, verifyService, async (req, res) => {
+  try {
+    const cpanelDbs = await mysqlService.listDatabases();
+    const dbsList = Array.isArray(cpanelDbs) ? cpanelDbs : (cpanelDbs?.data || []);
+    const systemBlacklist = ['information_schema', 'performance_schema', 'mysql', 'sys', 'u1zh8984_oneslabs'];
+
+    let syncedCount = 0;
+    for (const item of dbsList) {
+      const dbName = typeof item === 'string' ? item : item.database;
+      if (!dbName || systemBlacklist.includes(dbName)) continue;
+
+      const users = item.users || [];
+      const dbUser = users.length > 0 ? users[0] : dbName;
+
+      const existing = await query('SELECT id, service_id FROM hosting_databases WHERE db_name = ?', [dbName]);
+      if (existing.length === 0) {
+        const isMatch = dbName.includes(`s${req.service.id}_`) ||
+                        dbName.includes('article') ||
+                        dbName.includes('inpartner') ||
+                        req.user.role === 'admin';
+        if (isMatch) {
+          await query(
+            'INSERT INTO hosting_databases (service_id, db_name, db_user, db_host, created_at) VALUES (?, ?, ?, ?, NOW())',
+            [req.service.id, dbName, dbUser, 'localhost']
+          );
+          try {
+            await mysqlService.setPrivileges(dbName, 'u1zh8984_oneslabs', 'ALL PRIVILEGES');
+          } catch (e) {}
+          syncedCount++;
+        }
+      } else if (existing[0].service_id === req.service.id) {
+        try {
+          await mysqlService.setPrivileges(dbName, 'u1zh8984_oneslabs', 'ALL PRIVILEGES');
+        } catch (e) {}
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: syncedCount > 0
+        ? `Berhasil menyinkronkan ${syncedCount} database dari cPanel!`
+        : 'Semua database cPanel Anda telah tersinkronisasi.',
+      syncedCount
+    });
+  } catch (error) {
+    console.error('Sync databases error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Gagal menyinkronkan database cPanel.' });
+  }
+});
+
 // 3. GET /databases/:id/tables - Browse tables in customer's database
 router.get('/:id/tables', requireAuth, verifyService, async (req, res) => {
   try {

@@ -33,6 +33,7 @@ import {
   FolderArchive,
   Target,
   Bot,
+  Flame,
   Zap,
   Database,
   Search,
@@ -66,6 +67,7 @@ export type AdminMenuKey =
   | 'hosting-plans'
   | 'hosting-orders'
   | 'nodejs-manager'
+  | 'laravel-manager'
   | 'server-monitoring'
   | 'resource-usage'
   | 'domains'
@@ -195,6 +197,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         { key: 'freeplan-claims', label: 'Free Plan Claims', icon: Sparkles },
         { key: 'nodejs-manager', label: 'Node.js Applications', icon: Cpu },
+        { key: 'laravel-manager', label: 'Laravel Applications', icon: Flame },
         { key: 'hosting-plans', label: 'Hosting Plans', icon: Package },
         { key: 'hosting-orders', label: 'Hosting Orders', icon: ShoppingBag },
         { key: 'server-monitoring', label: 'Server Monitoring', icon: Activity },

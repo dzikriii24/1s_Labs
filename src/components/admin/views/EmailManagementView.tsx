@@ -513,8 +513,9 @@ export const EmailManagementView: React.FC<EmailManagementViewProps> = ({ onNavi
                               <button
                                 onClick={() => {
                                   setChangeQuotaTarget(acc);
+                                  const isUnlimited = acc.diskquota === 'unlimited' || acc.diskquota === 0 || acc.diskquota === '0';
                                   const curQuota = parseInt(String(acc.diskquota), 10);
-                                  setUpdatedQuota(isNaN(curQuota) || curQuota <= 0 ? 500 : curQuota);
+                                  setUpdatedQuota(isUnlimited ? 0 : (isNaN(curQuota) || curQuota <= 0 ? 500 : curQuota));
                                 }}
                                 className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer"
                                 title="Ubah Kuota Penyimpanan"

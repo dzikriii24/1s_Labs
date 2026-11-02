@@ -26,6 +26,7 @@ export interface AdminHeaderProps {
   onMobileMenuToggle: () => void;
   adminName?: string;
   adminEmail?: string;
+  adminRole?: string;
   onLogout?: () => void;
   notifications?: AdminNotificationItem[];
   unreadNotificationsCount?: number;
@@ -78,6 +79,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onMobileMenuToggle,
   adminName = 'Administrator',
   adminEmail = 'admin@1slabs.my.id',
+  adminRole,
   onLogout = () => {},
   notifications = [],
   unreadNotificationsCount = 0
@@ -292,7 +294,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               <p className="font-semibold text-zinc-900 dark:text-white leading-tight truncate max-w-[120px]">
                 {adminName || 'Admin'}
               </p>
-              <p className="text-[10px] text-zinc-400 font-mono">Super Admin</p>
+              <p className="text-[10px] text-zinc-400 font-mono">
+                {adminRole === 'marketing' ? 'Marketing' : (adminRole === 'super_admin' || adminRole === 'admin') ? 'Super Admin' : (adminRole || 'Super Admin')}
+              </p>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
           </button>

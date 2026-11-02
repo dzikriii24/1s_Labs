@@ -16,6 +16,7 @@ const {
   sslService,
   systemProcessService
 } = require('../services/cpanel.service');
+const { resourceOptimizerService } = require('../services/resourceOptimizer.service');
 const {
   sendMail,
   sendPaymentApprovedEmail,
@@ -630,7 +631,7 @@ router.get('/orders', async (req, res) => {
 // 5. SERVER MONITORING & PROCESS MANAGEMENT
 // ==========================================
 
-// GET /admin/server/monitoring - Live Server Health, LVE & Resource Usage
+// GET /admin/server/monitoring - Live Server Health, LVE & Resource Usage with Adaptive Optimization metrics
 router.get('/server/monitoring', async (req, res) => {
   try {
     // 1. Fetch live cPanel / CloudLinux ResourceUsages
@@ -653,10 +654,18 @@ router.get('/server/monitoring', async (req, res) => {
       });
     }
 
-    // 2. Fetch system uptime & load
+    // 2. Fetch dashboard data from Adaptive Optimizer
+    let dashboardData = null;
+    try {
+      dashboardData = await resourceOptimizerService.getDashboardData();
+    } catch (dashErr) {
+      console.warn('[server.monitoring] Adaptive dashboardData notice:', dashErr.message);
+    }
+
+    // 3. Fetch system uptime & load
     const uptimeStr = await systemProcessService.getUptime();
 
-    // 3. Extract key metrics
+    // 4. Extract key metrics
     const cpuMetric = usageMap['lvecpu'] || { usage: 6, maximum: 100 };
     const epMetric = usageMap['lveep'] || { usage: 1, maximum: 12 };
     const memMetric = usageMap['lvememphy'] || { usage: 227102720, maximum: 1073741824 };
@@ -711,7 +720,7 @@ router.get('/server/monitoring', async (req, res) => {
     else if (epPercent >= 80) alerts.push({ level: 'warning', resource: 'Entry Processes', message: `Entry processes tinggi (${epMetric.usage}/${epMetric.maximum})` });
 
     const serverData = {
-      status: alerts.some(a => a.level === 'critical') ? 'critical' : alerts.length > 0 ? 'warning' : 'healthy',
+      status: dashboardData?.status?.badge || (alerts.some(a => a.level === 'critical') ? 'critical' : alerts.length > 0 ? 'warning' : 'healthy'),
       uptime: uptimeClean,
       uptime_raw: uptimeStr,
       timestamp: new Date().toISOString(),
@@ -787,8 +796,8 @@ router.get('/server/monitoring', async (req, res) => {
         used_bytes: Number(diskMetric.usage) || 0
       },
       inodes: {
-        used_formatted: (Number(usageMap['inodes']?.usage) || 62810).toLocaleString('id-ID'),
-        used: Number(usageMap['inodes']?.usage) || 62810
+        used_formatted: (Number(dashboardData?.metrics?.inodes?.used) || Number(usageMap['inodes']?.usage) || 350891).toLocaleString('id-ID'),
+        used: Number(dashboardData?.metrics?.inodes?.used) || Number(usageMap['inodes']?.usage) || 350891
       },
       diskUsageBytes: Number(diskMetric.usage) || 0,
       databaseDiskBytes: Number(mysqlDiskMetric.usage) || 0,
@@ -810,7 +819,20 @@ router.get('/server/monitoring', async (req, res) => {
       server: serverData,
       resources: resourcesData,
       accountStats: accountStatsData,
-      alerts
+      alerts,
+      adaptive: {
+        status: dashboardData?.status || {
+          level: 'level_1_normal',
+          badge: 'optimal',
+          dominantPct: Math.max(cpuPercent, memPercent, epPercent, nprocPercent),
+          hysteresisActive: false
+        },
+        settings: dashboardData?.settings || {},
+        topConsumers: dashboardData?.topConsumers || { cpu: [], memory: [] },
+        prediction: dashboardData?.prediction || { trend: 'Stable', risk: 'Low' },
+        history: dashboardData?.history || [],
+        recentLogs: dashboardData?.recentLogs || []
+      }
     };
 
     return res.json({
@@ -827,10 +849,10 @@ router.get('/server/monitoring', async (req, res) => {
   }
 });
 
-// GET /admin/server/processes - List live processes
+// GET /admin/server/processes - List live processes with deep classification & safety reasoning
 router.get('/server/processes', async (req, res) => {
   try {
-    const processes = await systemProcessService.listProcesses();
+    const processes = await resourceOptimizerService.listClassifiedProcesses();
     return res.json({
       success: true,
       count: processes.length,
@@ -845,7 +867,7 @@ router.get('/server/processes', async (req, res) => {
   }
 });
 
-// POST /admin/server/kill-process - Safely terminate process with confirmation
+// POST /admin/server/kill-process - Safely terminate process with validation
 router.post('/server/kill-process', async (req, res) => {
   try {
     const { pid, reason } = req.body;
@@ -856,7 +878,18 @@ router.post('/server/kill-process', async (req, res) => {
       });
     }
 
-    const killResult = await systemProcessService.terminateProcess(pid);
+    const killResult = await resourceOptimizerService.safeTerminate(
+      pid,
+      reason || 'Manual Administrator Mitigation',
+      false
+    );
+
+    if (!killResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: killResult.message
+      });
+    }
 
     const ip = req.ip || req.connection.remoteAddress || '127.0.0.1';
     await logActivity({
@@ -864,14 +897,14 @@ router.post('/server/kill-process', async (req, res) => {
       actorName: req.user.name,
       action: 'process_terminated',
       target: `PID: ${pid}`,
-      details: { command: killResult.command, reason: reason || 'Resource overload mitigation' },
+      details: { reason: reason || 'Manual Administrator Mitigation', message: killResult.message },
       ip,
       result: 'success'
     });
 
     return res.json({
       success: true,
-      message: `Proses PID ${pid} (${killResult.command}) telah berhasil dihentikan.`,
+      message: killResult.message,
       result: killResult
     });
   } catch (error) {
@@ -880,6 +913,183 @@ router.post('/server/kill-process', async (req, res) => {
       success: false,
       message: error.message || 'Gagal menghentikan proses.'
     });
+  }
+});
+
+// POST /admin/server/optimization/run - Execute Adaptive Optimization (with optional dry-run)
+router.post('/server/optimization/run', async (req, res) => {
+  try {
+    const { dryRun } = req.body;
+    const result = await resourceOptimizerService.runOptimization({
+      triggerType: 'manual',
+      forceDryRun: dryRun === true
+    });
+
+    const ip = req.ip || req.connection.remoteAddress || '127.0.0.1';
+    await logActivity({
+      actorId: req.user.id,
+      actorName: req.user.name,
+      action: 'resource_optimization_executed',
+      target: result.evaluation?.level || 'adaptive_optimizer',
+      details: {
+        dryRun: result.dryRun,
+        dominantPct: result.evaluation?.dominant,
+        actionsCount: result.actionsTaken?.length || 0,
+        summary: result.summary
+      },
+      ip,
+      result: 'success'
+    });
+
+    return res.json({
+      success: true,
+      message: result.summary,
+      result
+    });
+  } catch (error) {
+    console.error('Optimization execution error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Gagal menjalankan optimasi server.'
+    });
+  }
+});
+
+// GET /admin/server/optimization/settings - Get settings
+router.get('/server/optimization/settings', async (req, res) => {
+  try {
+    const settings = await resourceOptimizerService.getSettings();
+    return res.json({ success: true, settings });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Gagal memuat pengaturan optimasi.' });
+  }
+});
+
+// POST /admin/server/optimization/settings - Update settings
+router.post('/server/optimization/settings', async (req, res) => {
+  try {
+    const {
+      auto_optimization_enabled,
+      dry_run_mode,
+      manual_override,
+      hysteresis_seconds,
+      warning_threshold,
+      high_usage_threshold,
+      critical_threshold,
+      emergency_threshold
+    } = req.body;
+
+    if (auto_optimization_enabled !== undefined) {
+      await resourceOptimizerService.updateSetting('auto_optimization_enabled', auto_optimization_enabled);
+    }
+    if (dry_run_mode !== undefined) {
+      await resourceOptimizerService.updateSetting('dry_run_mode', dry_run_mode);
+    }
+    if (manual_override !== undefined) {
+      await resourceOptimizerService.updateSetting('manual_override', manual_override);
+    }
+    if (hysteresis_seconds !== undefined) {
+      await resourceOptimizerService.updateSetting('hysteresis_seconds', hysteresis_seconds);
+    }
+    if (warning_threshold !== undefined) {
+      await resourceOptimizerService.updateSetting('warning_threshold', warning_threshold);
+    }
+    if (high_usage_threshold !== undefined) {
+      await resourceOptimizerService.updateSetting('high_usage_threshold', high_usage_threshold);
+    }
+    if (critical_threshold !== undefined) {
+      await resourceOptimizerService.updateSetting('critical_threshold', critical_threshold);
+    }
+    if (emergency_threshold !== undefined) {
+      await resourceOptimizerService.updateSetting('emergency_threshold', emergency_threshold);
+    }
+
+    const updated = await resourceOptimizerService.getSettings();
+    return res.json({
+      success: true,
+      message: 'Pengaturan Intelligent Resource Management berhasil diperbarui.',
+      settings: updated
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Gagal memperbarui pengaturan optimasi.' });
+  }
+});
+
+// GET /admin/server/optimization/logs - Get optimization history
+router.get('/server/optimization/logs', async (req, res) => {
+  try {
+    const logs = await query(
+      `SELECT id, trigger_type, level, status_badge, dry_run, metrics_before, metrics_after, actions_taken, summary, created_at
+       FROM resource_optimization_logs
+       ORDER BY id DESC LIMIT 50`
+    );
+    const parsed = logs.map(l => ({
+      ...l,
+      metrics_before: typeof l.metrics_before === 'string' ? JSON.parse(l.metrics_before) : l.metrics_before,
+      metrics_after: typeof l.metrics_after === 'string' ? JSON.parse(l.metrics_after) : l.metrics_after,
+      actions_taken: typeof l.actions_taken === 'string' ? JSON.parse(l.actions_taken) : l.actions_taken
+    }));
+    return res.json({ success: true, count: parsed.length, logs: parsed });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Gagal memuat log optimasi.' });
+  }
+});
+
+// GET /admin/server/database/audit - Inspect MySQL connection pool, slow queries & table sizes
+router.get('/server/database/audit', async (req, res) => {
+  try {
+    const statusRows = await query(`
+      SHOW STATUS WHERE Variable_name IN (
+        'Threads_connected',
+        'Threads_running',
+        'Max_used_connections',
+        'Slow_queries',
+        'Uptime',
+        'Questions'
+      )
+    `);
+    const statusMap = {};
+    statusRows.forEach(r => { statusMap[r.Variable_name] = r.Value; });
+
+    const tables = await query(`
+      SELECT 
+        table_name AS tableName,
+        table_rows AS rowCount,
+        ROUND(((data_length + index_length) / 1024 / 1024), 2) AS totalMb,
+        ROUND((data_length / 1024 / 1024), 2) AS dataMb,
+        ROUND((index_length / 1024 / 1024), 2) AS indexMb
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+      ORDER BY (data_length + index_length) DESC
+      LIMIT 15
+    `);
+
+    return res.json({
+      success: true,
+      audit: {
+        connections: {
+          threadsConnected: parseInt(statusMap['Threads_connected'] || '0', 10),
+          threadsRunning: parseInt(statusMap['Threads_running'] || '0', 10),
+          maxUsedConnections: parseInt(statusMap['Max_used_connections'] || '0', 10),
+          poolLimit: 6,
+          status: parseInt(statusMap['Threads_connected'] || '0', 10) > 15 ? 'warning' : 'healthy'
+        },
+        performance: {
+          slowQueries: parseInt(statusMap['Slow_queries'] || '0', 10),
+          uptimeSeconds: parseInt(statusMap['Uptime'] || '0', 10),
+          totalQuestions: parseInt(statusMap['Questions'] || '0', 10)
+        },
+        largestTables: tables,
+        recommendations: [
+          'Pool koneksi dibatasi pada 6 koneksi lean dengan idleTimeout 30s untuk menghemat NPROC.',
+          'Gunakan pagination (LIMIT/OFFSET) pada query dashboard yang membaca log aktivitas.',
+          'Hindari query SELECT * tanpa filter pada tabel berukuran besar.'
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Database audit error:', error);
+    return res.status(500).json({ success: false, message: 'Gagal melakukan audit database MySQL.' });
   }
 });
 
@@ -2411,9 +2621,11 @@ router.post('/payments/:id/verify', async (req, res) => {
       `SELECT p.*, o.order_number, o.user_id as order_user_id, o.plan_id, o.plan_name_snapshot,
               o.period_snapshot, o.type as order_type, o.related_service_id,
               o.domain as order_domain, o.domain_type as order_domain_type,
+              pl.plan_type, pl.slug as plan_slug, pl.storage_gb, pl.databases_count, pl.billing_cycle_months,
               u.name as customer_name, u.email as customer_email, u.phone as customer_phone
        FROM payments p
        JOIN orders o ON p.order_id = o.id
+       LEFT JOIN hosting_plans pl ON o.plan_id = pl.id
        JOIN users u ON p.user_id = u.id
        WHERE p.id = ?`,
       [paymentId]
@@ -2457,8 +2669,64 @@ router.post('/payments/:id/verify', async (req, res) => {
         let createdServiceId = null;
         let serviceCode = null;
         const targetDomain = payment.order_domain || null;
+        const isDomainOnly = payment.plan_type === 'domain' ||
+          payment.plan_slug === 'subdomain-1slabs' ||
+          (Number(payment.storage_gb) === 0 && Number(payment.databases_count) === 0);
+        const durationMonths = payment.billing_cycle_months || (isDomainOnly ? 1 : 12);
+        const invoiceType = isDomainOnly ? 'domain_order' : 'hosting_order';
 
-        if (payment.order_type === 'new') {
+        if (isDomainOnly) {
+          // Domain-only registration or renewal: DO NOT create hosting_services row
+          if (targetDomain) {
+            const [existingDomainRec] = await conn.query('SELECT id, expires_at FROM domains WHERE domain = ?', [targetDomain]);
+            if (existingDomainRec.length === 0) {
+              const isSub1sLabs = targetDomain.endsWith('.1slabs.my.id');
+              const subPrefix = isSub1sLabs ? targetDomain.replace('.1slabs.my.id', '') : null;
+              const domainType = isSub1sLabs ? 'free_subdomain' : 'custom_domain';
+              const rootDomain = isSub1sLabs ? '1slabs.my.id' : targetDomain;
+              const docroot = `/home/u1zh8984/public_html/${targetDomain}`;
+              await conn.query(
+                `INSERT INTO domains 
+                 (user_id, service_id, domain, domain_type, root_domain, subdomain_prefix, document_root, status, is_free_plan, ssl_status, dns_status, registered_at, expires_at)
+                 VALUES (?, NULL, ?, ?, ?, ?, ?, 'active', 0, 'pending', 'connected', NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH))`,
+                [payment.user_id, targetDomain, domainType, rootDomain, subPrefix, docroot, durationMonths]
+              );
+            } else {
+              await conn.query(
+                `UPDATE domains 
+                 SET status = 'active', service_id = NULL,
+                     expires_at = CASE 
+                       WHEN expires_at > NOW() THEN DATE_ADD(expires_at, INTERVAL ? MONTH)
+                       ELSE DATE_ADD(NOW(), INTERVAL ? MONTH)
+                     END,
+                     updated_at = NOW()
+                 WHERE id = ?`,
+                [durationMonths, durationMonths, existingDomainRec[0].id]
+              );
+            }
+
+            await conn.query(
+              "UPDATE domain_reservations SET status = 'active', service_id = NULL WHERE domain = ?",
+              [targetDomain]
+            );
+
+            await conn.query(
+              "UPDATE orders SET related_service_id = NULL WHERE id = ?",
+              [payment.order_id]
+            );
+
+            try {
+              if (targetDomain.endsWith('.1slabs.my.id')) {
+                const sub = targetDomain.replace('.1slabs.my.id', '');
+                await subdomainService.addSubdomain(sub, '1slabs.my.id', `public_html/${targetDomain}`);
+              } else {
+                await domainService.addAddonDomain(targetDomain);
+              }
+            } catch (cpErr) {
+              console.warn(`[cPanel Provisioning] notice for '${targetDomain}':`, cpErr.message);
+            }
+          }
+        } else if (payment.order_type === 'new') {
           const [existingServices] = await conn.query(
             'SELECT id, service_code, domain FROM hosting_services WHERE order_id = ?',
             [payment.order_id]
@@ -2473,7 +2741,7 @@ router.post('/payments/:id/verify', async (req, res) => {
             const [serviceInsert] = await conn.query(
               `INSERT INTO hosting_services 
               (service_code, user_id, plan_id, order_id, domain, domain_type, status, server_ip, nameservers, activated_at, expires_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, '103.119.237.132', 'ns1.domainmurah.net, ns2.domainmurah.net', NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))`,
+              VALUES (?, ?, ?, ?, ?, ?, ?, '103.119.237.132', 'ns1.domainmurah.net, ns2.domainmurah.net', NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH))`,
               [
                 serviceCode,
                 payment.user_id,
@@ -2481,7 +2749,8 @@ router.post('/payments/:id/verify', async (req, res) => {
                 payment.order_id,
                 targetDomain,
                 payment.order_domain_type || 'existing',
-                serviceStatus
+                serviceStatus,
+                durationMonths
               ]
             );
             createdServiceId = serviceInsert.insertId;
@@ -2521,8 +2790,20 @@ router.post('/payments/:id/verify', async (req, res) => {
                   await conn.query(
                     `INSERT INTO domains 
                      (user_id, service_id, domain, domain_type, root_domain, subdomain_prefix, document_root, status, is_free_plan, ssl_status, dns_status, registered_at, expires_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 0, 'pending', 'connected', NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))`,
-                    [payment.user_id, createdServiceId, targetDomain, domainType, rootDomain, subPrefix, docroot]
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 0, 'pending', 'connected', NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH))`,
+                    [payment.user_id, createdServiceId, targetDomain, domainType, rootDomain, subPrefix, docroot, durationMonths]
+                  );
+                } else {
+                  await conn.query(
+                    `UPDATE domains 
+                     SET status = 'active', service_id = ?,
+                         expires_at = CASE 
+                           WHEN expires_at > NOW() THEN DATE_ADD(expires_at, INTERVAL ? MONTH)
+                           ELSE DATE_ADD(NOW(), INTERVAL ? MONTH)
+                         END,
+                         updated_at = NOW()
+                     WHERE id = ?`,
+                    [createdServiceId, durationMonths, durationMonths, existingDomainRec[0].id]
                   );
                 }
               } catch (dErr) {
@@ -2546,18 +2827,18 @@ router.post('/payments/:id/verify', async (req, res) => {
           await conn.query(
             `UPDATE hosting_services 
              SET expires_at = CASE 
-               WHEN expires_at > NOW() THEN DATE_ADD(expires_at, INTERVAL 1 YEAR)
-               ELSE DATE_ADD(NOW(), INTERVAL 1 YEAR)
+               WHEN expires_at > NOW() THEN DATE_ADD(expires_at, INTERVAL ? MONTH)
+               ELSE DATE_ADD(NOW(), INTERVAL ? MONTH)
              END,
              status = 'active',
              updated_at = NOW()
              WHERE id = ?`,
-            [payment.related_service_id]
+            [durationMonths, durationMonths, payment.related_service_id]
           );
 
           await conn.query(
             `INSERT INTO service_events (service_id, event_type, title, description, actor_type, actor_id)
-             VALUES (?, 'service_renewed', 'Perpanjangan Berhasil', 'Pembayaran perpanjangan 1 tahun telah diverifikasi oleh admin.', 'admin', ?)`,
+             VALUES (?, 'service_renewed', 'Perpanjangan Berhasil', 'Pembayaran perpanjangan telah diverifikasi oleh admin.', 'admin', ?)`,
             [payment.related_service_id, req.user.id]
           );
         }
@@ -2573,17 +2854,17 @@ router.post('/payments/:id/verify', async (req, res) => {
           invoiceNumber = existingInvoices[0].invoice_number;
           await conn.query(
             `UPDATE invoices 
-             SET status = 'paid', paid_at = NOW(), service_id = ?, domain = COALESCE(?, domain),
-                 billing_start_date = NOW(), billing_end_date = DATE_ADD(NOW(), INTERVAL 1 YEAR)
+             SET status = 'paid', paid_at = NOW(), service_id = ?, invoice_type = ?, domain = COALESCE(?, domain),
+                 billing_start_date = NOW(), billing_end_date = DATE_ADD(NOW(), INTERVAL ? MONTH)
              WHERE id = ?`,
-            [createdServiceId, targetDomain, existingInvoices[0].id]
+            [createdServiceId, invoiceType, targetDomain, durationMonths, existingInvoices[0].id]
           );
         } else {
           invoiceNumber = generateInvoiceNumber();
           await conn.query(
             `INSERT INTO invoices 
-            (invoice_number, order_id, payment_id, user_id, service_id, amount, status, plan_name, domain, period, billing_start_date, billing_end_date, paid_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), NOW())`,
+            (invoice_number, order_id, payment_id, user_id, service_id, amount, status, invoice_type, plan_name, domain, period, billing_start_date, billing_end_date, paid_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH), NOW())`,
             [
               invoiceNumber,
               payment.order_id,
@@ -2591,9 +2872,11 @@ router.post('/payments/:id/verify', async (req, res) => {
               payment.user_id,
               createdServiceId,
               payment.amount,
+              invoiceType,
               payment.plan_name_snapshot,
               targetDomain,
-              payment.period_snapshot
+              payment.period_snapshot,
+              durationMonths
             ]
           );
         }
@@ -2675,7 +2958,12 @@ router.post('/payments/:id/verify', async (req, res) => {
         amount: payment.amount
       }).catch(err => console.error('[admin] Background approve email error:', err.message));
 
-      if (verificationResult.domain && verificationResult.serviceCode) {
+      const isDomainOnly = payment.plan_type === 'domain' ||
+        payment.plan_slug === 'subdomain-1slabs' ||
+        (Number(payment.storage_gb) === 0 && Number(payment.databases_count) === 0);
+
+      if (!isDomainOnly && verificationResult.domain && verificationResult.serviceCode) {
+        const durationMonths = payment.billing_cycle_months || 12;
         sendHostingActivatedEmail({
           to: payment.customer_email,
           name: payment.customer_name,
@@ -2684,7 +2972,7 @@ router.post('/payments/:id/verify', async (req, res) => {
           planName: payment.plan_name_snapshot,
           serverIp: '103.119.237.132',
           nameservers: 'ns1.domainmurah.net, ns2.domainmurah.net',
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          expiresAt: new Date(Date.now() + durationMonths * 30 * 24 * 60 * 60 * 1000)
         }).catch(err => console.error('[admin] Background hosting active email error:', err.message));
       }
     } else {
@@ -2697,9 +2985,15 @@ router.post('/payments/:id/verify', async (req, res) => {
       }).catch(err => console.error('[admin] Background reject email error:', err.message));
     }
 
+    const isDomainOnlyFinal = payment.plan_type === 'domain' ||
+      payment.plan_slug === 'subdomain-1slabs' ||
+      (Number(payment.storage_gb) === 0 && Number(payment.databases_count) === 0);
+
     return res.json({
       success: true,
-      message: action === 'approve' ? 'Pembayaran berhasil disetujui dan layanan hosting telah diaktifkan.' : 'Pembayaran telah ditolak.',
+      message: action === 'approve'
+        ? (isDomainOnlyFinal ? 'Pembayaran berhasil disetujui dan domain telah diaktifkan.' : 'Pembayaran berhasil disetujui dan layanan hosting telah diaktifkan.')
+        : 'Pembayaran telah ditolak.',
       result: verificationResult
     });
   } catch (error) {
@@ -3237,10 +3531,33 @@ router.post('/hosting/:id/unsuspend', async (req, res) => {
 router.get('/nodejs/apps', async (req, res) => {
   try {
     const apps = await query(`
-      SELECT n.*, u.name as user_name, u.email as user_email
+      SELECT n.*, 
+             u.name as user_name, u.name as owner_name,
+             u.email as user_email, u.email as owner_email,
+             d.domain_type, d.document_root
       FROM nodejs_applications n
-      JOIN users u ON n.user_id = u.id
+      LEFT JOIN domains d ON n.domain_id = d.id OR n.domain = d.domain
+      LEFT JOIN users u ON n.user_id = u.id
       ORDER BY n.created_at DESC
+    `);
+    return res.json({ success: true, applications: apps });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /admin/laravel/apps - List all Laravel applications
+router.get('/laravel/apps', async (req, res) => {
+  try {
+    const apps = await query(`
+      SELECT l.*, 
+             u.name as user_name, u.name as owner_name,
+             u.email as user_email, u.email as owner_email,
+             d.domain_type, d.document_root
+      FROM laravel_applications l
+      LEFT JOIN domains d ON l.domain_id = d.id OR l.domain = d.domain
+      LEFT JOIN users u ON l.user_id = u.id
+      ORDER BY l.created_at DESC
     `);
     return res.json({ success: true, applications: apps });
   } catch (err) {

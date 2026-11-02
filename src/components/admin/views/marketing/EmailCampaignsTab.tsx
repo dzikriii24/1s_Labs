@@ -29,7 +29,9 @@ import {
   ChevronRight,
   Info,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import {
   api,
@@ -201,6 +203,73 @@ const OFFICIAL_1SLABS_TEMPLATES = [
   <a href="https://1slabs.my.id" style="color: #059669; text-decoration: none; font-weight: 600;">1slabs.my.id</a>
   </p>
 </div>`
+  },
+  {
+    id: 'tpl-followup-local',
+    name: '[Follow-up ID] Kemitraan Website & Digitalisasi Bisnis Lokal',
+    category: 'Indonesia - Follow-up',
+    language: 'id',
+    subject: 'Follow-up: Peluang Kolaborasi Pengembangan Website untuk {{business_name}}',
+    body_html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b; line-height: 1.6;">
+  <p>Halo Pengelola & Tim <strong>{{business_name}}</strong>,</p>
+
+  <p>Semoga Anda dan seluruh tim senantiasa sehat dan lancar dalam menjalankan aktivitas usaha di {{city}}.</p>
+
+  <p>Saya ingin menindaklanjuti (follow-up) email perkenalan singkat kami beberapa waktu lalu mengenai program <strong>Pengembangan Website & Digital Presence Profesional</strong> dari <strong>1sLabs</strong> khusus untuk <strong>{{business_name}}</strong>.</p>
+
+  <p>Kami sangat memahami bahwa jadwal harian Anda padat mengelola operasional bisnis. Oleh karena itu, izinkan kami merangkum beberapa nilai tambah utama yang langsung didapatkan {{business_name}} bersama 1sLabs:</p>
+
+  <ul style="padding-left: 20px; margin: 16px 0;">
+    <li style="margin-bottom: 8px;"><strong>Desain Modern, Cepat & Mobile-Friendly:</strong> Tampil bersih, elegan, dan profesional saat dibuka di smartphone calon pelanggan.</li>
+    <li style="margin-bottom: 8px;"><strong>Integrasi WhatsApp Langsung & Google Maps:</strong> Calon pelanggan dapat langsung bertanya, reservasi, atau order via WhatsApp hanya dengan 1 kali klik.</li>
+    <li style="margin-bottom: 8px;"><strong>Free High-Speed Cloud Hosting 1 Tahun Penuh:</strong> Server NVMe berkecepatan tinggi tanpa beban biaya server terpisah di awal.</li>
+    <li style="margin-bottom: 8px;"><strong>Pendampingan Teknis & Maintenance 1 Tahun:</strong> Tim 1sLabs siap mendampingi jika ada pembaruan menu, foto produk, jam buka, atau promo usaha.</li>
+    <li style="margin-bottom: 8px;"><strong>Pengerjaan Singkat:</strong> Website siap online dalam waktu 1–2 minggu kerja.</li>
+  </ul>
+
+  <p>Kami sangat antusias membantu {{business_name}} tampil lebih kredibel dan menjangkau lebih banyak pelanggan baru. Kami juga siap membuatkan <strong>preview mock-up konsep desain website gratis</strong> secara khusus untuk bisnis Anda.</p>
+
+  <p>Apabila Anda memiliki waktu luang 5–10 menit minggu ini, apakah kami boleh berdiskusi santai melalui WhatsApp atau Google Meet?</p>
+
+  <p style="margin-top: 24px;">Terima kasih banyak atas perhatian dan waktu berharga yang Anda luangkan.<br><br>
+  Salam hangat,<br>
+  <strong>Tim Kemitraan Digital 1sLabs</strong><br>
+  <a href="https://1slabs.my.id" style="color: #059669; text-decoration: none; font-weight: 600;">https://1slabs.my.id/</a> &bull; WhatsApp: +62 851-5629-6580
+  </p>
+</div>`
+  },
+  {
+    id: 'tpl-followup-global',
+    name: '[EN - Follow-up] Partnership & Modern Web Experience for {{business_name}}',
+    category: 'International - Follow-up (EN)',
+    language: 'en',
+    subject: 'Follow-up: Elevating Web Experience & Digital Presence for {{business_name}}',
+    body_html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b; line-height: 1.6;">
+  <p>Hi Team <strong>{{business_name}}</strong>,</p>
+
+  <p>I hope you are having a productive week.</p>
+
+  <p>I am briefly following up on our previous note regarding <strong>1sLabs</strong> and how we can support <strong>{{business_name}}</strong> in modernizing your digital presence and web engineering infrastructure.</p>
+
+  <p>I know how full schedules can get, so I wanted to keep this brief and highlight the key advantages we bring to businesses like yours:</p>
+
+  <ul style="padding-left: 20px; margin: 16px 0;">
+    <li style="margin-bottom: 8px;"><strong>High-Performance Web Architecture:</strong> Sub-second load times, responsive mobile-first UI, and enterprise-grade SEO indexing.</li>
+    <li style="margin-bottom: 8px;"><strong>Direct Customer Conversion:</strong> Seamless booking, inquiry, or ordering workflows tailored to your operational needs.</li>
+    <li style="margin-bottom: 8px;"><strong>Full Technical Partnership:</strong> We handle cloud deployment, domain configuration, security, and continuous updates.</li>
+    <li style="margin-bottom: 8px;"><strong>Turnkey Delivery & Guaranteed Support:</strong> 1 full year of managed cloud hosting and priority maintenance included.</li>
+  </ul>
+
+  <p>We would love to share a complimentary <strong>quick design audit & concept preview</strong> tailored specifically to {{business_name}} without any commitment.</p>
+
+  <p>Would you be open to a brief 10-minute introductory conversation or quick exchange on WhatsApp / email later this week?</p>
+
+  <p style="margin-top: 24px;">Thank you very much for your time and consideration.<br><br>
+  Warm regards,<br>
+  <strong>1sLabs Global Partnerships & Engineering Team</strong><br>
+  <a href="https://1slabs.my.id" style="color: #2563eb; text-decoration: none; font-weight: 600;">https://1slabs.my.id/</a> &bull; Direct WhatsApp: +62 851-5629-6580
+  </p>
+</div>`
   }
 ];
 
@@ -250,6 +319,13 @@ export const EmailCampaignsTab: React.FC = () => {
   const [testEmailAddress, setTestEmailAddress] = useState('dzikrirabbani2401@gmail.com');
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Edit & Resend / Follow-up state
+  const [editingCampaign, setEditingCampaign] = useState<MarketingCampaign | null>(null);
+  const [isResendMode, setIsResendMode] = useState(false);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isOpeningEdit, setIsOpeningEdit] = useState(false);
 
   // Email Logs State
   const [emailLogs, setEmailLogs] = useState<MarketingEmailLogItem[]>([]);
@@ -353,6 +429,8 @@ export const EmailCampaignsTab: React.FC = () => {
 
   // Open Create Campaign
   const handleOpenCreate = () => {
+    setEditingCampaign(null);
+    setIsResendMode(false);
     setCreateStep(1);
     setCampaignName('');
     const firstTpl = OFFICIAL_1SLABS_TEMPLATES[0];
@@ -360,7 +438,130 @@ export const EmailCampaignsTab: React.FC = () => {
     setCampaignSubject(firstTpl.subject);
     setCampaignBody(firstTpl.body_html);
     setSelectedCompanyIds(new Set());
+    setAvoidRecentContact(true);
     setIsCreateOpen(true);
+  };
+
+  // Open Edit Campaign for Draft
+  const handleOpenEdit = async (camp: MarketingCampaign) => {
+    setIsOpeningEdit(true);
+    try {
+      setEditingCampaign(camp);
+      setIsResendMode(false);
+      setCampaignName(camp.name);
+      setCampaignSubject(camp.subject);
+      setCampaignBody(camp.body_html);
+      setAvoidRecentContact(false);
+      setCandidateFilterStatus('all');
+      setCreateStep(1);
+
+      const matched = OFFICIAL_1SLABS_TEMPLATES.find(t => t.subject === camp.subject || t.body_html === camp.body_html);
+      setSelectedTemplateKey(matched ? matched.id : 'tpl-umkm-website');
+
+      const recRes = await api.marketing.getCampaignRecipients(camp.id);
+      if (recRes.success && recRes.data) {
+        const ids = recRes.data.map(r => r.company_id);
+        setSelectedCompanyIds(new Set(ids));
+      } else {
+        setSelectedCompanyIds(new Set());
+      }
+      setIsCreateOpen(true);
+    } catch (err: any) {
+      alert(`Gagal memuat campaign: ${err.message}`);
+    } finally {
+      setIsOpeningEdit(false);
+    }
+  };
+
+  // Open Edit & Kirim Ulang for Completed campaign
+  const handleOpenEditAndResend = async (camp: MarketingCampaign) => {
+    setIsOpeningEdit(true);
+    try {
+      setEditingCampaign(camp);
+      setIsResendMode(true);
+      setCampaignName(camp.name);
+      setCampaignSubject(camp.subject);
+      setCampaignBody(camp.body_html);
+      setAvoidRecentContact(false);
+      setCandidateFilterStatus('all');
+      setCreateStep(1);
+
+      const matched = OFFICIAL_1SLABS_TEMPLATES.find(t => t.subject === camp.subject || t.body_html === camp.body_html);
+      setSelectedTemplateKey(matched ? matched.id : 'tpl-umkm-website');
+
+      const recRes = await api.marketing.getCampaignRecipients(camp.id);
+      if (recRes.success && recRes.data) {
+        const ids = recRes.data.map(r => r.company_id);
+        setSelectedCompanyIds(new Set(ids));
+      } else {
+        setSelectedCompanyIds(new Set());
+      }
+      setIsCreateOpen(true);
+    } catch (err: any) {
+      alert(`Gagal memuat campaign: ${err.message}`);
+    } finally {
+      setIsOpeningEdit(false);
+    }
+  };
+
+  // Open Follow-up Campaign (Creates a new follow-up campaign with previous recipients preselected!)
+  const handleOpenFollowUp = async (camp: MarketingCampaign) => {
+    setIsOpeningEdit(true);
+    try {
+      setEditingCampaign(null); // Fresh campaign for follow-up
+      setIsResendMode(false);
+      setCampaignName(`[Follow-up] ${camp.name.replace(/^\[Follow-up\]\s*/i, '')}`);
+      setAvoidRecentContact(false);
+      setCandidateFilterStatus('all');
+      setCreateStep(1);
+
+      const isGlobal = (camp.name + ' ' + camp.subject + ' ' + (camp.target_industry || '')).toLowerCase().includes('en') ||
+        (camp.name + ' ' + camp.subject).toLowerCase().includes('global') ||
+        camp.subject.toLowerCase().includes('partner') ||
+        camp.subject.toLowerCase().includes('digital presence');
+
+      const followUpTpl = isGlobal
+        ? OFFICIAL_1SLABS_TEMPLATES.find(t => t.id === 'tpl-followup-global')!
+        : OFFICIAL_1SLABS_TEMPLATES.find(t => t.id === 'tpl-followup-local')!;
+
+      setSelectedTemplateKey(followUpTpl.id);
+      setCampaignSubject(followUpTpl.subject);
+      setCampaignBody(followUpTpl.body_html);
+
+      const recRes = await api.marketing.getCampaignRecipients(camp.id);
+      if (recRes.success && recRes.data) {
+        const ids = recRes.data.map(r => r.company_id);
+        setSelectedCompanyIds(new Set(ids));
+      } else {
+        setSelectedCompanyIds(new Set());
+      }
+      setIsCreateOpen(true);
+    } catch (err: any) {
+      alert(`Gagal menyiapkan follow-up: ${err.message}`);
+    } finally {
+      setIsOpeningEdit(false);
+    }
+  };
+
+  // Delete campaign
+  const handleDeleteCampaign = async (camp: MarketingCampaign) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus campaign "${camp.name}"? Semua data target penerima pada campaign ini akan dihapus.`)) {
+      return;
+    }
+    setDeletingCampaignId(camp.id);
+    setIsDeleting(true);
+    try {
+      const res = await api.marketing.deleteCampaign(camp.id);
+      if (res.success) {
+        setStatusFeedback({ text: res.message, type: 'success' });
+        fetchCampaigns();
+      }
+    } catch (err: any) {
+      alert(`Gagal menghapus campaign: ${err.message}`);
+    } finally {
+      setDeletingCampaignId(null);
+      setIsDeleting(false);
+    }
   };
 
   // Insert variable into editor
@@ -399,7 +600,7 @@ export const EmailCampaignsTab: React.FC = () => {
     setSelectedCompanyIds(new Set());
   };
 
-  // Submit and create Campaign with explicit recipients
+  // Submit and create or update Campaign
   const handleSaveCampaign = async (andStart = false) => {
     if (!campaignName.trim()) {
       alert('Mohon masukkan Nama Campaign.');
@@ -421,23 +622,40 @@ export const EmailCampaignsTab: React.FC = () => {
     setIsSubmitting(true);
     setStatusFeedback(null);
     try {
-      const res = await api.marketing.createCampaign({
-        name: campaignName,
-        subject: campaignSubject,
-        body_html: campaignBody,
-        target_company_ids: Array.from(selectedCompanyIds),
-        avoid_recently_contacted: avoidRecentContact
-      });
+      let res: any;
+      if (editingCampaign) {
+        // UPDATE existing campaign (draft or completed with resend)
+        res = await api.marketing.updateCampaign(editingCampaign.id, {
+          name: campaignName,
+          subject: campaignSubject,
+          body_html: campaignBody,
+          target_company_ids: Array.from(selectedCompanyIds),
+          avoid_recently_contacted: avoidRecentContact,
+          reset_to_draft: isResendMode || editingCampaign.status === 'completed'
+        });
+      } else {
+        // CREATE new campaign
+        res = await api.marketing.createCampaign({
+          name: campaignName,
+          subject: campaignSubject,
+          body_html: campaignBody,
+          target_company_ids: Array.from(selectedCompanyIds),
+          avoid_recently_contacted: avoidRecentContact
+        });
+      }
 
       if (res.success) {
         setIsCreateOpen(false);
+        const campId = editingCampaign ? editingCampaign.id : res.campaign_id;
+        setEditingCampaign(null);
+        setIsResendMode(false);
         fetchCampaigns();
         setStatusFeedback({ text: res.message, type: 'success' });
 
-        if (andStart && res.campaign_id) {
+        if (andStart && campId) {
           // Open start confirmation immediately
-          const createdCamp = {
-            id: res.campaign_id,
+          const targetCamp = {
+            id: campId,
             name: campaignName,
             subject: campaignSubject,
             body_html: campaignBody,
@@ -453,11 +671,11 @@ export const EmailCampaignsTab: React.FC = () => {
             target_lead_score_min: 0,
             created_at: new Date().toISOString()
           } as MarketingCampaign;
-          setConfirmSendCampaign(createdCamp);
+          setConfirmSendCampaign(targetCamp);
         }
       }
     } catch (err: any) {
-      alert(`Gagal membuat campaign: ${err.message}`);
+      alert(`Gagal menyimpan campaign: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -714,17 +932,58 @@ export const EmailCampaignsTab: React.FC = () => {
                     </div>
 
                     <div className="text-[11px] text-zinc-500 flex items-center gap-3 font-mono flex-wrap pt-1">
-                      <span>Target: <strong className="text-zinc-900">{camp.total_recipients} bisnis</strong></span>
-                      <span>&bull; Terkirim: <strong className="text-emerald-700">{camp.sent_count}</strong></span>
-                      <span>&bull; Dibalas: <strong className="text-amber-700">{camp.responded_count}</strong></span>
-                      <span>&bull; Tertarik: <strong className="text-emerald-700">{camp.interested_count}</strong></span>
+                      <span title="Total target bisnis yang dipilih untuk campaign ini">Target: <strong className="text-zinc-900">{camp.total_recipients} bisnis</strong></span>
+                      <span title="Jumlah email yang sukses dikirimkan ke penerima">&bull; Terkirim: <strong className="text-emerald-700">{camp.sent_count}</strong></span>
+                      <span title="Jumlah prospek yang membalas email ke inbox">&bull; Dibalas: <strong className="text-amber-700">{camp.responded_count}</strong></span>
+                      <span title="Jumlah prospek yang mengklik CTA 'Jadwalkan Diskusi / Online Meeting' di email atau merespons tertarik" className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200 font-semibold">
+                        &bull; Tertarik: <strong className="text-emerald-800">{camp.interested_count}</strong>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                  <div className="flex items-center gap-1.5 self-end lg:self-center shrink-0 flex-wrap">
+                    {/* EDIT DRAFT BUTTON */}
+                    {camp.status === 'draft' && (
+                      <button
+                        onClick={() => handleOpenEdit(camp)}
+                        disabled={isOpeningEdit}
+                        className="px-3 py-1.5 border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        title="Edit pesan, template dan daftar penerima campaign draft ini"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Edit Pesan & Target</span>
+                      </button>
+                    )}
+
+                    {/* EDIT & RESEND COMPLETED CAMPAIGN */}
+                    {camp.status === 'completed' && (
+                      <button
+                        onClick={() => handleOpenEditAndResend(camp)}
+                        disabled={isOpeningEdit}
+                        className="px-3 py-1.5 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        title="Edit pesan email atau target dan kirimkan ulang"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Edit & Kirim Ulang</span>
+                      </button>
+                    )}
+
+                    {/* FOLLOW-UP CAMPAIGN BUTTON */}
+                    {camp.status === 'completed' && (
+                      <button
+                        onClick={() => handleOpenFollowUp(camp)}
+                        disabled={isOpeningEdit}
+                        className="px-3 py-1.5 border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        title="Buat campaign email follow-up baru dengan penerima yang sama"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Kirim Follow-up</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleOpenRecipients(camp)}
-                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                       title="Lihat daftar penerima bisnis"
                     >
                       <Users className="w-3.5 h-3.5 text-zinc-500" />
@@ -733,7 +992,8 @@ export const EmailCampaignsTab: React.FC = () => {
 
                     <button
                       onClick={() => setPreviewCampaign(camp)}
-                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      title="Preview tampilan email"
                     >
                       <Eye className="w-3.5 h-3.5 text-zinc-500" />
                       <span>Preview</span>
@@ -742,7 +1002,7 @@ export const EmailCampaignsTab: React.FC = () => {
                     <button
                       onClick={() => handleSendTest(camp.id)}
                       disabled={isSendingTest}
-                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs rounded-xl font-medium transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                       title="Kirim email percobaan ke alamat admin"
                     >
                       <Send className="w-3.5 h-3.5 text-zinc-500" />
@@ -761,6 +1021,16 @@ export const EmailCampaignsTab: React.FC = () => {
                         <span>Kirim Campaign</span>
                       </button>
                     )}
+
+                    {/* DELETE CAMPAIGN BUTTON */}
+                    <button
+                      onClick={() => handleDeleteCampaign(camp)}
+                      disabled={isDeleting && deletingCampaignId === camp.id}
+                      className="p-1.5 border border-zinc-200 hover:border-rose-300 bg-white hover:bg-rose-50 text-zinc-400 hover:text-rose-600 rounded-xl transition-colors shadow-2xs cursor-pointer"
+                      title="Hapus campaign ini"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -931,15 +1201,24 @@ export const EmailCampaignsTab: React.FC = () => {
                 </span>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h3 className="text-base font-bold text-zinc-900">Buat Email Campaign 1sLabs</h3>
+                    <h3 className="text-base font-bold text-zinc-900">
+                      {editingCampaign
+                        ? (isResendMode ? 'Edit & Kirim Ulang Campaign' : 'Edit Email Campaign (Draft)')
+                        : (campaignName.startsWith('[Follow-up]') ? 'Buat Email Follow-up Campaign' : 'Buat Email Campaign 1sLabs')}
+                    </h3>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold">
                       Step {createStep} dari 2
                     </span>
+                    {editingCampaign && (
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-semibold">
+                        Mode Edit
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-zinc-500">
                     {createStep === 1
-                      ? 'Pilih template resmi berlogo 1sLabs, sesuaikan subject & body email dengan live preview.'
-                      : 'Pilih perusahaan / bisnis penerima yang memiliki kontak email valid (anti-double sending).'}
+                      ? 'Sesuaikan nama campaign, template resmi berlogo 1sLabs, subject & body email dengan live preview.'
+                      : 'Pilih dan sesuaikan perusahaan / bisnis penerima (dapat menambah atau mengurangi target).'}
                   </p>
                 </div>
               </div>
@@ -1409,7 +1688,11 @@ export const EmailCampaignsTab: React.FC = () => {
                 <>
                   <button
                     type="button"
-                    onClick={() => setIsCreateOpen(false)}
+                    onClick={() => {
+                      setIsCreateOpen(false);
+                      setEditingCampaign(null);
+                      setIsResendMode(false);
+                    }}
                     className="px-4 py-2 border border-zinc-200 text-xs font-semibold text-zinc-700 rounded-xl hover:bg-zinc-100 transition-colors cursor-pointer"
                   >
                     Batal
@@ -1426,12 +1709,23 @@ export const EmailCampaignsTab: React.FC = () => {
                       <span>Test Email ke Saya</span>
                     </button>
 
+                    {editingCampaign && (
+                      <button
+                        type="button"
+                        disabled={isSubmitting || selectedCompanyIds.size === 0}
+                        onClick={() => handleSaveCampaign(false)}
+                        className="px-4 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                      >
+                        Simpan Perubahan Draft
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => setCreateStep(2)}
                       className="px-5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      <span>Lanjut: Pilih Penerima</span>
+                      <span>Lanjut: Pilih & Edit Penerima ({selectedCompanyIds.size})</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1453,7 +1747,7 @@ export const EmailCampaignsTab: React.FC = () => {
                       onClick={() => handleSaveCampaign(false)}
                       className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
                     >
-                      Simpan sebagai Draft
+                      {editingCampaign ? 'Simpan Perubahan Draft' : 'Simpan sebagai Draft'}
                     </button>
 
                     <button
@@ -1463,7 +1757,7 @@ export const EmailCampaignsTab: React.FC = () => {
                       className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <Play className="w-3 h-3 fill-current" />
-                      <span>Siapkan & Mulai Kirim ({selectedCompanyIds.size} Bisnis)</span>
+                      <span>{editingCampaign ? (isResendMode ? 'Simpan & Kirim Ulang Sekarang' : 'Simpan & Mulai Kirim') : 'Siapkan & Mulai Kirim'} ({selectedCompanyIds.size} Bisnis)</span>
                     </button>
                   </div>
                 </>

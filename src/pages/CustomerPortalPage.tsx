@@ -43,7 +43,7 @@ import {
   Wifi,
   X
 } from 'lucide-react';
-import { api, HostingService, Order, Invoice, DomainRecord, NodeJsApp, FreePlanClaim } from '../services/api';
+import { api, HostingService, Order, Invoice, DomainRecord, NodeJsApp, LaravelApp, FreePlanClaim } from '../services/api';
 import notify from '../lib/notify';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/layout/Header';
@@ -56,6 +56,8 @@ import { OverviewTab } from '../components/portal/OverviewTab';
 import { FreePlanTab } from '../components/portal/FreePlanTab';
 import { DomainsTab } from '../components/portal/DomainsTab';
 import { NodeJsAppsTab } from '../components/portal/NodeJsAppsTab';
+import { PythonAppsTab } from '../components/portal/PythonAppsTab';
+import { LaravelAppsTab } from '../components/portal/LaravelAppsTab';
 import { PortalSidebar } from '../components/portal/PortalSidebar';
 import { PortalHeader } from '../components/portal/PortalHeader';
 
@@ -70,6 +72,7 @@ export const CustomerPortalPage: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [domains, setDomains] = useState<DomainRecord[]>([]);
   const [nodeApps, setNodeApps] = useState<NodeJsApp[]>([]);
+  const [laravelApps, setLaravelApps] = useState<LaravelApp[]>([]);
   const [freePlanStatus, setFreePlanStatus] = useState<{
     eligible: boolean;
     alreadyClaimed: boolean;
@@ -111,14 +114,18 @@ export const CustomerPortalPage: React.FC = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { user, logout, isAuthenticated, isLoading: authLoading, updateUser } = useAuth();
+  const { user, logout, isAuthenticated, isLoading: authLoading, updateUser, canAccessAdmin, isMarketing } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/login?redirect=/portal');
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        navigate('/login?redirect=/portal');
+      } else if (canAccessAdmin) {
+        navigate('/admin', { replace: true });
+      }
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, canAccessAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -131,12 +138,13 @@ export const CustomerPortalPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [srvRes, ordRes, invRes, domRes, nodeRes, fpRes] = await Promise.all([
+      const [srvRes, ordRes, invRes, domRes, nodeRes, laravelRes, fpRes] = await Promise.all([
         api.services.getAll(),
         api.orders.getAll(),
         api.invoices.getAll(),
         api.domains.list().catch(() => ({ success: true, domains: [] })),
         api.nodejs.listApps().catch(() => ({ success: true, applications: [] })),
+        api.laravel.listApps().catch(() => ({ success: true, applications: [] })),
         api.freePlan.getStatus().catch(() => ({ success: true, eligible: true, alreadyClaimed: false, claim: null }))
       ]);
 
@@ -145,6 +153,7 @@ export const CustomerPortalPage: React.FC = () => {
       if (invRes.success) setInvoices(invRes.invoices);
       if (domRes.success) setDomains(domRes.domains);
       if (nodeRes.success) setNodeApps(nodeRes.applications);
+      if (laravelRes.success) setLaravelApps(laravelRes.applications);
       if (fpRes.success) setFreePlanStatus(fpRes);
 
       // If a service code is selected in URL, load its full detail
@@ -175,10 +184,10 @@ export const CustomerPortalPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !canAccessAdmin) {
       loadData();
     }
-  }, [isAuthenticated, selectedServiceCode]);
+  }, [isAuthenticated, canAccessAdmin, selectedServiceCode]);
 
   const selectService = async (serviceCode: string) => {
     setSearchParams({ tab: 'detail', service: serviceCode });
@@ -326,7 +335,7 @@ export const CustomerPortalPage: React.FC = () => {
     );
   }
 
-  if (user && user.role === 'admin') {
+  if (user && canAccessAdmin) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col justify-between py-4 px-4 sm:px-8 font-sans">
         <Header />
@@ -340,7 +349,7 @@ export const CustomerPortalPage: React.FC = () => {
                 Akses Ditolak: Portal Khusus Pelanggan
               </h2>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                Portal hosting pelanggan khusus diperuntukkan bagi akun <strong>Customer</strong> untuk mengelola domain, file, dan database secara mandiri. Sebagai Administrator, silakan gunakan panel pengawasan terpusat di Dashboard Admin.
+                Portal hosting pelanggan khusus diperuntukkan bagi akun <strong>Pelanggan (Customer)</strong> untuk mengelola domain, file, dan database secara mandiri. Sebagai {isMarketing ? 'Tim Marketing' : 'Administrator'}, silakan gunakan panel pengawasan terpusat di Dashboard Admin.
               </p>
             </div>
             <div className="pt-2 flex justify-center space-x-3">
@@ -388,6 +397,7 @@ export const CustomerPortalPage: React.FC = () => {
             domains: domains.length,
             services: services.length,
             nodeApps: nodeApps.length,
+            laravelApps: laravelApps.length,
             invoices: invoices.length,
             orders: orders.length,
             freePlanClaimed: !!freePlanStatus?.alreadyClaimed
@@ -502,6 +512,20 @@ export const CustomerPortalPage: React.FC = () => {
         {/* TAB: NODE.JS APPLICATIONS */}
         {activeTabParam === 'nodejs' && (
           <NodeJsAppsTab
+            onNavigateToDomains={() => setSearchParams({ tab: 'domains' })}
+          />
+        )}
+
+        {/* TAB: PYTHON APPLICATIONS */}
+        {activeTabParam === 'python' && (
+          <PythonAppsTab
+            onNavigateToDomains={() => setSearchParams({ tab: 'domains' })}
+          />
+        )}
+
+        {/* TAB: LARAVEL APPLICATIONS */}
+        {activeTabParam === 'laravel' && (
+          <LaravelAppsTab
             onNavigateToDomains={() => setSearchParams({ tab: 'domains' })}
           />
         )}

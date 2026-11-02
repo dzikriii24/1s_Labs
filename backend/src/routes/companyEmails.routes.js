@@ -65,10 +65,14 @@ router.post('/', async (req, res) => {
       });
     }
 
+    const targetQuota = (quota !== undefined && quota !== null && !isNaN(Number(quota)))
+      ? Number(quota)
+      : 500;
+
     const created = await emailAccountService.createAccount({
       username: cleanUser,
       password,
-      quota: quota || 500,
+      quota: targetQuota,
       domain
     });
 

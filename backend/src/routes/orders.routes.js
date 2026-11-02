@@ -4,7 +4,7 @@ const { query, withTransaction } = require('../db');
 const { requireAuth, requireVerifiedEmail } = require('../middleware/auth');
 const { generateOrderNumber, generatePaymentNumber } = require('../utils/helpers');
 const { cleanDomain, isValidDomain } = require('../utils/validation');
-const { domainService } = require('../services/cpanel.service');
+const { domainService, subdomainService } = require('../services/cpanel.service');
 const {
   sendOrderCreatedEmail,
   sendAdminNewOrderNotification
@@ -158,23 +158,38 @@ router.post('/', requireAuth, requireVerifiedEmail, async (req, res) => {
     const orderNumber = generateOrderNumber();
     const paymentNumber = generatePaymentNumber();
 
-    // If renewal, verify related service exists and belongs to user
+    const isDomainPlan = plan.plan_type === 'domain' || plan.slug === 'subdomain-1slabs';
+
+    // If renewal, verify related service or domain exists and belongs to user
     if (type === 'renewal') {
-      if (!related_service_id) {
+      if (!isDomainPlan && !related_service_id) {
         return res.status(400).json({
           success: false,
           message: 'ID layanan yang akan diperpanjang wajib disertakan.'
         });
       }
-      const services = await query(
-        'SELECT id, domain, expires_at FROM hosting_services WHERE id = ? AND user_id = ?',
-        [related_service_id, req.user.id]
-      );
-      if (services.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'Layanan hosting yang akan diperpanjang tidak ditemukan.'
-        });
+      if (isDomainPlan) {
+        const userDomains = await query(
+          'SELECT id, domain, expires_at FROM domains WHERE domain = ? AND user_id = ?',
+          [cleanedDomain, req.user.id]
+        );
+        if (userDomains.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Domain yang akan diperpanjang tidak ditemukan.'
+          });
+        }
+      } else if (related_service_id) {
+        const services = await query(
+          'SELECT id, domain, expires_at FROM hosting_services WHERE id = ? AND user_id = ?',
+          [related_service_id, req.user.id]
+        );
+        if (services.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Layanan hosting yang akan diperpanjang tidak ditemukan.'
+          });
+        }
       }
     }
 
@@ -280,11 +295,17 @@ router.post('/', requireAuth, requireVerifiedEmail, async (req, res) => {
       amount: totalAmount
     }).catch(err => console.error('[orders] Background admin email error:', err.message));
 
-    // Proactively register addon domain into cPanel Jupiter Domains & create docroot
+    // Proactively register addon domain or subdomain into cPanel Jupiter Domains & create docroot
     if (cleanedDomain) {
-      domainService.addAddonDomain(cleanedDomain)
-        .then(() => console.log(`[orders] Proactively registered addon domain in cPanel: ${cleanedDomain}`))
-        .catch(cpErr => console.warn(`[orders] cPanel addon notice for '${cleanedDomain}':`, cpErr.message));
+      if (cleanedDomain.endsWith('.1slabs.my.id')) {
+        const sub = cleanedDomain.replace('.1slabs.my.id', '');
+        subdomainService.addSubdomain(sub, '1slabs.my.id', `public_html/${cleanedDomain}`)
+          .catch(cpErr => console.warn(`[orders] cPanel subdomain notice for '${cleanedDomain}':`, cpErr.message));
+      } else {
+        domainService.addAddonDomain(cleanedDomain)
+          .then(() => console.log(`[orders] Proactively registered addon domain in cPanel: ${cleanedDomain}`))
+          .catch(cpErr => console.warn(`[orders] cPanel addon notice for '${cleanedDomain}':`, cpErr.message));
+      }
     }
 
     return res.status(201).json({

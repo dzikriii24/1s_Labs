@@ -4,10 +4,11 @@ const { query, withTransaction } = require('../db');
 const { requireAuth, requireAdmin, requireAdminOrMarketing } = require('../middleware/auth');
 const { getDailyQuotaStatus, addToSuppressionList, isSuppressed, sendMarketingEmail, verifyUnsubscribeToken } = require('../services/marketing/marketingEmail.service');
 const { runDiscoveryJob } = require('../services/marketing/discoveryScheduler.service');
-const { extractAndEnrichBusiness, classifyEmailResponse, callGeminiApi, recoverSmallBusinessContact } = require('../services/marketing/gemini.service');
+const { extractAndEnrichBusiness, classifyEmailResponse, callGeminiApi, recoverSmallBusinessContact, generatePersonalizedEmailDraft } = require('../services/marketing/gemini.service');
 const { recoverCompanyContact, runBatchContactRecovery, getContactRecoveryStats } = require('../services/marketing/contactRecovery.service');
 const { auditCompanyWebsite } = require('../services/marketing/websiteAudit.service');
 const { normalizeBusinessName, normalizeDomain, normalizePhone, findPotentialDuplicate } = require('../services/marketing/deduplication.service');
+const { syncMaildirInbox, getConversationThreads, sendDirectCustomerReply } = require('../services/marketing/inboundEmail.service');
 
 // =====================================================
 // PUBLIC UNPROTECTED ENDPOINT: Unsubscribe Handler
@@ -54,6 +55,62 @@ router.get('/unsubscribe', async (req, res) => {
   }
 });
 
+// -----------------------------------------------------
+// PUBLIC: Click & Interest Tracking Route (from Email CTA)
+// -----------------------------------------------------
+router.get('/track/click', async (req, res) => {
+  try {
+    const campId = parseInt(req.query.camp, 10);
+    const companyId = parseInt(req.query.company, 10);
+    const email = (req.query.email || '').toLowerCase().trim();
+    const targetUrl = req.query.target || 'https://1slabs.my.id/schedule';
+
+    if (campId) {
+      // Check if recipient already marked as responded to avoid duplicate increment
+      const [recipient] = await query(
+        'SELECT id, status, response_at FROM marketing_campaign_recipients WHERE campaign_id = ? AND recipient_email = ?',
+        [campId, email]
+      );
+
+      const alreadyResponded = recipient && (recipient.status === 'responded' || recipient.response_at !== null);
+
+      if (!alreadyResponded) {
+        await query(
+          'UPDATE marketing_campaigns SET interested_count = interested_count + 1 WHERE id = ?',
+          [campId]
+        );
+
+        if (recipient) {
+          await query(
+            'UPDATE marketing_campaign_recipients SET status = "responded", response_at = NOW() WHERE id = ?',
+            [recipient.id]
+          );
+        }
+      }
+    }
+
+    if (companyId || email) {
+      const compCondition = companyId ? 'id = ?' : 'email = ?';
+      const compVal = companyId || email;
+
+      await query(
+        `UPDATE marketing_companies 
+         SET status = CASE WHEN status IN ('Converted', 'Consultation Scheduled') THEN status ELSE 'Interested' END,
+             lead_score = GREATEST(lead_score, 85),
+             lead_grade = 'hot',
+             updated_at = NOW()
+         WHERE ${compCondition}`,
+        [compVal]
+      );
+    }
+
+    return res.redirect(302, targetUrl);
+  } catch (err) {
+    console.error('Error tracking marketing click:', err);
+    return res.redirect(302, req.query.target || 'https://1slabs.my.id/schedule');
+  }
+});
+
 // =====================================================
 // ALL FOLLOWING ROUTES REQUIRE ADMIN PRIVILEGES
 // =====================================================
@@ -70,31 +127,44 @@ router.get('/stats', async (req, res) => {
     const countsRows = await query(`
       SELECT 
         COUNT(*) as total_prospects,
-        SUM(CASE WHEN business_scale IN ('Micro Business', 'Small Business', 'Local Business', 'Home Business', 'Online Business', 'Growing Business') THEN 1 ELSE 0 END) as total_small_business,
-        SUM(CASE WHEN is_international = 0 OR country = 'Indonesia' THEN 1 ELSE 0 END) as total_indonesia,
-        SUM(CASE WHEN is_international = 1 OR (country IS NOT NULL AND country != 'Indonesia') THEN 1 ELSE 0 END) as total_international,
-        SUM(CASE WHEN category = 'UMKM' THEN 1 ELSE 0 END) as total_umkm,
-        SUM(CASE WHEN category IN ('Coffee Shop', 'Cafe') THEN 1 ELSE 0 END) as total_coffee_shops,
-        SUM(CASE WHEN category IN ('Restaurant', 'Kuliner') THEN 1 ELSE 0 END) as total_restaurants,
-        SUM(CASE WHEN (email IS NULL OR email = '') AND (phone IS NULL OR phone = '') AND (whatsapp_number IS NULL OR whatsapp_number = '') AND (website_url IS NULL OR website_url = '') THEN 1 ELSE 0 END) as without_contacts,
-        SUM(CASE WHEN whatsapp_number IS NOT NULL AND whatsapp_number != '' THEN 1 ELSE 0 END) as with_whatsapp_count,
-        SUM(CASE WHEN instagram_url IS NOT NULL AND instagram_url != '' THEN 1 ELSE 0 END) as with_instagram_count,
-        SUM(CASE WHEN category = 'Company' THEN 1 ELSE 0 END) as total_companies,
-        SUM(CASE WHEN DATE(first_discovered_at) = CURDATE() THEN 1 ELSE 0 END) as new_today,
-        SUM(CASE WHEN first_discovered_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as new_this_week,
-        SUM(CASE WHEN first_discovered_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_this_month,
-        SUM(CASE WHEN status = 'Verified' THEN 1 ELSE 0 END) as verified_count,
-        SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email_count,
-        SUM(CASE WHEN outreach_eligibility = 'eligible' OR outreach_eligibility = '1' THEN 1 ELSE 0 END) as outreach_eligible_count,
-        SUM(CASE WHEN lead_score >= 70 THEN 1 ELSE 0 END) as high_potential_count,
-        SUM(CASE WHEN status = 'Responded' THEN 1 ELSE 0 END) as responded_count,
-        SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) as interested_count,
-        SUM(CASE WHEN status = 'Consultation Scheduled' THEN 1 ELSE 0 END) as consultation_scheduled_count,
-        SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) as converted_count
+        COALESCE(SUM(CASE WHEN is_international = 0 OR country = 'Indonesia' THEN 1 ELSE 0 END), 0) as total_indonesia,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND business_scale IN ('Micro Business', 'Small Business', 'Local Business', 'Home Business', 'Online Business', 'Growing Business') THEN 1 ELSE 0 END), 0) as total_small_business,
+        COALESCE(SUM(CASE WHEN is_international = 1 OR (country IS NOT NULL AND country != 'Indonesia') THEN 1 ELSE 0 END), 0) as total_international,
+        COALESCE(SUM(CASE WHEN category = 'UMKM' THEN 1 ELSE 0 END), 0) as total_umkm,
+        COALESCE(SUM(CASE WHEN category IN ('Coffee Shop', 'Cafe') THEN 1 ELSE 0 END), 0) as total_coffee_shops,
+        COALESCE(SUM(CASE WHEN category IN ('Restaurant', 'Kuliner') THEN 1 ELSE 0 END), 0) as total_restaurants,
+        COALESCE(SUM(CASE WHEN (email IS NULL OR email = '') AND (phone IS NULL OR phone = '') AND (whatsapp_number IS NULL OR whatsapp_number = '') THEN 1 ELSE 0 END), 0) as without_contacts,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND (email IS NULL OR email = '') AND (phone IS NULL OR phone = '') AND (whatsapp_number IS NULL OR whatsapp_number = '') THEN 1 ELSE 0 END), 0) as without_contacts_indonesia,
+        COALESCE(SUM(CASE WHEN (email IS NOT NULL AND email != '') OR (phone IS NOT NULL AND phone != '') OR (whatsapp_number IS NOT NULL AND whatsapp_number != '') THEN 1 ELSE 0 END), 0) as with_contacts,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND ((email IS NOT NULL AND email != '') OR (phone IS NOT NULL AND phone != '') OR (whatsapp_number IS NOT NULL AND whatsapp_number != '')) THEN 1 ELSE 0 END), 0) as with_contacts_indonesia,
+        COALESCE(SUM(CASE WHEN whatsapp_number IS NOT NULL AND whatsapp_number != '' THEN 1 ELSE 0 END), 0) as with_whatsapp_count,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND whatsapp_number IS NOT NULL AND whatsapp_number != '' THEN 1 ELSE 0 END), 0) as with_whatsapp_indonesia,
+        COALESCE(SUM(CASE WHEN instagram_url IS NOT NULL AND instagram_url != '' THEN 1 ELSE 0 END), 0) as with_instagram_count,
+        COALESCE(SUM(CASE WHEN category = 'Company' THEN 1 ELSE 0 END), 0) as total_companies,
+        COALESCE(SUM(CASE WHEN DATE(first_discovered_at) = CURDATE() THEN 1 ELSE 0 END), 0) as new_today,
+        COALESCE(SUM(CASE WHEN first_discovered_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END), 0) as new_this_week,
+        COALESCE(SUM(CASE WHEN first_discovered_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END), 0) as new_this_month,
+        COALESCE(SUM(CASE WHEN status = 'Verified' THEN 1 ELSE 0 END), 0) as verified_count,
+        COALESCE(SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END), 0) as with_email_count,
+        COALESCE(SUM(CASE WHEN outreach_eligibility = 'eligible' OR outreach_eligibility = '1' THEN 1 ELSE 0 END), 0) as outreach_eligible_count,
+        COALESCE(SUM(CASE WHEN lead_score >= 70 THEN 1 ELSE 0 END), 0) as high_potential_count,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND lead_score >= 70 THEN 1 ELSE 0 END), 0) as high_potential_indonesia,
+        COALESCE(SUM(CASE WHEN contacted_times > 0 OR status IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR last_contacted_at IS NOT NULL THEN 1 ELSE 0 END), 0) as contacted_count,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND (contacted_times > 0 OR status IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR last_contacted_at IS NOT NULL) THEN 1 ELSE 0 END), 0) as contacted_indonesia,
+        COALESCE(SUM(CASE WHEN (contacted_times = 0 OR contacted_times IS NULL) AND (status NOT IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR status IS NULL) AND last_contacted_at IS NULL THEN 1 ELSE 0 END), 0) as not_contacted_count,
+        COALESCE(SUM(CASE WHEN (is_international = 0 OR country = 'Indonesia') AND (contacted_times = 0 OR contacted_times IS NULL) AND (status NOT IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR status IS NULL) AND last_contacted_at IS NULL THEN 1 ELSE 0 END), 0) as not_contacted_indonesia,
+        COALESCE(SUM(CASE WHEN status = 'Responded' THEN 1 ELSE 0 END), 0) as responded_count,
+        COALESCE(SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END), 0) as interested_count,
+        COALESCE(SUM(CASE WHEN status = 'Consultation Scheduled' THEN 1 ELSE 0 END), 0) as consultation_scheduled_count,
+        COALESCE(SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END), 0) as converted_count
       FROM marketing_companies
       WHERE is_deleted = 0
     `);
-    const counts = countsRows[0] || {};
+    const rawCounts = countsRows[0] || {};
+    const counts = {};
+    for (const [k, v] of Object.entries(rawCounts)) {
+      counts[k] = parseInt(v, 10) || 0;
+    }
 
     // Email metrics
     const emailRows = await query(`
@@ -169,10 +239,26 @@ router.get('/stats', async (req, res) => {
 
     return res.json({
       success: true,
+      counts,
       stats: {
         total_prospects: counts.total_prospects || 0,
+        total_small_business: counts.total_small_business || 0,
+        total_indonesia: counts.total_indonesia || 0,
+        total_international: counts.total_international || 0,
         total_umkm: counts.total_umkm || 0,
         total_companies: counts.total_companies || 0,
+        without_contacts: counts.without_contacts || 0,
+        without_contacts_indonesia: counts.without_contacts_indonesia || 0,
+        with_contacts: counts.with_contacts || 0,
+        with_contacts_indonesia: counts.with_contacts_indonesia || 0,
+        with_whatsapp_count: counts.with_whatsapp_count || 0,
+        with_whatsapp_indonesia: counts.with_whatsapp_indonesia || 0,
+        high_potential_count: counts.high_potential_count || 0,
+        high_potential_indonesia: counts.high_potential_indonesia || 0,
+        contacted_count: counts.contacted_count || 0,
+        not_contacted_count: counts.not_contacted_count || 0,
+        contacted_indonesia: counts.contacted_indonesia || 0,
+        not_contacted_indonesia: counts.not_contacted_indonesia || 0,
         new_today: counts.new_today || 0,
         new_this_week: counts.new_this_week || 0,
         new_this_month: counts.new_this_month || 0,
@@ -225,6 +311,8 @@ router.get('/companies', async (req, res) => {
       scope, // 'indonesia' | 'international' | 'all'
       business_scale, // 'Micro Business' | 'Small Business' | 'Local Business' | 'Home Business' | 'Online Business' | 'Growing Business' | 'Other' | 'Unknown'
       missing_field, // 'no_contacts' | 'no_email' | 'no_phone' | 'no_website' | 'no_whatsapp' | 'no_social' | 'partially_enriched' | 'fully_enriched'
+      contact_filter, // 'no_contacts' | 'has_contacts' | 'no_email' | 'has_email' | 'has_whatsapp' | 'no_whatsapp' | 'complete' | 'all'
+      contacted_status, // 'contacted' | 'not_contacted' | 'all'
       is_new, // '1' or 'true'
       is_priority,
       is_archived,
@@ -280,17 +368,32 @@ router.get('/companies', async (req, res) => {
       whereClauses.push("(status = 'New Discovery' OR first_discovered_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))");
     }
 
-    // Missing Field filters
-    if (missing_field === 'no_contacts') {
-      whereClauses.push('id NOT IN (SELECT DISTINCT company_id FROM marketing_contacts)');
-    } else if (missing_field === 'no_email') {
+    // Contacted status filter
+    if (contacted_status === 'contacted') {
+      whereClauses.push("(contacted_times > 0 OR status IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR last_contacted_at IS NOT NULL)");
+    } else if (contacted_status === 'not_contacted') {
+      whereClauses.push("((contacted_times = 0 OR contacted_times IS NULL) AND (status NOT IN ('Contacted', 'Responded', 'Interested', 'Consultation Scheduled', 'Converted') OR status IS NULL) AND last_contacted_at IS NULL)");
+    }
+
+    // Missing Field & Contact Completeness filters
+    if (contact_filter === 'no_contacts' || missing_field === 'no_contacts') {
+      whereClauses.push('((email IS NULL OR email = "") AND (phone IS NULL OR phone = "") AND (whatsapp_number IS NULL OR whatsapp_number = ""))');
+    } else if (contact_filter === 'has_contacts') {
+      whereClauses.push('((email IS NOT NULL AND email != "") OR (phone IS NOT NULL AND phone != "") OR (whatsapp_number IS NOT NULL AND whatsapp_number != ""))');
+    } else if (contact_filter === 'no_email' || missing_field === 'no_email') {
       whereClauses.push('(email IS NULL OR email = "")');
+    } else if (contact_filter === 'has_email') {
+      whereClauses.push('(email IS NOT NULL AND email != "")');
+    } else if (contact_filter === 'has_whatsapp') {
+      whereClauses.push('(whatsapp_number IS NOT NULL AND whatsapp_number != "")');
+    } else if (contact_filter === 'no_whatsapp' || missing_field === 'no_whatsapp') {
+      whereClauses.push('(whatsapp_number IS NULL OR whatsapp_number = "")');
+    } else if (contact_filter === 'complete') {
+      whereClauses.push('(email IS NOT NULL AND email != "" AND ((phone IS NOT NULL AND phone != "") OR (whatsapp_number IS NOT NULL AND whatsapp_number != "")))');
     } else if (missing_field === 'no_phone') {
       whereClauses.push('(phone IS NULL OR phone = "") AND (whatsapp_number IS NULL OR whatsapp_number = "")');
     } else if (missing_field === 'no_website') {
       whereClauses.push('(website_url IS NULL OR website_url = "")');
-    } else if (missing_field === 'no_whatsapp') {
-      whereClauses.push('(whatsapp_number IS NULL OR whatsapp_number = "")');
     } else if (missing_field === 'no_social') {
       whereClauses.push('(instagram_url IS NULL OR instagram_url = "")');
     } else if (missing_field === 'partially_enriched') {
@@ -512,6 +615,7 @@ router.put('/companies/:id', async (req, res) => {
       province,
       city,
       full_address,
+      address,
       website_url,
       phone,
       whatsapp_number,
@@ -528,76 +632,138 @@ router.put('/companies/:id', async (req, res) => {
       is_archived
     } = req.body;
 
-    const normName = name ? normalizeBusinessName(name) : undefined;
-    const normDomain = website_url ? normalizeDomain(website_url) : undefined;
-    const normPhone = phone ? normalizePhone(phone) : undefined;
+    const fields = [];
+    const values = [];
 
-    await query(
-      `UPDATE marketing_companies 
-       SET name = COALESCE(?, name),
-           normalized_name = COALESCE(?, normalized_name),
-           category = COALESCE(?, category),
-           business_type = COALESCE(?, business_type),
-           business_scale = COALESCE(?, business_scale),
-           industry = COALESCE(?, industry),
-           description = COALESCE(?, description),
-           country = COALESCE(?, country),
-           is_international = COALESCE(?, is_international),
-           province = COALESCE(?, province),
-           city = COALESCE(?, city),
-           full_address = COALESCE(?, full_address),
-           website_url = COALESCE(?, website_url),
-           normalized_domain = COALESCE(?, normalized_domain),
-           phone = COALESCE(?, phone),
-           normalized_phone = COALESCE(?, normalized_phone),
-           whatsapp_number = COALESCE(?, whatsapp_number),
-           email = COALESCE(?, email),
-           instagram_url = COALESCE(?, instagram_url),
-           lead_score = COALESCE(?, lead_score),
-           lead_grade = COALESCE(?, lead_grade),
-           status = COALESCE(?, status),
-           outreach_eligibility = COALESCE(?, outreach_eligibility),
-           outreach_ineligible_reason = COALESCE(?, outreach_ineligible_reason),
-           admin_notes = COALESCE(?, admin_notes),
-           tags = COALESCE(?, tags),
-           is_priority = COALESCE(?, is_priority),
-           is_archived = COALESCE(?, is_archived),
-           updated_at = NOW()
-       WHERE id = ?`,
-      [
-        name,
-        normName,
-        category,
-        business_type,
-        business_scale,
-        industry,
-        description,
-        country,
-        is_international !== undefined ? (is_international ? 1 : 0) : undefined,
-        province,
-        city,
-        full_address,
-        website_url,
-        normDomain,
-        phone,
-        normPhone,
-        whatsapp_number,
-        email,
-        instagram_url,
-        lead_score,
-        lead_grade,
-        status,
-        outreach_eligibility,
-        outreach_ineligible_reason,
-        admin_notes,
-        tags ? (typeof tags === 'string' ? tags : JSON.stringify(tags)) : undefined,
-        is_priority !== undefined ? (is_priority ? 1 : 0) : undefined,
-        is_archived !== undefined ? (is_archived ? 1 : 0) : undefined,
-        id
-      ]
-    );
+    if (name !== undefined) {
+      fields.push('name = ?', 'normalized_name = ?');
+      values.push(name, normalizeBusinessName(name));
+    }
+    if (category !== undefined) {
+      fields.push('category = ?');
+      values.push(category);
+    }
+    if (business_type !== undefined) {
+      fields.push('business_type = ?');
+      values.push(business_type);
+    }
+    if (business_scale !== undefined) {
+      fields.push('business_scale = ?');
+      values.push(business_scale);
+    }
+    if (industry !== undefined) {
+      fields.push('industry = ?');
+      values.push(industry);
+    }
+    if (description !== undefined) {
+      fields.push('description = ?');
+      values.push(description);
+    }
+    if (country !== undefined) {
+      fields.push('country = ?');
+      values.push(country);
+    }
+    if (is_international !== undefined) {
+      fields.push('is_international = ?');
+      values.push(is_international ? 1 : 0);
+    }
+    if (province !== undefined) {
+      fields.push('province = ?');
+      values.push(province);
+    }
+    if (city !== undefined) {
+      fields.push('city = ?');
+      values.push(city);
+    }
+    const finalAddress = full_address !== undefined ? full_address : address;
+    if (finalAddress !== undefined) {
+      fields.push('full_address = ?');
+      values.push(finalAddress);
+    }
+    if (website_url !== undefined) {
+      const cleanUrl = website_url ? website_url.trim() : null;
+      fields.push('website_url = ?', 'normalized_domain = ?', 'has_website = ?');
+      values.push(cleanUrl, cleanUrl ? normalizeDomain(cleanUrl) : null, cleanUrl ? 1 : 0);
+    }
+    if (phone !== undefined) {
+      const cleanPhone = phone ? phone.trim() : null;
+      fields.push('phone = ?', 'normalized_phone = ?');
+      values.push(cleanPhone, cleanPhone ? normalizePhone(cleanPhone) : null);
+    }
+    if (whatsapp_number !== undefined) {
+      fields.push('whatsapp_number = ?');
+      values.push(whatsapp_number ? whatsapp_number.trim() : null);
+    }
+    if (email !== undefined) {
+      const cleanEmail = email ? email.trim() : null;
+      fields.push('email = ?');
+      values.push(cleanEmail);
+      if (outreach_eligibility === undefined) {
+        if (cleanEmail && cleanEmail.includes('@')) {
+          fields.push('outreach_eligibility = ?');
+          values.push('eligible');
+        } else if (!cleanEmail) {
+          fields.push('outreach_eligibility = ?');
+          values.push('needs_review');
+        }
+      }
+    }
+    if (instagram_url !== undefined) {
+      fields.push('instagram_url = ?');
+      values.push(instagram_url ? instagram_url.trim() : null);
+    }
+    if (lead_score !== undefined) {
+      fields.push('lead_score = ?');
+      values.push(lead_score);
+    }
+    if (lead_grade !== undefined) {
+      fields.push('lead_grade = ?');
+      values.push(lead_grade);
+    }
+    if (status !== undefined) {
+      fields.push('status = ?');
+      values.push(status);
+    }
+    if (outreach_eligibility !== undefined) {
+      fields.push('outreach_eligibility = ?');
+      values.push(outreach_eligibility);
+    }
+    if (outreach_ineligible_reason !== undefined) {
+      fields.push('outreach_ineligible_reason = ?');
+      values.push(outreach_ineligible_reason);
+    }
+    if (admin_notes !== undefined) {
+      fields.push('admin_notes = ?');
+      values.push(admin_notes);
+    }
+    if (tags !== undefined) {
+      fields.push('tags = ?');
+      values.push(typeof tags === 'string' ? tags : JSON.stringify(tags));
+    }
+    if (is_priority !== undefined) {
+      fields.push('is_priority = ?');
+      values.push(is_priority ? 1 : 0);
+    }
+    if (is_archived !== undefined) {
+      fields.push('is_archived = ?');
+      values.push(is_archived ? 1 : 0);
+    }
 
-    return res.json({ success: true, message: 'Data prospek berhasil diperbarui.' });
+    if (fields.length > 0) {
+      fields.push('updated_at = NOW()');
+      values.push(id);
+      await query(
+        `UPDATE marketing_companies SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+
+    const [updatedCompany] = await query('SELECT * FROM marketing_companies WHERE id = ?', [id]);
+    return res.json({
+      success: true,
+      message: 'Data prospek berhasil diperbarui.',
+      company: updatedCompany
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -841,13 +1007,14 @@ router.post('/contacts/:contactId/primary', async (req, res) => {
     await query('UPDATE marketing_contacts SET is_primary = 1 WHERE id = ?', [contactId]);
 
     if (c.email) {
-      await query('UPDATE marketing_companies SET email = ?, outreach_eligibility = 1 WHERE id = ?', [c.email, c.company_id]);
+      await query('UPDATE marketing_companies SET email = ?, outreach_eligibility = "eligible" WHERE id = ?', [c.email, c.company_id]);
     }
     if (c.phone) {
       await query('UPDATE marketing_companies SET phone = ? WHERE id = ?', [c.phone, c.company_id]);
     }
 
-    return res.json({ success: true, message: 'Kontak utama berhasil ditetapkan.' });
+    const [comp] = await query('SELECT * FROM marketing_companies WHERE id = ?', [c.company_id]);
+    return res.json({ success: true, message: 'Kontak utama berhasil ditetapkan.', company: comp });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -999,6 +1166,119 @@ router.post('/companies/:id/audit-website', async (req, res) => {
   }
 });
 
+/**
+ * Generate a personalized 1-on-1 sales / outreach email draft using Gemini AI
+ * based on the prospect's needs and 1sLabs service recommendations.
+ */
+router.post('/companies/:id/generate-email', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { recipient_name, objective, language } = req.body;
+
+    const [company] = await query('SELECT * FROM marketing_companies WHERE id = ?', [id]);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Bisnis tidak ditemukan.' });
+    }
+
+    const draft = await generatePersonalizedEmailDraft({
+      company,
+      recipientName: recipient_name || company.name,
+      objective: objective || 'Penawaran Solusi Website & Digital Presence',
+      language: language || (company.is_international ? 'en' : 'id')
+    });
+
+    return res.json({
+      success: true,
+      draft: {
+        ...draft,
+        recipient_email: company.email || '',
+        recipient_name: recipient_name || company.name,
+        company_name: company.name
+      }
+    });
+  } catch (err) {
+    console.error('Error generating email draft:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Send a 1-on-1 personalized outreach email directly to a single prospect company
+ */
+router.post('/companies/:id/send-direct-email', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const {
+      recipient_email,
+      recipient_name,
+      contact_id,
+      subject,
+      message_text,
+      allow_duplicate,
+      update_company_email
+    } = req.body;
+
+    if (!recipient_email || !subject || !message_text) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email penerima, subjek, dan isi pesan email wajib diisi.'
+      });
+    }
+
+    const [company] = await query('SELECT * FROM marketing_companies WHERE id = ?', [id]);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Bisnis tidak ditemukan.' });
+    }
+
+    // Convert plain text newlines into formatted paragraphs and bullet lists
+    const paragraphs = message_text
+      .split(/\n\s*\n/)
+      .map(p => {
+        const cleanP = p.trim();
+        if (!cleanP) return '';
+        if (cleanP.includes('•') || cleanP.startsWith('- ')) {
+          const lines = cleanP.split('\n').map(l => {
+            const trimmed = l.trim().replace(/^[•\-]\s*/, '');
+            return `<li style="margin-bottom: 6px;">${trimmed}</li>`;
+          });
+          return `<ul style="margin: 12px 0; padding-left: 20px; color: #27272a; line-height: 1.6;">${lines.join('')}</ul>`;
+        }
+        return `<p style="margin: 0 0 16px 0; line-height: 1.65; color: #27272a; font-size: 14px;">${cleanP.replace(/\n/g, '<br/>')}</p>`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const result = await sendMarketingEmail({
+      campaignId: null,
+      companyId: company.id,
+      contactId: contact_id || null,
+      recipientEmail: recipient_email,
+      recipientName: recipient_name || company.name,
+      companyName: company.name,
+      subject,
+      bodyHtml: paragraphs,
+      allowDuplicate: allow_duplicate === true
+    });
+
+    // If company had no email or update_company_email is set, update company email
+    if ((!company.email || update_company_email) && recipient_email) {
+      await query(
+        'UPDATE marketing_companies SET email = ? WHERE id = ?',
+        [recipient_email.toLowerCase().trim(), company.id]
+      ).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      message: `Email penawaran berhasil dikirimkan ke ${recipient_email}!`,
+      result
+    });
+  } catch (err) {
+    console.error('Error sending direct outreach email:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // -----------------------------------------------------
 // 3. CONTACT INTELLIGENCE
 // -----------------------------------------------------
@@ -1068,14 +1348,26 @@ router.post('/contacts', async (req, res) => {
       return res.status(400).json({ success: false, message: 'company_id dan full_name wajib diisi.' });
     }
 
+    if (is_primary) {
+      await query('UPDATE marketing_contacts SET is_primary = 0 WHERE company_id = ?', [company_id]);
+      if (email) {
+        await query('UPDATE marketing_companies SET email = ?, outreach_eligibility = "eligible" WHERE id = ?', [email, company_id]);
+      }
+      if (phone) {
+        await query('UPDATE marketing_companies SET phone = ? WHERE id = ?', [phone, company_id]);
+      }
+    }
+
     const insert = await query(
       `INSERT INTO marketing_contacts 
        (company_id, full_name, position, role_category, email, phone, is_primary, outreach_eligible)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [company_id, full_name, position || null, role_category || 'Other', email || null, phone || null, is_primary ? 1 : 0, outreach_eligible ? 1 : 0]
+      [company_id, full_name, position || null, role_category || 'Other', email || null, phone || null, is_primary ? 1 : 0, outreach_eligible !== undefined ? (outreach_eligible ? 1 : 0) : (email ? 1 : 0)]
     );
 
-    return res.json({ success: true, message: 'Kontak berhasil ditambahkan.', contact_id: insert.insertId });
+    const [created] = await query('SELECT * FROM marketing_contacts WHERE id = ?', [insert.insertId]);
+    const [comp] = await query('SELECT * FROM marketing_companies WHERE id = ?', [company_id]);
+    return res.json({ success: true, message: 'Kontak berhasil ditambahkan.', contact_id: insert.insertId, contact: created, company: comp });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -1449,6 +1741,196 @@ router.post('/campaigns', async (req, res) => {
   }
 });
 
+// PUT /campaigns/:id - Update existing campaign details and recipients (Draft or Completed with reset)
+router.put('/campaigns/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [existingCamp] = await query('SELECT * FROM marketing_campaigns WHERE id = ?', [id]);
+    if (!existingCamp) {
+      return res.status(404).json({ success: false, message: 'Campaign tidak ditemukan.' });
+    }
+
+    const {
+      name,
+      template_id,
+      target_industry,
+      target_province,
+      target_category,
+      target_lead_score_min,
+      subject,
+      body_html,
+      target_company_ids,
+      avoid_recently_contacted = true,
+      reset_to_draft = false
+    } = req.body;
+
+    const newName = name !== undefined ? name.trim() : existingCamp.name;
+    const newSubject = subject !== undefined ? subject.trim() : existingCamp.subject;
+    const newBodyHtml = body_html !== undefined ? body_html : existingCamp.body_html;
+    const newIndustry = target_industry !== undefined ? target_industry : existingCamp.target_industry;
+    const newProvince = target_province !== undefined ? target_province : existingCamp.target_province;
+    const newCategory = target_category !== undefined ? target_category : existingCamp.target_category;
+    const newLeadScore = target_lead_score_min !== undefined ? target_lead_score_min : existingCamp.target_lead_score_min;
+    const newTemplateId = template_id !== undefined ? template_id : existingCamp.template_id;
+
+    if (!newName || !newSubject || !newBodyHtml) {
+      return res.status(400).json({ success: false, message: 'Nama, subject, dan body_html wajib diisi.' });
+    }
+
+    let totalRecipients = existingCamp.total_recipients;
+    let skippedDuplicates = 0;
+
+    // If explicit company IDs were passed to replace recipients
+    if (Array.isArray(target_company_ids)) {
+      let candidateCompanies = [];
+      if (target_company_ids.length > 0) {
+        const placeholders = target_company_ids.map(() => '?').join(',');
+        candidateCompanies = await query(
+          `SELECT c.id, c.name, c.email,
+                  (SELECT mc.email FROM marketing_contacts mc WHERE mc.company_id = c.id AND mc.email IS NOT NULL AND mc.email != '' LIMIT 1) as contact_email,
+                  (SELECT mc.full_name FROM marketing_contacts mc WHERE mc.company_id = c.id AND mc.email IS NOT NULL AND mc.email != '' LIMIT 1) as contact_name,
+                  (SELECT mc.id FROM marketing_contacts mc WHERE mc.company_id = c.id AND mc.email IS NOT NULL AND mc.email != '' LIMIT 1) as contact_id
+           FROM marketing_companies c 
+           WHERE c.id IN (${placeholders})`,
+          target_company_ids
+        );
+      }
+
+      const validRecipients = [];
+      const seenEmails = new Set();
+
+      for (const comp of candidateCompanies) {
+        const emailToUse = (comp.email || comp.contact_email || '').toLowerCase().trim();
+        if (!emailToUse || seenEmails.has(emailToUse)) {
+          skippedDuplicates++;
+          continue;
+        }
+
+        if (await isSuppressed(emailToUse)) {
+          continue;
+        }
+
+        if (avoid_recently_contacted) {
+          const recent = await query(
+            'SELECT id FROM marketing_email_logs WHERE recipient_email = ? AND status = "sent" AND sent_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) LIMIT 1',
+            [emailToUse]
+          );
+          if (recent.length > 0) {
+            skippedDuplicates++;
+            continue;
+          }
+        }
+
+        seenEmails.add(emailToUse);
+        validRecipients.push({
+          company_id: comp.id,
+          company_name: comp.name,
+          contact_id: comp.contact_id || null,
+          recipient_name: comp.contact_name || comp.name,
+          recipient_email: emailToUse
+        });
+      }
+
+      // Replace recipients in DB
+      await query('DELETE FROM marketing_campaign_recipients WHERE campaign_id = ?', [id]);
+
+      const versionTag = Date.now().toString(36);
+      for (const rec of validRecipients) {
+        const idempotencyKey = `camp_${id}_v${versionTag}_comp_${rec.company_id}_${Buffer.from(rec.recipient_email).toString('hex').slice(0, 12)}`;
+        await query(
+          `INSERT IGNORE INTO marketing_campaign_recipients 
+           (campaign_id, company_id, contact_id, recipient_email, recipient_name, company_name, idempotency_key, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+          [id, rec.company_id, rec.contact_id || null, rec.recipient_email, rec.recipient_name, rec.company_name, idempotencyKey]
+        );
+      }
+
+      totalRecipients = validRecipients.length;
+    }
+
+    let resetSql = '';
+    let targetStatus = existingCamp.status;
+
+    if (reset_to_draft || existingCamp.status === 'completed' || existingCamp.status === 'cancelled') {
+      targetStatus = 'draft';
+      resetSql = ', status = "draft", sent_count = 0, delivered_count = 0, failed_count = 0, bounced_count = 0, responded_count = 0, interested_count = 0, completed_at = NULL, started_at = NULL';
+      if (!Array.isArray(target_company_ids)) {
+        await query('UPDATE marketing_campaign_recipients SET status = "pending", error_message = NULL, sent_at = NULL WHERE campaign_id = ?', [id]);
+      }
+    }
+
+    await query(
+      `UPDATE marketing_campaigns 
+       SET name = ?, template_id = ?, target_industry = ?, target_province = ?, target_category = ?, target_lead_score_min = ?, subject = ?, body_html = ?, total_recipients = ? ${resetSql}
+       WHERE id = ?`,
+      [newName, newTemplateId || null, newIndustry || null, newProvince || null, newCategory || null, newLeadScore || 0, newSubject, newBodyHtml, totalRecipients, id]
+    );
+
+    return res.json({
+      success: true,
+      message: `Campaign "${newName}" berhasil diperbarui!${skippedDuplicates > 0 ? ` (${skippedDuplicates} penerima dihindari untuk mencegah pesan ganda).` : ''}`,
+      campaign_id: id,
+      total_recipients: totalRecipients,
+      status: targetStatus
+    });
+  } catch (err) {
+    console.error('Update campaign error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /campaigns/:id - Delete campaign & all its recipient logs
+router.delete('/campaigns/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [camp] = await query('SELECT id, name FROM marketing_campaigns WHERE id = ?', [id]);
+    if (!camp) return res.status(404).json({ success: false, message: 'Campaign tidak ditemukan.' });
+
+    await query('DELETE FROM marketing_campaign_recipients WHERE campaign_id = ?', [id]);
+    await query('DELETE FROM marketing_campaigns WHERE id = ?', [id]);
+
+    return res.json({
+      success: true,
+      message: `Campaign "${camp.name}" berhasil dihapus.`
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /campaigns/:id/resend - Resend/prepare completed campaign for follow-up
+router.post('/campaigns/:id/resend', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { subject, body_html, reset_all_recipients = true } = req.body || {};
+    const [camp] = await query('SELECT * FROM marketing_campaigns WHERE id = ?', [id]);
+    if (!camp) return res.status(404).json({ success: false, message: 'Campaign tidak ditemukan.' });
+
+    const newSubject = subject || camp.subject;
+    const newBody = body_html || camp.body_html;
+
+    if (reset_all_recipients) {
+      await query('UPDATE marketing_campaign_recipients SET status = "pending", error_message = NULL, sent_at = NULL WHERE campaign_id = ?', [id]);
+    }
+
+    const [recipientCount] = await query('SELECT COUNT(*) as count FROM marketing_campaign_recipients WHERE campaign_id = ? AND status = "pending"', [id]);
+
+    await query(
+      `UPDATE marketing_campaigns 
+       SET status = 'draft', subject = ?, body_html = ?, total_recipients = ?, sent_count = 0, failed_count = 0, completed_at = NULL 
+       WHERE id = ?`,
+      [newSubject, newBody, recipientCount.count, id]
+    );
+
+    return res.json({
+      success: true,
+      message: `Campaign "${camp.name}" siap diedit & dikirim ulang sebagai Draft dengan ${recipientCount.count} penerima.`
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Send Test Email to Internal Admin Recipient
 router.post('/campaigns/:id/send-test', async (req, res) => {
   try {
@@ -1562,7 +2044,8 @@ router.post('/campaigns/:id/start', async (req, res) => {
             contact_name: rec.recipient_name || 'Bapak/Ibu',
             city: rec.city || 'Indonesia',
             province: rec.province || ''
-          }
+          },
+          allowDuplicate: Boolean(req.body.allow_duplicate)
         });
         sentCount++;
       } catch (sendErr) {
@@ -1644,6 +2127,72 @@ router.put('/templates/:id', async (req, res) => {
 // -----------------------------------------------------
 // 6. INBOX & EMAIL REPLIES
 // -----------------------------------------------------
+
+/**
+ * Trigger Maildir sync to pull incoming emails into database
+ */
+router.post('/inbox/sync', async (req, res) => {
+  try {
+    const result = await syncMaildirInbox();
+    return res.json({
+      success: true,
+      scanned: result.scanned,
+      imported: result.imported,
+      newReplies: result.newReplies,
+      message: result.imported > 0 
+        ? `Berhasil menyinkronkan ${result.imported} balasan email baru!` 
+        : 'Kotak masuk sudah mutakhir. Tidak ada email balasan baru.'
+    });
+  } catch (err) {
+    console.error('Error syncing maildir inbox:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Get conversation threads grouped per customer (chat style)
+ */
+router.get('/inbox/threads', async (req, res) => {
+  try {
+    const search = req.query.search || '';
+    const threads = await getConversationThreads(search);
+    return res.json({ success: true, threads });
+  } catch (err) {
+    console.error('Error fetching inbox threads:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Send direct reply email to customer from inbox chat
+ */
+router.post('/inbox/send-reply', async (req, res) => {
+  try {
+    const { recipient_email, recipient_name, company_id, subject, message_text, in_reply_to } = req.body;
+    if (!recipient_email || !message_text) {
+      return res.status(400).json({ success: false, message: 'Email penerima dan isi pesan wajib diisi.' });
+    }
+
+    const result = await sendDirectCustomerReply({
+      recipient_email,
+      recipient_name,
+      company_id: company_id ? parseInt(company_id, 10) : null,
+      subject,
+      message_text,
+      in_reply_to
+    });
+
+    return res.json({
+      success: true,
+      message: 'Pesan balasan berhasil dikirim ke prospek.',
+      data: result
+    });
+  } catch (err) {
+    console.error('Error sending direct customer reply:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/inbox', async (req, res) => {
   try {
     const replies = await query(`
@@ -1677,6 +2226,31 @@ router.patch('/inbox/:id/status', async (req, res) => {
       const [reply] = await query('SELECT from_email FROM marketing_email_replies WHERE id = ?', [id]);
       if (reply && reply.from_email) {
         await addToSuppressionList(reply.from_email, 'unsubscribe', 'Marked unsubscribe by admin via inbox', 'admin_inbox');
+      }
+    }
+
+    // If marked Interested or Consultation Requested, update campaign stats and company
+    if (classification === 'Interested' || classification === 'Consultation Requested') {
+      const [reply] = await query('SELECT campaign_id, company_id, from_email FROM marketing_email_replies WHERE id = ?', [id]);
+      if (reply) {
+        if (reply.campaign_id) {
+          await query(
+            'UPDATE marketing_campaigns SET interested_count = interested_count + 1 WHERE id = ?',
+            [reply.campaign_id]
+          );
+          if (reply.from_email) {
+            await query(
+              'UPDATE marketing_campaign_recipients SET status = "responded", response_at = NOW() WHERE campaign_id = ? AND recipient_email = ?',
+              [reply.campaign_id, reply.from_email]
+            );
+          }
+        }
+        if (reply.company_id) {
+          await query(
+            'UPDATE marketing_companies SET status = ?, lead_score = GREATEST(lead_score, 85), lead_grade = "hot", updated_at = NOW() WHERE id = ?',
+            [classification, reply.company_id]
+          );
+        }
       }
     }
 

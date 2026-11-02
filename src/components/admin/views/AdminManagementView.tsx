@@ -27,7 +27,7 @@ import notify from '../../../lib/notify';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export const AdminManagementView: React.FC = () => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [stats, setStats] = useState<AdminUserStats>({
     total: 0,
@@ -215,6 +215,9 @@ export const AdminManagementView: React.FC = () => {
         notify.success(res.message, 'Role Diperbarui');
         setEditRoleUser(null);
         fetchUsers();
+        if (currentUser && currentUser.id === editRoleUser.id) {
+          refreshUser();
+        }
       }
     } catch (err: any) {
       notify.error(err.message || 'Gagal mengubah role pengguna.');

@@ -12,7 +12,9 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Flame,
+  FileCode
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -22,6 +24,8 @@ export type PortalTabKey =
   | 'domains'
   | 'services'
   | 'nodejs'
+  | 'python'
+  | 'laravel'
   | 'invoices'
   | 'orders'
   | 'profile'
@@ -48,6 +52,7 @@ interface PortalSidebarProps {
     domains: number;
     services: number;
     nodeApps: number;
+    laravelApps?: number;
     invoices: number;
     orders: number;
     freePlanClaimed: boolean;
@@ -89,7 +94,9 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
       items: [
         { key: 'domains', label: 'My Domains', icon: Globe, count: counts.domains },
         { key: 'services', label: 'Cloud Hosting', icon: Server, count: counts.services },
-        { key: 'nodejs', label: 'Node.js APIs', icon: Cpu, count: counts.nodeApps }
+        { key: 'nodejs', label: 'Node.js APIs', icon: Cpu, count: counts.nodeApps },
+        { key: 'python', label: 'Python Apps', icon: FileCode },
+        { key: 'laravel', label: 'Laravel Apps', icon: Flame, count: counts.laravelApps }
       ]
     },
     {

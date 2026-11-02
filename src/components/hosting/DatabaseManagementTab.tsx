@@ -52,6 +52,7 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
   const [databases, setDatabases] = useState<HostingDatabase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Create modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -263,6 +264,21 @@ export const DatabaseManagementTab: React.FC<DatabaseManagementTabProps> = ({
       setError(err.message || 'Gagal memuat daftar database.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncDatabases = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await api.databases.sync(serviceCode);
+      if (res.success) {
+        setFeedback({ type: 'success', text: res.message });
+        loadDatabases();
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Gagal menyinkronkan database cPanel.' });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -624,13 +640,24 @@ define( 'DB_COLLATE', '' );`;
                 </p>
               </div>
 
-              <button
-                onClick={() => setCreateModalOpen(true)}
-                className="px-4 py-2.5 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Buat Database Baru</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleSyncDatabases}
+                  disabled={isSyncing}
+                  className="px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+                  title="Sinkronkan database cPanel yang sudah ada sebelumnya"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>{isSyncing ? 'Sinkronisasi...' : 'Sinkronkan cPanel'}</span>
+                </button>
+                <button
+                  onClick={() => setCreateModalOpen(true)}
+                  className="px-4 py-2.5 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Buat Database Baru</span>
+                </button>
+              </div>
             </div>
 
             {/* 4 Database specs */}
@@ -978,14 +1005,24 @@ define( 'DB_COLLATE', '' );`;
             ) : databases.length === 0 ? (
               <div className="py-16 text-center text-xs text-gray-500 space-y-3">
                 <Database className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-700" />
-                <p>Belum ada database yang dibuat untuk layanan hosting ini.</p>
-                <button
-                  onClick={() => setCreateModalOpen(true)}
-                  className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-xl text-xs font-semibold inline-flex items-center space-x-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Buat Database Pertama</span>
-                </button>
+                <p>Belum ada database yang dibuat atau terhubung untuk layanan hosting ini.</p>
+                <div className="flex items-center justify-center space-x-2 pt-1">
+                  <button
+                    onClick={handleSyncDatabases}
+                    disabled={isSyncing}
+                    className="px-4 py-2 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>Sinkronkan DB cPanel</span>
+                  </button>
+                  <button
+                    onClick={() => setCreateModalOpen(true)}
+                    className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-xl text-xs font-semibold inline-flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Buat Database Pertama</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">

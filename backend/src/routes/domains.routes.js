@@ -312,7 +312,14 @@ router.post('/:id/renew', requireAuth, async (req, res) => {
     }
 
     const domainObj = domains[0];
-    const renewalPrice = 10000; // Rp 10.000 / bulan untuk perpanjangan domain .1slabs.my.id
+    const [domainPlans] = await query(
+      "SELECT id, name, price, period, billing_cycle_months FROM hosting_plans WHERE plan_type = 'domain' OR slug = 'subdomain-1slabs' ORDER BY id ASC LIMIT 1"
+    );
+    const domainPlan = domainPlans.length > 0 ? domainPlans[0] : null;
+    const planId = domainPlan ? domainPlan.id : 6;
+    const planName = domainPlan ? domainPlan.name : 'Subdomain 1sLabs';
+    const renewalPrice = domainPlan ? parseFloat(domainPlan.price) : 10000;
+    const periodName = domainPlan ? domainPlan.period : '1 Bulan';
 
     // Check if there is already an existing unpaid renewal order for this domain
     const existingOrders = await query(
@@ -342,8 +349,8 @@ router.post('/:id/renew', requireAuth, async (req, res) => {
       // 1. Create renewal order
       const [orderRes] = await conn.query(
         `INSERT INTO orders (order_number, user_id, plan_id, domain, domain_type, plan_name_snapshot, price_snapshot, period_snapshot, type, related_service_id, status)
-         VALUES (?, ?, 1, ?, 'existing', 'Perpanjangan Domain', ?, '1 Bulan', 'renewal', ?, 'unpaid')`,
-        [orderNumber, req.user.id, domainObj.domain, renewalPrice, domainObj.service_id || null]
+         VALUES (?, ?, ?, ?, 'existing', ?, ?, ?, 'renewal', NULL, 'unpaid')`,
+        [orderNumber, req.user.id, planId, domainObj.domain, planName, renewalPrice, periodName]
       );
       const orderId = orderRes.insertId;
 
@@ -358,8 +365,8 @@ router.post('/:id/renew', requireAuth, async (req, res) => {
       // 3. Create invoice record
       await conn.query(
         `INSERT INTO invoices (invoice_number, order_id, payment_id, user_id, service_id, amount, subtotal, status, invoice_type, plan_name, domain, period, due_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'unpaid', 'hosting_order', 'Perpanjangan Domain', ?, '1 Bulan', DATE_ADD(NOW(), INTERVAL 3 DAY))`,
-        [invoiceNumber, orderId, paymentId, req.user.id, domainObj.service_id || null, renewalPrice, renewalPrice, domainObj.domain]
+         VALUES (?, ?, ?, ?, NULL, ?, ?, 'unpaid', 'domain_order', ?, ?, ?, DATE_ADD(NOW(), INTERVAL 3 DAY))`,
+        [invoiceNumber, orderId, paymentId, req.user.id, renewalPrice, renewalPrice, planName, domainObj.domain, periodName]
       );
     });
 

@@ -108,6 +108,29 @@ router.get('/apps', requireAuth, async (req, res) => {
   }
 });
 
+// GET /nodejs/occupied-endpoints - List all endpoints used by Node.js & Laravel across user domains
+router.get('/occupied-endpoints', requireAuth, async (req, res) => {
+  try {
+    const isUserAdmin = req.user.role === 'admin';
+    const nodeApps = await query(
+      'SELECT id, app_name, domain, app_uri, app_url, "nodejs" as platform, status FROM nodejs_applications WHERE (user_id = ? OR ? = 1)',
+      [req.user.id, isUserAdmin ? 1 : 0]
+    );
+    const laravelApps = await query(
+      'SELECT id, app_name, domain, app_uri, app_url, "laravel" as platform, status FROM laravel_applications WHERE (user_id = ? OR ? = 1)',
+      [req.user.id, isUserAdmin ? 1 : 0]
+    );
+
+    return res.json({
+      success: true,
+      endpoints: [...nodeApps, ...laravelApps]
+    });
+  } catch (err) {
+    console.error('List occupied endpoints error:', err);
+    return res.status(500).json({ success: false, message: 'Gagal memuat daftar endpoint backend.' });
+  }
+});
+
 // GET /nodejs/apps/:id - Application detail
 router.get('/apps/:id', requireAuth, async (req, res) => {
   try {
@@ -258,15 +281,27 @@ router.post('/apps', requireAuth, async (req, res) => {
     const appRootRel = `apps/u${req.user.id}_${safeAppName}`;
     const fullAppRoot = path.join(HOME_DIR, appRootRel);
 
-    const [existingApp] = await query(
-      'SELECT id FROM nodejs_applications WHERE (domain = ? AND app_uri = ?) OR app_root = ? LIMIT 1',
+    const [existingNodeApp] = await query(
+      'SELECT id, app_name FROM nodejs_applications WHERE (domain = ? AND app_uri = ?) OR app_root = ? LIMIT 1',
       [cleanDomain, cleanUri, appRootRel]
     );
 
-    if (existingApp) {
+    const [existingLaravelApp] = await query(
+      'SELECT id, app_name FROM laravel_applications WHERE (domain = ? AND app_uri = ?) OR app_root = ? LIMIT 1',
+      [cleanDomain, cleanUri, appRootRel]
+    );
+
+    if (existingNodeApp) {
       return res.status(409).json({
         success: false,
-        message: `Aplikasi dengan URI '/${cleanUri}' pada domain ${cleanDomain} sudah terdaftar.`
+        message: `Endpoint '/${cleanUri}' pada domain '${cleanDomain}' sudah digunakan oleh aplikasi Node.js '${existingNodeApp.app_name}'.`
+      });
+    }
+
+    if (existingLaravelApp) {
+      return res.status(409).json({
+        success: false,
+        message: `Endpoint '/${cleanUri}' pada domain '${cleanDomain}' sudah digunakan oleh aplikasi Laravel '${existingLaravelApp.app_name}'. Silakan gunakan URI path lain (contoh: 'api-v2' atau 'node-api').`
       });
     }
 

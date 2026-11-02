@@ -484,9 +484,141 @@ ${replyText}
   return result.data;
 }
 
+/**
+ * Generate a hyper-personalized 1-on-1 sales / outreach email draft
+ * tailored to the prospect's needs and 1sLabs service recommendations.
+ */
+async function generatePersonalizedEmailDraft({ company, recipientName = '', objective = 'general_pitch', language = 'id' }) {
+  let potentialNeeds = [];
+  if (Array.isArray(company.potential_needs_json)) {
+    potentialNeeds = company.potential_needs_json;
+  } else if (typeof company.potential_needs_json === 'string') {
+    try { potentialNeeds = JSON.parse(company.potential_needs_json); } catch {}
+  }
+
+  let recommendedServices = [];
+  if (Array.isArray(company.recommended_services_json)) {
+    recommendedServices = company.recommended_services_json;
+  } else if (typeof company.recommended_services_json === 'string') {
+    try { recommendedServices = JSON.parse(company.recommended_services_json); } catch {}
+  }
+
+  // If no needs / services identified yet, deduce reasonable defaults based on category and website
+  if (potentialNeeds.length === 0) {
+    if (!company.website_url) {
+      potentialNeeds = ['Website Development', 'Katalog Produk Online', 'Website Maintenance & Hosting'];
+    } else {
+      potentialNeeds = ['Redesain & Modernisasi Website', 'Peningkatan Kecepatan Hosting', 'Integrasi Sistem Pemesanan'];
+    }
+  }
+
+  if (recommendedServices.length === 0) {
+    if (!company.website_url) {
+      recommendedServices = ['Paket Website Siap Pakai UMKM', 'Online Product Catalog', 'Cloud Hosting 1sLabs'];
+    } else {
+      recommendedServices = ['Website Redesign & Speed Optimization', 'Custom Web Features', 'Managed Cloud Infrastructure'];
+    }
+  }
+
+  const systemInstruction = `
+Anda adalah AI B2B Outreach Specialist dan Solution Consultant dari 1sLabs (https://1slabs.my.id) — studio teknologi & digital partner asal Indonesia yang berfokus membantu UMKM, bisnis lokal, dan perusahaan berkembang melalui website profesional, aplikasi web modern, katalog digital, sistem pesanan praktis, dan cloud hosting berkecepatan tinggi.
+
+Tugas Anda adalah merancang draf email penawaran 1-on-1 (personal outreach) yang sangat relevan, persuasif, elegan, ramah, dan tidak terkesan spam atau copy-paste kaku. Email harus dirancang khusus untuk prospek bisnis berdasarkan analisis kebutuhan dan rekomendasi layanan yang telah teridentifikasi.
+
+Gaya Komunikasi:
+- Profesional, hangat, sopan, dan langsung to-the-point (tidak bertele-tele).
+- Menghargai bisnis mereka dan menunjukkan bahwa kita benar-benar memahami profil dan kebutuhan mereka.
+- Sertakan Value Proposition yang kuat: Desain responsif modern, garansi 1 tahun penuh, gratis setup domain & cloud hosting berkecepatan tinggi, dan bantuan maintenance berkala.
+- Call To Action (CTA): Ajakan santai untuk online meeting singkat 15 menit via Google Meet atau diskusi via WhatsApp, tanpa paksaan.
+
+Output format STRICTLY JSON:
+{
+  "subject": "Subjek email yang relevan, profesional, dan memikat (maks 60-70 karakter)",
+  "preview_text": "Ringkasan pembuka preheader (maks 90 karakter)",
+  "body_text": "Isi lengkap email dalam format teks rapi dengan paragraf baru (\\n\\n) sehingga mudah dibaca dan diedit admin sebelum dikirim.",
+  "highlights": ["Poin keunggulan 1", "Poin keunggulan 2", "Poin keunggulan 3"]
+}
+`;
+
+  const prompt = `
+Silakan susun draf email penawaran 1-on-1 untuk prospek berikut:
+
+[DATA PROSPEK BISNIS]
+- Nama Bisnis: ${company.name}
+- Kategori / Bidang: ${company.category || 'Usaha Lokal'} (${company.industry || '-'})
+- Skala Usaha: ${company.business_scale || 'Small Business / UMKM'}
+- Lokasi: ${company.city || ''}, ${company.province || ''}, ${company.country || 'Indonesia'}
+- Status Website: ${company.website_url ? `Sudah ada (${company.website_url})` : 'Belum memiliki website resmi (saat ini mengandalkan offline/medsos)'}
+- Nama Kontak: ${recipientName || company.name}
+
+[ANALISIS KEBUTUHAN & REKOMENDASI 1SLABS]
+- Analisis Potensi: ${company.ai_summary || 'Bisnis memiliki peluang besar memperluas jangkauan dan memperkuat kredibilitas lewat kehadiran digital profesional.'}
+- Potensi Kebutuhan Bisnis: ${potentialNeeds.join(', ')}
+- Rekomendasi Solusi 1sLabs: ${recommendedServices.join(', ')}
+- Lead Score: ${company.lead_score || 50}/100
+
+[TARGET TUJUAN EMAIL]
+- Fokus / Tema: ${objective || 'Penawaran Solusi Website & Digital Presence'}
+- Bahasa: ${language === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'}
+
+Buatlah subjek dan isi email yang menarik dan spesifik membahas kebutuhan mereka di atas!
+`;
+
+  try {
+    const result = await callGeminiApi({
+      prompt,
+      systemInstruction,
+      companyId: company.id,
+      purpose: 'email_generation'
+    });
+
+    if (result.data && result.data.subject && result.data.body_text) {
+      return result.data;
+    }
+  } catch (err) {
+    console.warn('[Gemini] Email draft generation failed, using deterministic template:', err.message);
+  }
+
+  // Deterministic fallback if Gemini is offline
+  const needsStr = potentialNeeds.slice(0, 2).join(' dan ');
+  const recStr = recommendedServices.slice(0, 2).join(', ');
+  const contactSalutation = recipientName ? `Bapak/Ibu ${recipientName}` : `Tim ${company.name}`;
+
+  return {
+    subject: `Peluang Peningkatan Digital & Website untuk ${company.name} — 1sLabs`,
+    preview_text: `Solusi pengembangan website dan sistem digital praktis bersama 1sLabs untuk ${company.name}.`,
+    body_text: `Halo ${contactSalutation},
+
+Salam kenal dari 1sLabs! Semoga kabar Anda dan perkembangan ${company.name} senantiasa sukses.
+
+Kami mengamati bahwa ${company.name} memiliki potensi besar untuk terus bertumbuh, khususnya dalam ${needsStr || 'menjangkau lebih banyak pelanggan melalui kehadiran digital yang profesional'}.
+
+Di 1sLabs, kami berfokus membantu UMKM dan bisnis berkembang di Indonesia menghadirkan solusi teknologi siap pakai, antara lain:
+• ${recStr || 'Pengembangan Website Modern & Katalog Produk Online'}
+• Cloud hosting berkecepatan tinggi dengan uptime 99.9%
+• Garansi pemeliharaan teknis penuh selama 1 tahun
+
+Apakah Anda memiliki waktu luang sekitar 10-15 menit minggu ini untuk online meeting santai via Google Meet? Kami ingin menunjukkan beberapa konsep desain website dan fitur yang relevan khusus untuk ${company.name}.
+
+Anda juga dapat langsung melihat jadwal atau berdiskusi dengan tim kami melalui WhatsApp resmi kami.
+
+Terima kasih atas waktu dan perhatiannya. Sukses selalu untuk ${company.name}!
+
+Salam hangat,
+Tim 1sLabs
+https://1slabs.my.id`,
+    highlights: [
+      'Personalisasi berdasarkan profil bisnis',
+      `Fokus kebutuhan: ${needsStr || 'Website & Digital Presence'}`,
+      'Dilengkapi garansi dan cloud hosting'
+    ]
+  };
+}
+
 module.exports = {
   callGeminiApi,
   extractAndEnrichBusiness,
   recoverSmallBusinessContact,
-  classifyEmailResponse
+  classifyEmailResponse,
+  generatePersonalizedEmailDraft
 };

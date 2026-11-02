@@ -28,6 +28,7 @@ import { ActivityLogsView } from './views/ActivityLogsView';
 import { AdminManagementView } from './views/AdminManagementView';
 import { FreePlanClaimsView } from './views/FreePlanClaimsView';
 import { NodeJsApplicationsAdminView } from './views/NodeJsApplicationsAdminView';
+import { LaravelApplicationsAdminView } from './views/LaravelApplicationsAdminView';
 import { InquiriesManagementView } from './views/InquiriesManagementView';
 import { FeedbackManagementView } from './views/FeedbackManagementView';
 import { DocsManagementView } from './views/DocsManagementView';
@@ -152,6 +153,8 @@ export const AdminLayout: React.FC = () => {
         return <FreePlanClaimsView key={refreshKey} />;
       case 'nodejs-manager':
         return <NodeJsApplicationsAdminView key={refreshKey} />;
+      case 'laravel-manager':
+        return <LaravelApplicationsAdminView key={refreshKey} />;
       case 'customers':
       case 'customer-list' as any:
         return <CustomerManagementView key={refreshKey} />;
@@ -263,6 +266,7 @@ export const AdminLayout: React.FC = () => {
             onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
             adminName={user?.name || 'Administrator'}
             adminEmail={user?.email || 'admin@1slabs.my.id'}
+            adminRole={user?.role}
             onLogout={logout}
             notifications={notifications}
             unreadNotificationsCount={unreadNotifCount}
