@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { query, withTransaction } = require('../../db');
 const { getTransporter, wrapHtmlEmail } = require('../email.service');
+const { formatTextToEmailHtml } = require('../../utils/emailFormatter');
 require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
 
 const APP_URL = process.env.BASE_URL || 'https://1slabs.my.id';
@@ -186,7 +187,9 @@ async function sendMarketingEmail({ campaignId, companyId, contactId, recipientE
   };
 
   const finalSubject = substituteTemplateVariables(subject, mergedVars);
-  const rawBody = substituteTemplateVariables(bodyHtml, mergedVars);
+  const bodyWithVars = substituteTemplateVariables(bodyHtml, mergedVars);
+  const formattedBodyHtml = formatTextToEmailHtml(bodyWithVars);
+  const rawBody = substituteTemplateVariables(formattedBodyHtml, mergedVars);
 
   // Detect language from subject & body content
   const contentForDetection = `${subject} ${bodyHtml}`.toLowerCase();

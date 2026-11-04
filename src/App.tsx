@@ -31,6 +31,7 @@ const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage')
 const ProofViewerPage = React.lazy(() => import('./pages/ProofViewerPage').then(m => ({ default: m.ProofViewerPage })));
 const DocumentationPage = React.lazy(() => import('./pages/DocumentationPage').then(m => ({ default: m.DocumentationPage })));
 const MeetingSchedulePage = React.lazy(() => import('./pages/MeetingSchedulePage').then(m => ({ default: m.MeetingSchedulePage })));
+const CandidateInterviewSchedulePage = React.lazy(() => import('./pages/CandidateInterviewSchedulePage').then(m => ({ default: m.CandidateInterviewSchedulePage })));
 const WorkplacePolicyPage = React.lazy(() => import('./pages/WorkplacePolicyPage').then(m => ({ default: m.WorkplacePolicyPage })));
 
 // Loading spinner fallback during chunk loading
@@ -142,6 +143,10 @@ function App() {
                 {/* Meeting & Discussion Scheduling Routes */}
                 <Route path="/schedule" element={<MeetingSchedulePage />} />
                 <Route path="/meeting" element={<MeetingSchedulePage />} />
+
+                {/* Candidate Interview Self-Scheduling Public Routes */}
+                <Route path="/interview/schedule/:token" element={<CandidateInterviewSchedulePage />} />
+                <Route path="/interview/schedule" element={<CandidateInterviewSchedulePage />} />
                 
                 {/* Workplace & Remote Policy (LinkedIn Company Page & Public) */}
                 <Route path="/workplace-policy" element={<WorkplacePolicyPage />} />

@@ -40,12 +40,23 @@ import {
   Send,
   Inbox,
   CalendarCheck,
-  BookOpen
+  BookOpen,
+  Briefcase,
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 
 export type AdminMenuKey =
   | 'dashboard'
   | 'analytics'
+  | 'hr'
+  | 'hr-dashboard'
+  | 'hr-candidates'
+  | 'hr-pipeline'
+  | 'hr-campaigns'
+  | 'hr-inbox'
+  | 'hr-interviews'
+  | 'hr-positions'
   | 'marketing'
   | 'marketing-overview'
   | 'marketing-indonesia'
@@ -130,14 +141,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   pendingVerificationsCount = 0
 }) => {
   const isMarketingMenu = currentMenu.startsWith('marketing');
+  const isHrMenu = currentMenu.startsWith('hr');
   const [marketingExpanded, setMarketingExpanded] = useState<boolean>(true);
+  const [hrExpanded, setHrExpanded] = useState<boolean>(true);
 
-  // Auto-expand marketing submenu if active
+  // Auto-expand submenus if active
   useEffect(() => {
     if (isMarketingMenu) {
       setMarketingExpanded(true);
     }
-  }, [isMarketingMenu]);
+    if (isHrMenu) {
+      setHrExpanded(true);
+    }
+  }, [isMarketingMenu, isHrMenu]);
 
   const menuGroups: MenuGroup[] = [
     {
@@ -178,6 +194,36 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               sectionTitle: 'CONFIG',
               subItems: [
                 { key: 'marketing-settings', label: 'Marketing Settings', icon: Settings }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      title: 'HUMAN RESOURCES',
+      items: [
+        {
+          key: 'hr',
+          label: 'HR Management',
+          icon: Briefcase,
+          badge: 'Recruit',
+          subSections: [
+            {
+              sectionTitle: 'RECRUITMENT & TALENT',
+              subItems: [
+                { key: 'hr-dashboard', label: 'HR Dashboard', icon: LayoutDashboard },
+                { key: 'hr-candidates', label: 'Candidates', icon: Users },
+                { key: 'hr-pipeline', label: 'Recruitment Pipeline', icon: Layers },
+                { key: 'hr-positions', label: 'Position Management', icon: Briefcase }
+              ]
+            },
+            {
+              sectionTitle: 'COMMUNICATION & INTERVIEW',
+              subItems: [
+                { key: 'hr-campaigns', label: 'Email Campaigns', icon: Send },
+                { key: 'hr-inbox', label: 'HR Inbox', icon: Inbox },
+                { key: 'hr-interviews', label: 'Interview Schedule', icon: CalendarCheck }
               ]
             }
           ]
@@ -308,11 +354,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 const Icon = item.icon;
                 const hasSub = !!item.subSections && item.subSections.length > 0;
                 const isMarketingRoot = item.key === 'marketing';
+                const isHrRoot = item.key === 'hr';
                 const isCurrentActive =
                   currentMenu === item.key ||
-                  (isMarketingRoot && (currentMenu === 'marketing' || currentMenu === 'marketing-overview'));
+                  (isMarketingRoot && (currentMenu === 'marketing' || currentMenu === 'marketing-overview')) ||
+                  (isHrRoot && (currentMenu === 'hr' || currentMenu === 'hr-dashboard'));
 
-                const isParentActive = isMarketingRoot && isMarketingMenu;
+                const isParentActive = (isMarketingRoot && isMarketingMenu) || (isHrRoot && isHrMenu);
+                const isExpanded = isMarketingRoot ? marketingExpanded : isHrRoot ? hrExpanded : false;
 
                 return (
                   <div key={item.key} className="space-y-1">
@@ -321,11 +370,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       onClick={() => {
                         if (hasSub) {
                           if (isCollapsed) {
-                            onSelectMenu('marketing-overview');
+                            if (isMarketingRoot) onSelectMenu('marketing-overview');
+                            if (isHrRoot) onSelectMenu('hr-dashboard');
                           } else {
-                            setMarketingExpanded(!marketingExpanded);
-                            if (!isMarketingMenu) {
-                              onSelectMenu('marketing-overview');
+                            if (isMarketingRoot) {
+                              setMarketingExpanded(!marketingExpanded);
+                              if (!isMarketingMenu) onSelectMenu('marketing-overview');
+                            }
+                            if (isHrRoot) {
+                              setHrExpanded(!hrExpanded);
+                              if (!isHrMenu) onSelectMenu('hr-dashboard');
                             }
                           }
                         } else {
@@ -362,7 +416,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
                       {!isCollapsed && hasSub && (
                         <span className="text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform ml-1">
-                          {marketingExpanded ? (
+                          {isExpanded ? (
                             <ChevronDown className="w-3.5 h-3.5" />
                           ) : (
                             <ChevronRight className="w-3.5 h-3.5" />
@@ -375,8 +429,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       )}
                     </button>
 
-                    {/* Submenu sections (Expanded under Marketing) */}
-                    {!isCollapsed && hasSub && marketingExpanded && item.subSections && (
+                    {/* Submenu sections (Expanded under Marketing or HR) */}
+                    {!isCollapsed && hasSub && isExpanded && item.subSections && (
                       <div className="ml-4 pl-2.5 border-l-2 border-zinc-200 dark:border-zinc-800/80 space-y-3.5 my-1.5 transition-all">
                         {item.subSections.map((sec, sIdx) => (
                           <div key={sIdx} className="space-y-1">
@@ -388,7 +442,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                                 const SubIcon = sub.icon;
                                 const isSubActive =
                                   currentMenu === sub.key ||
-                                  (sub.key === 'marketing-overview' && currentMenu === 'marketing');
+                                  (sub.key === 'marketing-overview' && currentMenu === 'marketing') ||
+                                  (sub.key === 'hr-dashboard' && currentMenu === 'hr');
 
                                 return (
                                   <button

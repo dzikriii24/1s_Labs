@@ -1206,6 +1206,224 @@ export interface MarketingStatsResponse {
   };
 }
 
+// ==========================================
+// HR & RECRUITMENT MANAGEMENT TYPES
+// ==========================================
+export type HRPromotedStatus =
+  | 'new_candidate'
+  | 'contacted'
+  | 'responded'
+  | 'screening'
+  | 'interview_scheduled'
+  | 'interview_completed'
+  | 'offered'
+  | 'rejected'
+  | 'on_hold';
+
+export type HREmailStatus =
+  | 'not_contacted'
+  | 'sent'
+  | 'delivered'
+  | 'replied'
+  | 'bounced'
+  | 'failed';
+
+export interface HRPosition {
+  id: number;
+  name: string;
+  department: string;
+  employment_type: 'full_time' | 'part_time' | 'contract' | 'freelance' | 'internship';
+  location?: string;
+  description?: string;
+  requirements?: string;
+  status: 'active' | 'inactive' | 'closed';
+  candidates_count?: number;
+  new_candidates_count?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface HRCandidate {
+  id: number;
+  position_id: number;
+  position_name?: string;
+  department?: string;
+  position_employment_type?: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  source: string;
+  recruitment_status: HRPromotedStatus;
+  email_status: HREmailStatus;
+  notes?: string;
+  rating?: number;
+  resume_url?: string;
+  portfolio_url?: string;
+  last_activity_at: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface HRCandidateActivity {
+  id: number;
+  candidate_id: number;
+  activity_type: string;
+  title: string;
+  description?: string;
+  metadata_json?: any;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface HREmailTemplate {
+  id: number;
+  template_key: string;
+  name: string;
+  category: string;
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  variables_json?: string;
+  is_default: number | boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface HREmailLog {
+  id: number;
+  campaign_id?: number;
+  candidate_id?: number;
+  candidate_name?: string;
+  recipient_email: string;
+  recipient_name?: string;
+  sender_email: string;
+  subject: string;
+  body_html?: string;
+  status: 'sent' | 'delivered' | 'failed' | 'bounced';
+  message_id?: string;
+  error_message?: string;
+  sent_at: string;
+}
+
+export interface HREmailReply {
+  id: number;
+  candidate_id?: number;
+  from_email: string;
+  from_name?: string;
+  subject: string;
+  body_text: string;
+  body_html?: string;
+  received_at: string;
+  status: 'unread' | 'read' | 'replied' | 'archived';
+  message_id?: string;
+  in_reply_to?: string;
+}
+
+export interface HRConversationThread {
+  from_email: string;
+  from_name?: string;
+  last_message_date: string;
+  last_subject: string;
+  last_preview: string;
+  unread_count: number;
+  total_messages: number;
+  candidate_id?: number;
+  candidate_name?: string;
+  position_name?: string;
+  recruitment_status?: HRPromotedStatus;
+  email_status?: HREmailStatus;
+}
+
+export interface HRInterviewSlotCandidate {
+  id: number;
+  queue_number: number;
+  candidate_name: string;
+  status: string;
+  queue_status?: string;
+  estimated_start_time?: string;
+  estimated_end_time?: string;
+}
+
+export interface HRInterviewSlot {
+  id: number;
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  timezone: string;
+  meeting_link?: string;
+  max_capacity?: number;
+  booked_count?: number;
+  remaining_capacity?: number;
+  duration_per_candidate?: number;
+  next_queue_number?: number;
+  estimated_start_time?: string;
+  estimated_end_time?: string;
+  is_booked: number | boolean;
+  is_active: number | boolean;
+  candidates?: HRInterviewSlotCandidate[];
+}
+
+export interface HRInterview {
+  id: number;
+  candidate_id: number;
+  candidate_name?: string;
+  candidate_email?: string;
+  candidate_phone?: string;
+  position_id?: number;
+  position_name?: string;
+  department?: string;
+  slot_id?: number;
+  queue_number?: number;
+  estimated_start_time?: string;
+  estimated_end_time?: string;
+  queue_status?: 'waiting' | 'in_progress' | 'completed' | string;
+  scheduling_token: string;
+  token_expires_at: string;
+  interview_date?: string;
+  interview_time?: string;
+  timezone: string;
+  meeting_platform: string;
+  meeting_link?: string;
+  instructions?: string;
+  status: 'pending_selection' | 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'rescheduled' | 'cancelled';
+  cancellation_reason?: string;
+  interviewer_notes?: string;
+  rating?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface HRNotification {
+  id: number;
+  type: string;
+  candidate_id?: number;
+  interview_id?: number;
+  title: string;
+  message: string;
+  is_read: number | boolean;
+  created_at: string;
+}
+
+export interface HRStatsResponse {
+  success: boolean;
+  stats: {
+    total_candidates: number;
+    new_candidates: number;
+    emails_sent: number;
+    candidates_replied: number;
+    interview_scheduled: number;
+    interview_completed: number;
+    candidates_accepted: number;
+    candidates_rejected: number;
+  };
+  timeline: { date: string; count: number }[];
+  status_breakdown: { status: HRPromotedStatus; count: number }[];
+  recent_emails: any[];
+  upcoming_interviews: HRInterview[];
+  recent_activities: any[];
+}
+
 const API_BASE = '/api';
 
 
@@ -3175,6 +3393,350 @@ export const api = {
         message: string;
       }>(`/docs/${id}`, {
         method: 'DELETE'
+      })
+  },
+
+  hr: {
+    getStats: () =>
+      request<HRStatsResponse>('/admin/hr/stats'),
+
+    getNotifications: () =>
+      request<{ success: boolean; notifications: HRNotification[] }>('/admin/hr/notifications'),
+
+    markNotificationRead: (id: number) =>
+      request<{ success: boolean }>(`/admin/hr/notifications/${id}/read`, { method: 'PUT' }),
+
+    markAllNotificationsRead: () =>
+      request<{ success: boolean }>('/admin/hr/notifications/read-all', { method: 'PUT' }),
+
+    // Positions
+    getPositions: (params?: { status?: string }) =>
+      request<{ success: boolean; positions: HRPosition[] }>(`/admin/hr/positions${buildQueryString(params)}`),
+
+    createPosition: (payload: {
+      name: string;
+      department: string;
+      employment_type: string;
+      location?: string;
+      description?: string;
+      requirements?: string;
+      status?: string;
+    }) =>
+      request<{ success: boolean; message: string; position: HRPosition }>('/admin/hr/positions', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updatePosition: (id: number, payload: Partial<HRPosition>) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/positions/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    togglePositionStatus: (id: number, status: string) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/positions/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      }),
+
+    deletePosition: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/positions/${id}`, {
+        method: 'DELETE'
+      }),
+
+    // Candidates
+    getCandidates: (params?: {
+      search?: string;
+      position_id?: string | number;
+      recruitment_status?: string;
+      email_status?: string;
+      sort_by?: string;
+      order?: string;
+      page?: number;
+      limit?: number;
+    }) =>
+      request<{
+        success: boolean;
+        candidates: HRCandidate[];
+        pagination: { total: number; page: number; limit: number; total_pages: number };
+      }>(`/admin/hr/candidates${buildQueryString(params)}`),
+
+    getCandidate: (id: number) =>
+      request<{
+        success: boolean;
+        candidate: HRCandidate;
+        activities: HRCandidateActivity[];
+        email_logs: HREmailLog[];
+        email_replies: HREmailReply[];
+        interviews: HRInterview[];
+      }>(`/admin/hr/candidates/${id}`),
+
+    createCandidate: (payload: {
+      full_name: string;
+      email: string;
+      phone?: string;
+      position_id: number;
+      source?: string;
+      notes?: string;
+      resume_url?: string;
+      portfolio_url?: string;
+    }) =>
+      request<{ success: boolean; message: string; candidate: HRCandidate }>('/admin/hr/candidates', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateCandidate: (id: number, payload: Partial<HRCandidate>) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/candidates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    updateCandidateStatus: (id: number, payload: { recruitment_status: HRPromotedStatus; reason?: string }) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/candidates/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteCandidate: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/candidates/${id}`, {
+        method: 'DELETE'
+      }),
+
+    addCandidateNote: (id: number, note: string) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/candidates/${id}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ note })
+      }),
+
+    // Emails
+    getEmailTemplates: () =>
+      request<{ success: boolean; templates: HREmailTemplate[] }>('/admin/hr/emails/templates'),
+
+    createEmailTemplate: (payload: Partial<HREmailTemplate>) =>
+      request<{ success: boolean; message: string }>('/admin/hr/emails/templates', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    updateEmailTemplate: (id: number, payload: Partial<HREmailTemplate>) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/emails/templates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }),
+
+    sendEmails: (payload: {
+      candidate_ids: number[];
+      template_key?: string | null;
+      custom_subject?: string;
+      custom_body?: string;
+      campaign_title?: string;
+    }) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/hr/emails/send', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    sendEmail: (payload: {
+      candidate_ids: number[];
+      template_key?: string | null;
+      custom_subject?: string;
+      custom_body?: string;
+      campaign_title?: string;
+    }) =>
+      request<{ success: boolean; message: string; result: any }>('/admin/hr/emails/send', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    getEmailLogs: (params?: { search?: string; status?: string; page?: number; limit?: number }) =>
+      request<{
+        success: boolean;
+        logs: HREmailLog[];
+        pagination: { total: number; page: number; limit: number; total_pages: number };
+      }>(`/admin/hr/emails/logs${buildQueryString(params)}`),
+
+    retryEmail: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/emails/logs/${id}/retry`, {
+        method: 'POST'
+      }),
+
+    retryEmailLog: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/emails/logs/${id}/retry`, {
+        method: 'POST'
+      }),
+
+    // HR Inbox
+    getInboxThreads: (params?: { search?: string; filter?: string }) =>
+      request<{ success: boolean; threads: HRConversationThread[] }>(`/admin/hr/inbox/threads${buildQueryString(params)}`),
+
+    getThreadMessages: (email: string) =>
+      request<{
+        success: boolean;
+        candidate: HRCandidate | null;
+        messages: Array<{
+          id: number;
+          from_email: string;
+          from_name?: string;
+          subject: string;
+          body_text: string;
+          body_html?: string;
+          message_date: string;
+          status: string;
+          direction: 'incoming' | 'outgoing';
+        }>;
+      }>(`/admin/hr/inbox/messages/${encodeURIComponent(email)}`),
+
+    syncInbox: () =>
+      request<{ success: boolean; message: string; result: any }>('/admin/hr/inbox/sync', {
+        method: 'POST'
+      }),
+
+    sendInboxReply: (payload: {
+      recipient_email: string;
+      subject: string;
+      message_text: string;
+      candidate_id?: number | null;
+    }) =>
+      request<{ success: boolean; message: string }>('/admin/hr/inbox/reply', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    markReplyRead: (id: number) =>
+      request<{ success: boolean }>(`/admin/hr/inbox/read/${id}`, {
+        method: 'PATCH'
+      }),
+
+    connectCandidate: (payload: { reply_id: number; position_id?: number; full_name?: string }) =>
+      request<{ success: boolean; message: string; candidate_id: number }>('/admin/hr/inbox/connect-candidate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    // Interview Slots
+    getInterviewSlots: (params?: { start_date?: string; end_date?: string }) =>
+      request<{ success: boolean; slots: HRInterviewSlot[] }>(`/admin/hr/interview-slots${buildQueryString(params)}`),
+
+    createInterviewSlot: (payload: {
+      slot_date: string;
+      start_time: string;
+      end_time: string;
+      meeting_link: string;
+      max_capacity?: number;
+      duration_minutes?: number;
+      timezone?: string;
+    }) =>
+      request<{ success: boolean; message: string; slot_id: number }>('/admin/hr/interview-slots', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    deleteInterviewSlot: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interview-slots/${id}`, {
+        method: 'DELETE'
+      }),
+
+    toggleInterviewSlot: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interview-slots/${id}/toggle`, {
+        method: 'PATCH'
+      }),
+
+    // Interviews
+    getInterviews: (params?: { status?: string; search?: string }) =>
+      request<{ success: boolean; interviews: HRInterview[] }>(`/admin/hr/interviews${buildQueryString(params)}`),
+
+    inviteCandidateToInterview: (payload: { candidate_id: number; send_email?: boolean }) =>
+      request<{ success: boolean; message: string; interview_id: number; scheduling_url: string }>('/admin/hr/interviews/invite', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    startInterviewSession: (id: number) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interviews/${id}/start-session`, {
+        method: 'PATCH'
+      }),
+
+    confirmInterview: (id: number, payload: { meeting_link: string; instructions?: string }) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interviews/${id}/confirm`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    rescheduleInterview: (id: number, payload: {
+      interview_date: string;
+      interview_time: string;
+      meeting_link?: string;
+      reason?: string;
+    }) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interviews/${id}/reschedule`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    cancelInterview: (id: number, payload: { reason?: string }) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interviews/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    completeInterview: (id: number, payload: {
+      interviewer_notes?: string;
+      rating?: number;
+      advance_candidate_status?: boolean;
+    }) =>
+      request<{ success: boolean; message: string }>(`/admin/hr/interviews/${id}/complete`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      }),
+
+    // Public candidate scheduling endpoints
+    getPublicInterview: (token: string) =>
+      request<{
+        success: boolean;
+        is_booked_previously?: boolean;
+        is_active_turn?: boolean;
+        active_queue_number?: number | null;
+        interview: {
+          id: number;
+          candidate_name: string;
+          candidate_email: string;
+          position_name: string;
+          department: string;
+          status: string;
+          interview_date?: string;
+          interview_time?: string;
+          timezone: string;
+          meeting_platform: string;
+          meeting_link?: string;
+          instructions?: string;
+          expires_at: string;
+          queue_number?: number;
+          estimated_start_time?: string;
+          estimated_end_time?: string;
+          queue_status?: string;
+        };
+        slot_queue?: Array<{
+          id: number;
+          queue_number: number;
+          candidate_name: string;
+          is_you: boolean;
+          status: string;
+          queue_status?: string;
+          estimated_start_time?: string;
+          estimated_end_time?: string;
+        }>;
+        available_slots: HRInterviewSlot[];
+      }>(`/hr/public/interview/${encodeURIComponent(token)}`),
+
+    bookPublicInterview: (token: string, payload: { slot_id: number; candidate_notes?: string }) =>
+      request<{
+        success: boolean;
+        message: string;
+        booking: any;
+      }>(`/hr/public/interview/${encodeURIComponent(token)}/book`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
       })
   }
 };

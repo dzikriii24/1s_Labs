@@ -3,6 +3,7 @@ const router = express.Router();
 const { query, withTransaction } = require('../db');
 const { requireAuth, requireAdmin, requireAdminOrMarketing } = require('../middleware/auth');
 const { getDailyQuotaStatus, addToSuppressionList, isSuppressed, sendMarketingEmail, verifyUnsubscribeToken } = require('../services/marketing/marketingEmail.service');
+const { formatTextToEmailHtml } = require('../utils/emailFormatter');
 const { runDiscoveryJob } = require('../services/marketing/discoveryScheduler.service');
 const { extractAndEnrichBusiness, classifyEmailResponse, callGeminiApi, recoverSmallBusinessContact, generatePersonalizedEmailDraft } = require('../services/marketing/gemini.service');
 const { recoverCompanyContact, runBatchContactRecovery, getContactRecoveryStats } = require('../services/marketing/contactRecovery.service');
@@ -1230,23 +1231,8 @@ router.post('/companies/:id/send-direct-email', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Bisnis tidak ditemukan.' });
     }
 
-    // Convert plain text newlines into formatted paragraphs and bullet lists
-    const paragraphs = message_text
-      .split(/\n\s*\n/)
-      .map(p => {
-        const cleanP = p.trim();
-        if (!cleanP) return '';
-        if (cleanP.includes('•') || cleanP.startsWith('- ')) {
-          const lines = cleanP.split('\n').map(l => {
-            const trimmed = l.trim().replace(/^[•\-]\s*/, '');
-            return `<li style="margin-bottom: 6px;">${trimmed}</li>`;
-          });
-          return `<ul style="margin: 12px 0; padding-left: 20px; color: #27272a; line-height: 1.6;">${lines.join('')}</ul>`;
-        }
-        return `<p style="margin: 0 0 16px 0; line-height: 1.65; color: #27272a; font-size: 14px;">${cleanP.replace(/\n/g, '<br/>')}</p>`;
-      })
-      .filter(Boolean)
-      .join('\n');
+    // Convert plain text / markdown into formatted paragraphs, bold, and bullet lists
+    const paragraphs = formatTextToEmailHtml(message_text);
 
     const result = await sendMarketingEmail({
       campaignId: null,

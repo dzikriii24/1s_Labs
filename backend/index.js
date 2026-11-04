@@ -26,6 +26,7 @@ const marketingRoutes = require('./src/routes/marketing.routes');
 const companyEmailsRoutes = require('./src/routes/companyEmails.routes');
 const usersRoutes = require('./src/routes/users.routes');
 const docsRoutes = require('./src/routes/docs.routes');
+const hrRoutes = require('./src/routes/hr.routes');
 const SuspensionService = require('./src/services/suspension.service');
 const { runDailyAutomatedDiscovery } = require('./src/services/marketing/discoveryScheduler.service');
 
@@ -107,6 +108,8 @@ apiRouter.use('/admin/company-emails', companyEmailsRoutes);
 apiRouter.use('/admin/users', usersRoutes);
 apiRouter.use('/docs', docsRoutes);
 apiRouter.use('/admin/docs', docsRoutes);
+apiRouter.use('/admin/hr', hrRoutes);
+apiRouter.use('/hr', hrRoutes);
 
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);
@@ -160,6 +163,14 @@ setInterval(() => {
     console.warn('[Scheduler Check Error]:', err.message);
   }
 }, 30 * 60 * 1000);
+
+// Periodic HR Inbox Maildir Sync (every 10 minutes)
+const { syncHRInbox } = require('./src/services/hrInboundEmail.service');
+setInterval(() => {
+  syncHRInbox().catch(err => {
+    // Graceful fallback if directory not present (e.g. local dev)
+  });
+}, 10 * 60 * 1000);
 
 // Start Server (Passenger and Standalone compatible)
 if (typeof(PhusionPassenger) !== 'undefined') {

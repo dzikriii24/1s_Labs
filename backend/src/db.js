@@ -15,7 +15,8 @@ const dbConfig = {
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  dateStrings: true
+  dateStrings: true,
+  charset: 'utf8mb4'
 };
 
 const pool = mysql.createPool(dbConfig);

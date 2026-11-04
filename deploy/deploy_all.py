@@ -75,8 +75,11 @@ def main():
 
     # 3. Reload Passenger Node.js app
     print("\n--- 3. Reloading Passenger Backend Application ---")
-    restart_cmd = f"mkdir -p {REMOTE_BACKEND}/tmp && touch {REMOTE_BACKEND}/tmp/restart.txt"
-    ssh.exec_command(restart_cmd)
+    restart_cmd = f"mkdir -p {REMOTE_BACKEND}/tmp && touch {REMOTE_BACKEND}/tmp/restart.txt && cloudlinux-selector restart --json --interpreter nodejs --app-root oneslabs-backend"
+    stdin, stdout, stderr = ssh.exec_command(restart_cmd)
+    out = stdout.read().decode('utf-8').strip()
+    if out:
+        print(f"Selector output: {out}")
     print("[OK] Passenger restart signal triggered.")
 
     ssh.close()

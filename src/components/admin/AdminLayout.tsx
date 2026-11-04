@@ -33,6 +33,7 @@ import { InquiriesManagementView } from './views/InquiriesManagementView';
 import { FeedbackManagementView } from './views/FeedbackManagementView';
 import { DocsManagementView } from './views/DocsManagementView';
 import { MarketingView } from './views/marketing/MarketingView';
+import { HRManagementView } from './views/hr/HRManagementView';
 import notify from '../../lib/notify';
 
 export const AdminLayout: React.FC = () => {
@@ -43,6 +44,7 @@ export const AdminLayout: React.FC = () => {
   const isMarketingAllowedTab = (tab: string) => {
     return (
       tab.startsWith('marketing') ||
+      tab.startsWith('hr') ||
       ['feedback', 'inquiries', 'emails', 'email-templates', 'docs-management'].includes(tab)
     );
   };
@@ -122,6 +124,28 @@ export const AdminLayout: React.FC = () => {
         return <OverviewDashboardView key={refreshKey} onNavigate={handleSelectTab} />;
       case 'analytics':
         return <AnalyticsDashboardView key={refreshKey} />;
+      case 'hr':
+      case 'hr-dashboard':
+      case 'hr-candidates':
+      case 'hr-pipeline':
+      case 'hr-campaigns':
+      case 'hr-inbox':
+      case 'hr-interviews':
+      case 'hr-positions': {
+        const sub = (
+          activeTab === 'hr' || activeTab === 'hr-dashboard'
+            ? 'dashboard'
+            : activeTab.replace('hr-', '')
+        ) as any;
+        return (
+          <HRManagementView
+            key={refreshKey}
+            initialSubtab={sub}
+            onNavigateSubtab={(newSub) => handleSelectTab(`hr-${newSub}` as AdminMenuKey)}
+            onNavigate={handleSelectTab}
+          />
+        );
+      }
       case 'marketing':
       case 'marketing-overview':
       case 'marketing-indonesia':

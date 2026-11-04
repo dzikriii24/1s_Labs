@@ -4,6 +4,7 @@ const { query } = require('../../db');
 const { classifyEmailResponse } = require('./gemini.service');
 const { addToSuppressionList } = require('./marketingEmail.service');
 const { getTransporter, wrapHtmlEmail } = require('../email.service');
+const { formatTextToEmailHtml } = require('../../utils/emailFormatter');
 
 const FROM_ADDRESS = process.env.MAIL_FROM_ADDRESS || 'info@1slabs.my.id';
 const FROM_NAME = process.env.MAIL_FROM_NAME || '1s Labs';
@@ -620,14 +621,15 @@ async function sendDirectCustomerReply({ recipient_email, recipient_name, compan
   const cleanEmail = recipient_email.trim().toLowerCase();
   const finalSubject = subject ? (subject.startsWith('Re:') ? subject : `Re: ${subject}`) : 'Tanggapan dari 1sLabs';
 
-  // Format HTML message
+  // Format HTML message with paragraphs, bold, and list styling
+  const formattedBody = formatTextToEmailHtml(message_text);
   const styledContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #18181b;">
-      <p>Halo <strong>${recipient_name || cleanEmail}</strong>,</p>
-      ${message_text.split(/\r?\n/).filter(p => p.trim() !== '').map(p => `<p style="margin: 10px 0;">${p.trim()}</p>`).join('')}
-      <p style="margin-top: 24px; color: #52525b; font-size: 13px;">
+      <p style="margin: 0 0 16px 0; line-height: 1.65; color: #18181b; font-size: 14px;">Halo <strong style="color: #09090b; font-weight: 700;">${recipient_name || cleanEmail}</strong>,</p>
+      ${formattedBody}
+      <p style="margin-top: 24px; color: #52525b; font-size: 13px; line-height: 1.6;">
         Salam hangat,<br>
-        <strong>Tim 1sLabs</strong><br>
+        <strong style="color: #18181b;">Tim 1sLabs</strong><br>
         <a href="https://1slabs.my.id" style="color: #059669; text-decoration: none; font-weight: 600;">1slabs.my.id</a> &bull; WhatsApp: +62 851-5629-6580
       </p>
     </div>

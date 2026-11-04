@@ -637,10 +637,25 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
   };
 
   const formatInlineText = (text: string): React.ReactNode => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    // Match bold **text** or markdown links [label](url)
+    const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={i} className="font-semibold text-zinc-950">{part.slice(2, -2)}</strong>;
+      }
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        return (
+          <a
+            key={i}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noreferrer"
+            className="text-zinc-900 underline font-semibold hover:text-emerald-600"
+          >
+            {linkMatch[1]}
+          </a>
+        );
       }
       return part;
     });
@@ -686,6 +701,28 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
 
     lines.forEach((rawLine, idx) => {
       const line = rawLine.trim();
+
+      // Standalone CTA Button on its own line: [BUTTON: Label](url) or [Label ->](url) or [Label](url)
+      const buttonMatch = line.match(/^\[(?:BUTTON:\s*)?([^\]]+)\]\(([^)]+)\)$/i);
+      if (buttonMatch) {
+        flushBullets(`flush-${idx}`);
+        let label = buttonMatch[1].replace(/(?:->|&rarr;|→)\s*$/i, '').trim();
+        elements.push(
+          <div key={`btn-${idx}`} className="my-6 text-center">
+            <a
+              href={buttonMatch[2]}
+              target="_blank"
+              rel="noreferrer"
+              onClick={e => e.preventDefault()}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold tracking-tight shadow-md transition-all cursor-pointer group"
+            >
+              <span>{label}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </a>
+          </div>
+        );
+        return;
+      }
 
       if (line.startsWith('•') || line.startsWith('- ') || line.startsWith('* ')) {
         const itemText = line.replace(/^[•\-\*]\s*/, '');

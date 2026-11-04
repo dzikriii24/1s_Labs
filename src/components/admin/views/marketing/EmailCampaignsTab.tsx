@@ -34,6 +34,11 @@ import {
   Trash2
 } from 'lucide-react';
 import {
+  formatTextToEmailHtml,
+  htmlToFormattedText,
+  cleanMojibake
+} from '../../../../utils/emailFormatter';
+import {
   api,
   MarketingCampaign,
   MarketingEmailTemplate,
@@ -416,14 +421,14 @@ export const EmailCampaignsTab: React.FC = () => {
     setSelectedTemplateKey(keyOrId);
     const official = OFFICIAL_1SLABS_TEMPLATES.find(t => t.id === keyOrId);
     if (official) {
-      setCampaignSubject(official.subject);
-      setCampaignBody(official.body_html);
+      setCampaignSubject(cleanMojibake(official.subject));
+      setCampaignBody(htmlToFormattedText(official.body_html));
       return;
     }
     const dbTpl = templates.find(t => String(t.id) === keyOrId);
     if (dbTpl) {
-      setCampaignSubject(dbTpl.subject);
-      setCampaignBody(dbTpl.body_html);
+      setCampaignSubject(cleanMojibake(dbTpl.subject));
+      setCampaignBody(htmlToFormattedText(dbTpl.body_html));
     }
   };
 
@@ -435,8 +440,8 @@ export const EmailCampaignsTab: React.FC = () => {
     setCampaignName('');
     const firstTpl = OFFICIAL_1SLABS_TEMPLATES[0];
     setSelectedTemplateKey(firstTpl.id);
-    setCampaignSubject(firstTpl.subject);
-    setCampaignBody(firstTpl.body_html);
+    setCampaignSubject(cleanMojibake(firstTpl.subject));
+    setCampaignBody(htmlToFormattedText(firstTpl.body_html));
     setSelectedCompanyIds(new Set());
     setAvoidRecentContact(true);
     setIsCreateOpen(true);
@@ -450,7 +455,7 @@ export const EmailCampaignsTab: React.FC = () => {
       setIsResendMode(false);
       setCampaignName(camp.name);
       setCampaignSubject(camp.subject);
-      setCampaignBody(camp.body_html);
+      setCampaignBody(htmlToFormattedText(camp.body_html));
       setAvoidRecentContact(false);
       setCandidateFilterStatus('all');
       setCreateStep(1);
@@ -481,7 +486,7 @@ export const EmailCampaignsTab: React.FC = () => {
       setIsResendMode(true);
       setCampaignName(camp.name);
       setCampaignSubject(camp.subject);
-      setCampaignBody(camp.body_html);
+      setCampaignBody(htmlToFormattedText(camp.body_html));
       setAvoidRecentContact(false);
       setCandidateFilterStatus('all');
       setCreateStep(1);
@@ -525,8 +530,8 @@ export const EmailCampaignsTab: React.FC = () => {
         : OFFICIAL_1SLABS_TEMPLATES.find(t => t.id === 'tpl-followup-local')!;
 
       setSelectedTemplateKey(followUpTpl.id);
-      setCampaignSubject(followUpTpl.subject);
-      setCampaignBody(followUpTpl.body_html);
+      setCampaignSubject(cleanMojibake(followUpTpl.subject));
+      setCampaignBody(htmlToFormattedText(followUpTpl.body_html));
 
       const recRes = await api.marketing.getCampaignRecipients(camp.id);
       if (recRes.success && recRes.data) {
@@ -628,7 +633,7 @@ export const EmailCampaignsTab: React.FC = () => {
         res = await api.marketing.updateCampaign(editingCampaign.id, {
           name: campaignName,
           subject: campaignSubject,
-          body_html: campaignBody,
+          body_html: formatTextToEmailHtml(campaignBody),
           target_company_ids: Array.from(selectedCompanyIds),
           avoid_recently_contacted: avoidRecentContact,
           reset_to_draft: isResendMode || editingCampaign.status === 'completed'
@@ -638,7 +643,7 @@ export const EmailCampaignsTab: React.FC = () => {
         res = await api.marketing.createCampaign({
           name: campaignName,
           subject: campaignSubject,
-          body_html: campaignBody,
+          body_html: formatTextToEmailHtml(campaignBody),
           target_company_ids: Array.from(selectedCompanyIds),
           avoid_recently_contacted: avoidRecentContact
         });
@@ -768,7 +773,7 @@ export const EmailCampaignsTab: React.FC = () => {
       .replace(/{{province}}/gi, isEnglish ? 'Wilayah Persekutuan' : 'Jawa Barat')
       .replace(/{{unsubscribe_url}}/gi, '#unsubscribe');
 
-    return substituted;
+    return formatTextToEmailHtml(substituted);
   }, [campaignBody, selectedTemplateKey]);
 
   return (
@@ -1328,7 +1333,7 @@ export const EmailCampaignsTab: React.FC = () => {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-semibold text-zinc-800">
-                        Isi Pesan Email (HTML) <span className="text-rose-500">*</span>
+                        Isi Pesan Email (Teks Alami & HTML) <span className="text-rose-500">*</span>
                       </label>
                       <span className="text-[10px] text-zinc-400 font-mono">
                         Perubahan langsung ter-render pada panel preview di sebelah kanan
@@ -1338,9 +1343,12 @@ export const EmailCampaignsTab: React.FC = () => {
                       rows={12}
                       value={campaignBody}
                       onChange={e => setCampaignBody(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                      placeholder="Tuliskan kode HTML email..."
+                      className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-sans leading-relaxed focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      placeholder="Tuliskan pesan email disini (gunakan Enter untuk paragraf, **teks tebal**, dan - untuk poin bullet)..."
                     />
+                    <div className="mt-1.5 text-[11px] text-zinc-500">
+                      <span className="font-semibold text-zinc-700">Tombol Aksi (CTA Button):</span> Tulis tautan di baris tersendiri seperti <code className="bg-zinc-100 px-1 py-0.5 rounded text-[10px] text-zinc-800 font-mono">[Jadwalkan Konsultasi -&gt;](https://1slabs.my.id/schedule)</code> untuk otomatis menghasilkan tombol hitam resmi 1sLabs.
+                    </div>
                   </div>
 
                   {/* Safe Guardrail Option */}
