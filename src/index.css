@@ -319,3 +319,460 @@ body {
   margin-top: 18px;
   margin-bottom: 8px;
 }
+
+/* =========================================================
+   1sLabs BLOG & RICH ARTICLE PROSE + EDITOR TYPOGRAPHY
+   ========================================================= */
+.oneslabs-blog-prose,
+.oneslabs-prose-editor {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: #374151;
+  overflow-wrap: anywhere;
+}
+
+.dark .oneslabs-blog-prose,
+.dark .oneslabs-prose-editor {
+  color: #d1d5db;
+}
+
+.oneslabs-blog-prose h2,
+.oneslabs-prose-editor h2 {
+  font-family: 'Mori', 'Inter', sans-serif;
+  font-size: clamp(1.375rem, 2vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin-top: 2.25rem;
+  margin-bottom: 0.85rem;
+  scroll-margin-top: 6.5rem;
+  color: #111827;
+}
+
+.dark .oneslabs-blog-prose h2,
+.dark .oneslabs-prose-editor h2 {
+  color: #f9fafb;
+}
+
+.oneslabs-blog-prose h3,
+.oneslabs-prose-editor h3 {
+  font-family: 'Mori', 'Inter', sans-serif;
+  font-size: clamp(1.15rem, 1.5vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  margin-top: 1.75rem;
+  margin-bottom: 0.65rem;
+  scroll-margin-top: 6.5rem;
+  color: #1f2937;
+}
+
+.dark .oneslabs-blog-prose h3,
+.dark .oneslabs-prose-editor h3 {
+  color: #e5e7eb;
+}
+
+.oneslabs-blog-prose p,
+.oneslabs-prose-editor p {
+  margin-bottom: 1.35rem;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.oneslabs-blog-prose ul,
+.oneslabs-prose-editor ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.35rem;
+}
+
+.oneslabs-blog-prose ol,
+.oneslabs-prose-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1.35rem;
+}
+
+.oneslabs-blog-prose li,
+.oneslabs-prose-editor li {
+  margin-bottom: 0.5rem;
+  line-height: 1.75;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.oneslabs-blog-prose h1,
+.oneslabs-blog-prose h2,
+.oneslabs-blog-prose h3,
+.oneslabs-blog-prose h4,
+.oneslabs-prose-editor h1,
+.oneslabs-prose-editor h2,
+.oneslabs-prose-editor h3,
+.oneslabs-prose-editor h4,
+.oneslabs-blog-prose td,
+.oneslabs-blog-prose th,
+.oneslabs-prose-editor td,
+.oneslabs-prose-editor th,
+.oneslabs-blog-prose .oneslabs-cta-block,
+.oneslabs-blog-prose .oneslabs-cta-block p,
+.oneslabs-prose-editor .oneslabs-cta-block,
+.oneslabs-prose-editor .oneslabs-cta-block p {
+  text-align: left;
+}
+
+.oneslabs-blog-prose a,
+.oneslabs-prose-editor a {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.35);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.oneslabs-blog-prose a:hover,
+.oneslabs-prose-editor a:hover {
+  color: #1d4ed8;
+  text-decoration-color: #1d4ed8;
+}
+
+.dark .oneslabs-blog-prose a,
+.dark .oneslabs-prose-editor a {
+  color: #60a5fa;
+  text-decoration-color: rgba(96, 165, 250, 0.4);
+}
+
+.oneslabs-blog-prose blockquote,
+.oneslabs-prose-editor blockquote {
+  border-left: 3px solid #2563eb;
+  background-color: #f9fafb;
+  padding: 1rem 1.25rem;
+  border-radius: 0 12px 12px 0;
+  margin: 1.65rem 0;
+  color: #374151;
+}
+
+.dark .oneslabs-blog-prose blockquote,
+.dark .oneslabs-prose-editor blockquote {
+  background-color: rgba(31, 41, 55, 0.45);
+  color: #d1d5db;
+}
+
+/* Important: block layout prevents inline strong/a/text splitting into vertical columns */
+.oneslabs-blog-prose .callout-box,
+.oneslabs-prose-editor .callout-box {
+  display: block;
+  width: 100%;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  line-height: 1.75;
+}
+
+.dark .oneslabs-blog-prose .callout-box,
+.dark .oneslabs-prose-editor .callout-box {
+  border-color: #1e40af;
+  background-color: rgba(30, 58, 138, 0.25);
+  color: #dbeafe;
+}
+
+.oneslabs-blog-prose .callout-box > p:last-child,
+.oneslabs-prose-editor .callout-box > p:last-child {
+  margin-bottom: 0;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.65rem 0;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.dark .oneslabs-blog-prose .oneslabs-table-wrap {
+  border-color: #262626;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.92rem;
+  display: table;
+}
+
+.oneslabs-blog-prose > table,
+.oneslabs-prose-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+  overflow-x: auto;
+  display: block;
+}
+
+.oneslabs-blog-prose th,
+.oneslabs-prose-editor th,
+.oneslabs-blog-prose td,
+.oneslabs-prose-editor td {
+  border: 1px solid #e5e7eb;
+  padding: 0.7rem 0.95rem;
+  text-align: left;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap tr:first-child th,
+.oneslabs-blog-prose .oneslabs-table-wrap tr:first-child td {
+  border-top: 0;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap tr:last-child td {
+  border-bottom: 0;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap th:first-child,
+.oneslabs-blog-prose .oneslabs-table-wrap td:first-child {
+  border-left: 0;
+}
+
+.oneslabs-blog-prose .oneslabs-table-wrap th:last-child,
+.oneslabs-blog-prose .oneslabs-table-wrap td:last-child {
+  border-right: 0;
+}
+
+.oneslabs-blog-prose th,
+.oneslabs-prose-editor th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dark .oneslabs-blog-prose th,
+.dark .oneslabs-prose-editor th {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+}
+
+.dark .oneslabs-blog-prose td,
+.dark .oneslabs-prose-editor td {
+  border-color: #374151;
+}
+
+.oneslabs-blog-prose img,
+.oneslabs-prose-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1rem auto;
+}
+
+.oneslabs-blog-prose pre,
+.oneslabs-prose-editor pre {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  padding: 1rem 1.2rem;
+  border-radius: 12px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  margin: 1.25rem 0;
+}
+
+.oneslabs-blog-prose h4,
+.oneslabs-prose-editor h4 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.45;
+  margin-top: 1.35rem;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+}
+
+.dark .oneslabs-blog-prose h4,
+.dark .oneslabs-prose-editor h4 {
+  color: #f1f5f9;
+}
+
+.oneslabs-blog-prose hr,
+.oneslabs-prose-editor hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem auto;
+  max-width: 180px;
+}
+
+.dark .oneslabs-blog-prose hr,
+.dark .oneslabs-prose-editor hr {
+  border-top-color: #27272a;
+}
+
+.oneslabs-blog-prose code:not(pre code),
+.oneslabs-prose-editor code:not(pre code) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.dark .oneslabs-blog-prose code:not(pre code),
+.dark .oneslabs-prose-editor code:not(pre code) {
+  background-color: #27272a;
+  color: #e2e8f0;
+}
+
+.oneslabs-blog-prose figure,
+.oneslabs-prose-editor figure {
+  margin: 1.5rem auto;
+}
+
+.oneslabs-blog-prose figcaption,
+.oneslabs-prose-editor figcaption {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.oneslabs-blog-prose .callout-box[data-tone="warning"],
+.oneslabs-prose-editor .callout-box[data-tone="warning"] {
+  border-color: #fde68a;
+  border-left-color: #d97706;
+  background-color: #fffbeb;
+  color: #78350f;
+}
+
+.oneslabs-blog-prose .callout-box[data-tone="tip"],
+.oneslabs-prose-editor .callout-box[data-tone="tip"] {
+  border-color: #a7f3d0;
+  border-left-color: #059669;
+  background-color: #ecfdf5;
+  color: #064e3b;
+}
+
+.oneslabs-blog-prose .oneslabs-gallery,
+.oneslabs-prose-editor .oneslabs-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.oneslabs-blog-prose .oneslabs-gallery[data-cols="3"],
+.oneslabs-prose-editor .oneslabs-gallery[data-cols="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .oneslabs-blog-prose .oneslabs-gallery,
+  .oneslabs-blog-prose .oneslabs-gallery[data-cols="3"] {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oneslabs-blog-prose .oneslabs-gallery img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  margin: 0;
+  border-radius: 10px;
+}
+
+.oneslabs-blog-prose .oneslabs-embed,
+.oneslabs-prose-editor .oneslabs-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0f172a;
+  margin: 1.5rem 0;
+}
+
+.oneslabs-blog-prose .oneslabs-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.oneslabs-blog-prose .oneslabs-cta-block,
+.oneslabs-prose-editor .oneslabs-cta-block {
+  margin: 1.5rem 0;
+}
+
+.oneslabs-blog-prose .oneslabs-cta-block a.oneslabs-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.35rem;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  background-color: #2563eb;
+  color: #ffffff;
+  transition: background-color 0.15s ease;
+}
+
+.oneslabs-blog-prose .oneslabs-cta-block a.oneslabs-cta-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.oneslabs-blog-prose .oneslabs-cta-block[data-variant="secondary"] a.oneslabs-cta-btn {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.oneslabs-blog-prose .oneslabs-cta-block[data-variant="secondary"] a.oneslabs-cta-btn:hover {
+  background-color: #dbeafe;
+}
+
+/* TipTap Gutenberg Canvas & Table Selection */
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a1a1aa;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a1a1aa;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror .selectedCell::after {
+  background: rgba(37, 99, 235, 0.12);
+  content: '';
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  position: relative;
+  min-width: 90px;
+}
+
+.ProseMirror-gapcursor:after {
+  border-top: 1px solid #2563eb;
+}

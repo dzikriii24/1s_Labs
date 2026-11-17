@@ -1,0 +1,602 @@
+{
+ "node_stopped": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "header": {
+    "x": 288,
+    "y": 96,
+    "width": 749.6,
+    "height": 32
+   },
+   "createBtn": {
+    "x": 1173.6,
+    "y": 104,
+    "width": 234.4,
+    "height": 40
+   },
+   "stats": {
+    "x": 288,
+    "y": 176,
+    "width": 1120,
+    "height": 95.6
+   },
+   "appCard": {
+    "x": 309,
+    "y": 316.6,
+    "width": 1078,
+    "height": 44
+   },
+   "appName": {
+    "x": 363,
+    "y": 316.6,
+    "width": 106.4,
+    "height": 24
+   },
+   "statusBadge": {
+    "x": 589,
+    "y": 199,
+    "width": 47.1,
+    "height": 15
+   },
+   "startBtn": {
+    "x": 1276.8,
+    "y": 323.6,
+    "width": 72.2,
+    "height": 30
+   },
+   "fileMgrBtn": {
+    "x": 1031.3,
+    "y": 324.6,
+    "width": 123.0,
+    "height": 28
+   },
+   "deployBtn": {
+    "x": 1162.3,
+    "y": 324.6,
+    "width": 106.5,
+    "height": 28
+   },
+   "kebab": {
+    "x": 1357,
+    "y": 323.6,
+    "width": 30,
+    "height": 30
+   },
+   "sidebarNode": {
+    "x": 12,
+    "y": 292,
+    "width": 231,
+    "height": 32
+   }
+  }
+ },
+ "node_running": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "header": {
+    "x": 288,
+    "y": 96,
+    "width": 749.6,
+    "height": 32
+   },
+   "createBtn": {
+    "x": 1173.6,
+    "y": 104,
+    "width": 234.4,
+    "height": 40
+   },
+   "stats": {
+    "x": 288,
+    "y": 176,
+    "width": 1120,
+    "height": 95.6
+   },
+   "appCard": {
+    "x": 309,
+    "y": 316.6,
+    "width": 1078,
+    "height": 44
+   },
+   "appName": {
+    "x": 363,
+    "y": 316.6,
+    "width": 106.4,
+    "height": 24
+   },
+   "statusBadge": {
+    "x": 589,
+    "y": 199,
+    "width": 47.1,
+    "height": 15
+   },
+   "fileMgrBtn": {
+    "x": 1032.8,
+    "y": 324.6,
+    "width": 123.0,
+    "height": 28
+   },
+   "deployBtn": {
+    "x": 1163.8,
+    "y": 324.6,
+    "width": 106.5,
+    "height": 28
+   },
+   "kebab": {
+    "x": 1357,
+    "y": 323.6,
+    "width": 30,
+    "height": 30
+   },
+   "sidebarNode": {
+    "x": 12,
+    "y": 292,
+    "width": 231,
+    "height": 32
+   }
+  }
+ },
+ "node_menu": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "menu": {
+    "x": 1163,
+    "y": 359.6,
+    "width": 224,
+    "height": 183
+   },
+   "logsItem": {
+    "x": 1164,
+    "y": 462.6,
+    "width": 222,
+    "height": 32
+   }
+  }
+ },
+ "node_logs": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "modal": {
+    "x": 384,
+    "y": 286.2,
+    "width": 672,
+    "height": 351.5
+   },
+   "logBox": {
+    "x": 409,
+    "y": 355.2,
+    "width": 622,
+    "height": 209.5
+   }
+  }
+ },
+ "node_create": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "modal": {
+    "x": 432,
+    "y": 207.5,
+    "width": 576,
+    "height": 509
+   },
+   "nameField": {
+    "x": 465,
+    "y": 312.5,
+    "width": 510,
+    "height": 42
+   },
+   "version": {
+    "x": 465,
+    "y": 579.5,
+    "width": 162,
+    "height": 35
+   },
+   "startup": {
+    "x": 813,
+    "y": 579.5,
+    "width": 162,
+    "height": 34
+   },
+   "submit": {
+    "x": 1173.6,
+    "y": 104,
+    "width": 234.4,
+    "height": 40
+   }
+  }
+ },
+ "node_deploy": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "dropzone": {
+    "x": 529,
+    "y": 399.2,
+    "width": 382,
+    "height": 137.6
+   },
+   "submit": {
+    "x": 795.0,
+    "y": 560.8,
+    "width": 116.0,
+    "height": 36
+   }
+  }
+ },
+ "node_files": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "uploadBtn": {
+    "x": 1130.3,
+    "y": 172,
+    "width": 108.7,
+    "height": 28
+   },
+   "npmBtn": {
+    "x": 988.5,
+    "y": 69,
+    "width": 107.2,
+    "height": 28
+   },
+   "restartBtn": {
+    "x": 1103.7,
+    "y": 69,
+    "width": 127.3,
+    "height": 28
+   },
+   "indexRow": {
+    "x": 165,
+    "y": 454,
+    "width": 344.3,
+    "height": 16
+   }
+  }
+ },
+ "node_editor": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "editor": {
+    "x": 304,
+    "y": 13.5,
+    "width": 195.5,
+    "height": 16
+   }
+  }
+ },
+ "detail_overview": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "detail_analytics": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "detail_files": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "detail_files_drag": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "detail_ftp": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "detail_db": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "tabbar": {
+    "x": 288,
+    "y": 441,
+    "width": 1120,
+    "height": 49
+   },
+   "tab:Ringkasan & Resource": {
+    "x": 288,
+    "y": 443,
+    "width": 185.0,
+    "height": 36
+   },
+   "tab:Analitik Web": {
+    "x": 481.0,
+    "y": 441,
+    "width": 171.4,
+    "height": 40
+   },
+   "tab:File Manager": {
+    "x": 660.4,
+    "y": 443,
+    "width": 131.0,
+    "height": 36
+   },
+   "tab:Akun FTP / FTPS": {
+    "x": 799.4,
+    "y": 443,
+    "width": 153.1,
+    "height": 36
+   },
+   "tab:Database MySQL": {
+    "x": 960.5,
+    "y": 443,
+    "width": 156.0,
+    "height": 36
+   }
+  }
+ },
+ "pay_qris": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "qrCard": {
+    "x": 342.2,
+    "y": 331.6,
+    "width": 284,
+    "height": 284
+   },
+   "amount": {
+    "x": 661.5,
+    "y": 203,
+    "width": 103.8,
+    "height": 15
+   },
+   "steps": {
+    "x": 225,
+    "y": 776.6,
+    "width": 198.9,
+    "height": 16
+   },
+   "summary": {
+    "x": 855.3,
+    "y": 189,
+    "width": 389.7,
+    "height": 20
+   },
+   "upload": {
+    "x": 881.3,
+    "y": 723,
+    "width": 337.7,
+    "height": 16
+   },
+   "form": {
+    "x": 863.3,
+    "y": 525,
+    "width": 373.7,
+    "height": 20
+   }
+  }
+ },
+ "pay_form": {
+  "width": 1440,
+  "height": 900,
+  "rects": {
+   "qrCard": {
+    "x": 342.2,
+    "y": -98.4,
+    "width": 284,
+    "height": 284
+   },
+   "amount": {
+    "x": 661.5,
+    "y": -227,
+    "width": 103.8,
+    "height": 15
+   },
+   "steps": {
+    "x": 225,
+    "y": 346.6,
+    "width": 198.9,
+    "height": 16
+   },
+   "summary": {
+    "x": 855.3,
+    "y": -241,
+    "width": 389.7,
+    "height": 20
+   },
+   "form": {
+    "x": 863.3,
+    "y": 95,
+    "width": 373.7,
+    "height": 20
+   }
+  }
+ }
+}

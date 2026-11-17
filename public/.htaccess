@@ -1,7 +1,18 @@
+Options +FollowSymLinks
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Dynamic XML Sitemap and Robots served from 1sLabs Node.js SEO Engine
+  RewriteRule ^sitemap\.xml$ /api/sitemap.xml [L]
+  RewriteRule ^robots\.txt$ /api/robots.txt [L]
+
+  # Dynamic SSR Metadata, JSON-LD & HTTP 404/301 for search & AI crawlers on /blog routes
+  RewriteCond %{HTTP_USER_AGENT} (googlebot|google-inspectiontool|adsbot-google|apis-google|bingbot|duckduckbot|yandex|baiduspider|petalbot|facebookexternalhit|twitterbot|rogerbot|linkedinbot|embedly|slackbot|whatsapp|telegrambot|gptbot|oai-searchbot|perplexitybot|claudebot|applebot) [NC]
+  RewriteRule ^(blog(?:/.*)?|artikel(?:/.*)?)$ /api/seo-intelligence/meta-render?path=/$1 [L,QSA]
+
   RewriteRule ^api/ - [L]
+  RewriteRule ^uploads/ - [L]
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

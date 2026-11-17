@@ -82,12 +82,16 @@ def main():
             except Exception:
                 pass
 
-    # Ensure frontend .htaccess has SPA rewrite rules & excludes /api and /uploads
+    # Ensure frontend .htaccess has SPA rewrite rules, dynamic SEO routes & excludes /api and /uploads
     htaccess_content = (
         "Options +FollowSymLinks\n"
         "<IfModule mod_rewrite.c>\n"
         "  RewriteEngine On\n"
         "  RewriteBase /\n"
+        "  RewriteRule ^sitemap\\.xml$ /api/sitemap.xml [L]\n"
+        "  RewriteRule ^robots\\.txt$ /api/robots.txt [L]\n"
+        "  RewriteCond %{HTTP_USER_AGENT} (googlebot|bingbot|yandex|baiduspider|facebookexternalhit|twitterbot|rogerbot|linkedinbot|embedly|slackbot|whatsapp|telegrambot|gptbot|oai-searchbot|perplexitybot|claudebot|applebot) [NC]\n"
+        "  RewriteRule ^(blog(?:/.*)?|artikel(?:/.*)?)$ /api/seo-intelligence/meta-render?path=/$1 [L,QSA]\n"
         "  RewriteRule ^api/ - [L]\n"
         "  RewriteRule ^uploads/ - [L]\n"
         "  RewriteRule ^index\\.html$ - [L]\n"
@@ -98,12 +102,13 @@ def main():
     )
     with sftp.file(f"{FRONTEND_REMOTE}/.htaccess", "w") as f:
         f.write(htaccess_content)
-    print("  Created .htaccess with SPA rewrite rules.")
+    print("  Created .htaccess with SPA + dynamic SEO rewrite rules.")
 
     # 2. Deploy Backend src, index.js, and package.json
     print("\n--- [4/5] Uploading Backend Code (src, index.js, package.json) ---")
     sftp_mkdir_p(f"{BACKEND_REMOTE}/tmp")
     sftp_mkdir_p(f"{BACKEND_REMOTE}/uploads/proofs")
+    sftp_mkdir_p(f"{BACKEND_REMOTE}/uploads/blog")
 
     backend_src_local = os.path.join(BACKEND_LOCAL, "src")
     backend_src_remote = f"{BACKEND_REMOTE}/src".replace('\\', '/')

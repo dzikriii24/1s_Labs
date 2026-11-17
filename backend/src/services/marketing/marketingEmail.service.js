@@ -65,13 +65,17 @@ async function isSuppressed(email) {
   const lowerEmail = email.toLowerCase().trim();
   const domain = lowerEmail.split('@')[1];
 
-  const [row] = await query(
-    `SELECT id, reason FROM marketing_suppressions 
-     WHERE email = ? OR domain = ? LIMIT 1`,
-    [lowerEmail, domain]
-  );
+  try {
+    const [row] = await query(
+      `SELECT id, reason FROM marketing_suppressions 
+       WHERE email = ? OR domain = ? LIMIT 1`,
+      [lowerEmail, domain]
+    );
 
-  return !!row;
+    return !!row;
+  } catch (err) {
+    return false;
+  }
 }
 
 /**

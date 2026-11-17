@@ -33,6 +33,8 @@ const DocumentationPage = React.lazy(() => import('./pages/DocumentationPage').t
 const MeetingSchedulePage = React.lazy(() => import('./pages/MeetingSchedulePage').then(m => ({ default: m.MeetingSchedulePage })));
 const CandidateInterviewSchedulePage = React.lazy(() => import('./pages/CandidateInterviewSchedulePage').then(m => ({ default: m.CandidateInterviewSchedulePage })));
 const WorkplacePolicyPage = React.lazy(() => import('./pages/WorkplacePolicyPage').then(m => ({ default: m.WorkplacePolicyPage })));
+const BlogListPage = React.lazy(() => import('./pages/BlogListPage').then(m => ({ default: m.BlogListPage })));
+const BlogDetailPage = React.lazy(() => import('./pages/BlogDetailPage').then(m => ({ default: m.BlogDetailPage })));
 
 // Loading spinner fallback during chunk loading
 function PageLoadingFallback() {
@@ -172,6 +174,12 @@ function App() {
                 <Route path="/invoices/:invoiceNumber" element={<InvoicePage />} />
                 <Route path="/proof-viewer" element={<ProofViewerPage />} />
                 <Route path="/proof/:filename" element={<ProofViewerPage />} />
+
+                {/* Public Blog & Article Routes */}
+                <Route path="/blog" element={<BlogListPage />} />
+                <Route path="/blog/:slug" element={<BlogDetailPage />} />
+                <Route path="/artikel" element={<BlogListPage />} />
+                <Route path="/artikel/:slug" element={<BlogDetailPage />} />
 
                 {/* Admin Portal Route */}
                 <Route path="/admin" element={<AdminDashboardPage />} />

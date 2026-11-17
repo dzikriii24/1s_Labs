@@ -10,6 +10,7 @@ const { recoverCompanyContact, runBatchContactRecovery, getContactRecoveryStats 
 const { auditCompanyWebsite } = require('../services/marketing/websiteAudit.service');
 const { normalizeBusinessName, normalizeDomain, normalizePhone, findPotentialDuplicate } = require('../services/marketing/deduplication.service');
 const { syncMaildirInbox, getConversationThreads, sendDirectCustomerReply } = require('../services/marketing/inboundEmail.service');
+const { validateEmailTechnical, discoverCompanyEmail, runBatchEmailDiscovery } = require('../services/marketing/emailDiscovery.service');
 
 // =====================================================
 // PUBLIC UNPROTECTED ENDPOINT: Unsubscribe Handler
@@ -322,6 +323,7 @@ router.get('/companies', async (req, res) => {
       outreach_eligibility,
       lead_grade,
       has_website,
+      email_status,
       sortBy = 'id',
       sortDir = 'DESC'
     } = req.query;
@@ -440,6 +442,10 @@ router.get('/companies', async (req, res) => {
       whereClauses.push('has_website = ?');
       params.push(has_website === 'true' || has_website === '1' ? 1 : 0);
     }
+    if (email_status && email_status !== 'all') {
+      whereClauses.push('email_status = ?');
+      params.push(email_status);
+    }
 
     const whereSql = whereClauses.join(' AND ');
 
@@ -448,7 +454,7 @@ router.get('/companies', async (req, res) => {
     const total = countResult ? countResult.total : 0;
 
     // Allowed sort columns
-    const allowedSort = ['id', 'name', 'category', 'country', 'province', 'city', 'business_scale', 'lead_score', 'first_discovered_at', 'status', 'is_priority'];
+    const allowedSort = ['id', 'name', 'category', 'country', 'province', 'city', 'business_scale', 'lead_score', 'first_discovered_at', 'status', 'is_priority', 'email_status', 'email_verified_at'];
     const orderCol = allowedSort.includes(sortBy) ? sortBy : 'id';
     const orderDir = sortDir.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
@@ -2395,6 +2401,291 @@ router.post('/ai-test', async (req, res) => {
     });
 
     return res.json({ success: true, result });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -----------------------------------------------------
+// 11. LEAD ACQUISITION & EMAIL DISCOVERY ENDPOINTS
+// -----------------------------------------------------
+
+// GET /admin/marketing/lead-dashboard - Comprehensive metrics for Lead Acquisition
+router.get('/lead-dashboard', async (req, res) => {
+  try {
+    const [counts] = await query(`
+      SELECT 
+        COUNT(*) as total_companies_all,
+        SUM(CASE WHEN category = 'UMKM' THEN 1 ELSE 0 END) as total_umkm,
+        SUM(CASE WHEN category != 'UMKM' THEN 1 ELSE 0 END) as total_corporate,
+        SUM(CASE WHEN DATE(first_discovered_at) = CURDATE() THEN 1 ELSE 0 END) as new_today,
+        SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as emails_found,
+        SUM(CASE WHEN email_status = 'VERIFIED' THEN 1 ELSE 0 END) as emails_verified,
+        SUM(CASE WHEN email_status = 'UNVERIFIED' THEN 1 ELSE 0 END) as emails_unverified,
+        SUM(CASE WHEN email_status = 'INVALID' THEN 1 ELSE 0 END) as emails_invalid,
+        SUM(CASE WHEN email_status = 'NO_EMAIL' OR email_status IS NULL THEN 1 ELSE 0 END) as emails_no_email,
+        SUM(CASE WHEN status IN ('Qualified', 'Outreach Eligible') THEN 1 ELSE 0 END) as contact_ready,
+        SUM(CASE WHEN contacted_times > 0 OR status IN ('Contacted', 'Responded', 'Interested') THEN 1 ELSE 0 END) as emails_sent_companies,
+        SUM(CASE WHEN status IN ('Responded', 'Interested', 'Consultation Scheduled', 'Converted') THEN 1 ELSE 0 END) as replied_count,
+        SUM(CASE WHEN status = 'Do Not Contact' THEN 1 ELSE 0 END) as do_not_contact_count
+      FROM marketing_companies
+      WHERE is_deleted = 0
+    `);
+
+    // Province distribution (top 10)
+    const byProvince = await query(`
+      SELECT COALESCE(NULLIF(province, ''), 'Lainnya') as province, 
+             COUNT(*) as count,
+             SUM(CASE WHEN email_status = 'VERIFIED' THEN 1 ELSE 0 END) as verified_emails
+      FROM marketing_companies
+      WHERE is_deleted = 0
+      GROUP BY province
+      ORDER BY count DESC
+      LIMIT 10
+    `);
+
+    // Business Category distribution
+    const byCategory = await query(`
+      SELECT COALESCE(NULLIF(category, ''), 'Other Businesses') as category, 
+             COUNT(*) as count,
+             SUM(CASE WHEN email_status = 'VERIFIED' THEN 1 ELSE 0 END) as verified_emails
+      FROM marketing_companies
+      WHERE is_deleted = 0
+      GROUP BY category
+      ORDER BY count DESC
+      LIMIT 8
+    `);
+
+    // Data Source distribution
+    const bySource = await query(`
+      SELECT COALESCE(NULLIF(primary_source_name, ''), 'Direct Discovery') as source, 
+             COUNT(*) as count,
+             SUM(CASE WHEN email_status = 'VERIFIED' THEN 1 ELSE 0 END) as verified_emails
+      FROM marketing_companies
+      WHERE is_deleted = 0
+      GROUP BY primary_source_name
+      ORDER BY count DESC
+      LIMIT 8
+    `);
+
+    // Email outreach logs
+    const [emailLogs] = await query(`
+      SELECT 
+        COUNT(*) as total_outreach_sent,
+        SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as total_delivered,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as total_failed,
+        SUM(CASE WHEN DATE(sent_at) = CURDATE() AND status = 'sent' THEN 1 ELSE 0 END) as sent_today
+      FROM marketing_email_logs
+    `);
+
+    // Quota guardrail
+    const quota = await getDailyQuotaStatus();
+
+    // Suppression list count
+    const [supp] = await query('SELECT COUNT(*) as total FROM marketing_suppressions');
+
+    // Recent discovery jobs
+    const recentJobs = await query(`
+      SELECT j.*, s.name as source_name 
+      FROM marketing_scraping_jobs j
+      LEFT JOIN marketing_sources s ON j.source_id = s.id
+      ORDER BY j.id DESC
+      LIMIT 8
+    `);
+
+    return res.json({
+      success: true,
+      stats: {
+        total_companies: counts.total_companies_all || 0,
+        total_umkm: counts.total_umkm || 0,
+        total_corporate: counts.total_corporate || 0,
+        new_today: counts.new_today || 0,
+        emails_found: counts.emails_found || 0,
+        emails_verified: counts.emails_verified || 0,
+        emails_unverified: counts.emails_unverified || 0,
+        emails_invalid: counts.emails_invalid || 0,
+        emails_no_email: counts.emails_no_email || 0,
+        contact_ready: counts.contact_ready || 0,
+        emails_sent: emailLogs?.total_outreach_sent || 0,
+        replies_received: counts.replied_count || 0,
+        do_not_contact: supp?.total || counts.do_not_contact_count || 0
+      },
+      quota,
+      byProvince,
+      byCategory,
+      bySource,
+      recentJobs
+    });
+  } catch (err) {
+    console.error('Lead dashboard error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/email-discovery/run - Batch discover emails from websites & verify MX records
+router.post('/email-discovery/run', async (req, res) => {
+  try {
+    const { limit, status, email_status, province } = req.body;
+    const results = await runBatchEmailDiscovery({
+      limit: parseInt(limit || '15', 10),
+      status,
+      email_status,
+      province
+    });
+    return res.json({ success: true, results });
+  } catch (err) {
+    console.error('Batch email discovery error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/email-discovery/validate-single - Standalone technical email & DNS MX check
+router.post('/email-discovery/validate-single', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Alamat email wajib diisi.' });
+    }
+    const result = await validateEmailTechnical(email);
+    return res.json({ success: true, result });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/email-discovery/:companyId - Discover emails for single company
+router.post('/email-discovery/:companyId', async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.companyId, 10);
+    if (isNaN(companyId)) {
+      return res.status(400).json({ success: false, message: 'ID perusahaan tidak valid.' });
+    }
+    const [company] = await query('SELECT * FROM marketing_companies WHERE id = ?', [companyId]);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Perusahaan tidak ditemukan.' });
+    }
+    const result = await discoverCompanyEmail(company);
+    return res.json({ success: true, result });
+  } catch (err) {
+    console.error('Single email discovery error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/companies/bulk-status - Bulk update company status
+router.post('/companies/bulk-status', async (req, res) => {
+  try {
+    const { companyIds, status, outreach_eligibility } = req.body;
+    if (!Array.isArray(companyIds) || companyIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Daftar ID perusahaan tidak boleh kosong.' });
+    }
+    if (!status && !outreach_eligibility) {
+      return res.status(400).json({ success: false, message: 'Status tujuan wajib diisi.' });
+    }
+
+    const updates = [];
+    const params = [];
+    if (status) {
+      updates.push('status = ?');
+      params.push(status);
+    }
+    if (outreach_eligibility) {
+      updates.push('outreach_eligibility = ?');
+      params.push(outreach_eligibility);
+    }
+
+    const placeholders = companyIds.map(() => '?').join(',');
+    await query(
+      `UPDATE marketing_companies SET ${updates.join(', ')}, updated_at = NOW() WHERE id IN (${placeholders})`,
+      [...params, ...companyIds]
+    );
+
+    return res.json({
+      success: true,
+      message: `Berhasil memperbarui status untuk ${companyIds.length} perusahaan.`
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/companies/bulk-delete - Bulk soft/permanent delete
+router.post('/companies/bulk-delete', async (req, res) => {
+  try {
+    const { companyIds, permanent = false } = req.body;
+    if (!Array.isArray(companyIds) || companyIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Daftar ID perusahaan tidak boleh kosong.' });
+    }
+
+    const placeholders = companyIds.map(() => '?').join(',');
+    if (permanent) {
+      await query(`DELETE FROM marketing_companies WHERE id IN (${placeholders})`, companyIds);
+      await query(`DELETE FROM marketing_contacts WHERE company_id IN (${placeholders})`, companyIds);
+    } else {
+      await query(`UPDATE marketing_companies SET is_deleted = 1, deleted_at = NOW() WHERE id IN (${placeholders})`, companyIds);
+    }
+
+    return res.json({
+      success: true,
+      message: `Berhasil menghapus ${companyIds.length} perusahaan.`
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /admin/marketing/companies/merge-duplicates - Manual trigger for duplicate merge
+router.post('/companies/merge-duplicates', async (req, res) => {
+  try {
+    const { primaryCompanyId, duplicateCompanyId } = req.body;
+    if (!primaryCompanyId || !duplicateCompanyId) {
+      return res.status(400).json({ success: false, message: 'ID perusahaan utama dan duplikat wajib diisi.' });
+    }
+
+    const [primary] = await query('SELECT * FROM marketing_companies WHERE id = ?', [primaryCompanyId]);
+    const [duplicate] = await query('SELECT * FROM marketing_companies WHERE id = ?', [duplicateCompanyId]);
+
+    if (!primary || !duplicate) {
+      return res.status(404).json({ success: false, message: 'Salah satu data perusahaan tidak ditemukan.' });
+    }
+
+    // Re-link contacts to primary
+    await query('UPDATE marketing_contacts SET company_id = ? WHERE company_id = ?', [primaryCompanyId, duplicateCompanyId]);
+
+    // Fill missing fields in primary from duplicate
+    const updates = [];
+    const params = [];
+    if (!primary.website_url && duplicate.website_url) {
+      updates.push('website_url = ?', 'has_website = 1');
+      params.push(duplicate.website_url);
+    }
+    if (!primary.email && duplicate.email) {
+      updates.push('email = ?', 'email_status = ?');
+      params.push(duplicate.email, duplicate.email_status || 'UNVERIFIED');
+    }
+    if (!primary.phone && duplicate.phone) {
+      updates.push('phone = ?');
+      params.push(duplicate.phone);
+    }
+    if (!primary.whatsapp_number && duplicate.whatsapp_number) {
+      updates.push('whatsapp_number = ?');
+      params.push(duplicate.whatsapp_number);
+    }
+
+    if (updates.length > 0) {
+      await query(`UPDATE marketing_companies SET ${updates.join(', ')} WHERE id = ?`, [...params, primaryCompanyId]);
+    }
+
+    // Soft delete duplicate
+    await query('UPDATE marketing_companies SET is_deleted = 1, admin_notes = CONCAT(COALESCE(admin_notes, ""), ?), deleted_at = NOW() WHERE id = ?', [
+      ` [Merged into #${primaryCompanyId}]`,
+      duplicateCompanyId
+    ]);
+
+    return res.json({
+      success: true,
+      message: `Perusahaan #${duplicateCompanyId} ("${duplicate.name}") berhasil digabungkan ke #${primaryCompanyId} ("${primary.name}").`
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

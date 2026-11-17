@@ -34,6 +34,12 @@ import { FeedbackManagementView } from './views/FeedbackManagementView';
 import { DocsManagementView } from './views/DocsManagementView';
 import { MarketingView } from './views/marketing/MarketingView';
 import { HRManagementView } from './views/hr/HRManagementView';
+import { ArticlesManagementView } from './views/content/ArticlesManagementView';
+import { SeoIntelligenceTab } from './views/content/SeoIntelligenceTab';
+import { ContentStrategyTab } from './views/content/ContentStrategyTab';
+import { EditorialKanbanTab } from './views/content/EditorialKanbanTab';
+import { TechnicalSeoTab } from './views/content/TechnicalSeoTab';
+import { AutomationHubView, AutomationSubtabKey } from './views/automation/AutomationHubView';
 import notify from '../../lib/notify';
 
 export const AdminLayout: React.FC = () => {
@@ -45,15 +51,41 @@ export const AdminLayout: React.FC = () => {
     return (
       tab.startsWith('marketing') ||
       tab.startsWith('hr') ||
+      tab.startsWith('blog-') ||
+      tab.startsWith('ai-automation') ||
       ['feedback', 'inquiries', 'emails', 'email-templates', 'docs-management'].includes(tab)
     );
   };
 
+  const urlTab = searchParams.get('tab');
   const initialTab = isMarketingUser
-    ? 'marketing'
-    : ((searchParams.get('tab') as AdminMenuKey) || 'dashboard');
+    ? (urlTab && isMarketingAllowedTab(urlTab) ? (urlTab as AdminMenuKey) : 'marketing')
+    : ((urlTab as AdminMenuKey) || 'dashboard');
 
   const [activeTab, setActiveTab] = useState<AdminMenuKey>(initialTab);
+  const initialEditParam = searchParams.get('editId');
+  const [blogEditId, setBlogEditId] = useState<number | null | undefined>(
+    initialEditParam === 'new'
+      ? null
+      : initialEditParam && /^\d+$/.test(initialEditParam)
+        ? parseInt(initialEditParam, 10)
+        : undefined
+  );
+
+  const openBlogEditor = (articleId: number | null = null) => {
+    setBlogEditId(articleId);
+    setActiveTab('blog-articles');
+    setSearchParams({
+      tab: 'blog-articles',
+      editId: articleId ? String(articleId) : 'new'
+    });
+  };
+
+  const closeBlogEditor = () => {
+    setBlogEditId(undefined);
+    setActiveTab('blog-articles');
+    setSearchParams({ tab: 'blog-articles' });
+  };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -84,7 +116,7 @@ export const AdminLayout: React.FC = () => {
     loadHeaderBadges();
   }, [refreshKey]);
 
-  // Sync tab with URL search parameter & enforce marketing access
+  // Sync tab and blog editId with URL search parameter & enforce marketing access
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab') as AdminMenuKey;
     if (isMarketingUser) {
@@ -94,9 +126,18 @@ export const AdminLayout: React.FC = () => {
         return;
       }
     }
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
+    if (tabFromUrl) {
+      setActiveTab((prev) => (prev === tabFromUrl ? prev : tabFromUrl));
     }
+
+    const editParam = searchParams.get('editId');
+    const parsedEditId =
+      editParam === 'new'
+        ? null
+        : editParam && /^\d+$/.test(editParam)
+          ? parseInt(editParam, 10)
+          : undefined;
+    setBlogEditId((prev) => (prev === parsedEditId ? prev : parsedEditId));
   }, [searchParams, isMarketingUser]);
 
   const handleSelectTab = (tab: AdminMenuKey | string) => {
@@ -148,6 +189,10 @@ export const AdminLayout: React.FC = () => {
       }
       case 'marketing':
       case 'marketing-overview':
+      case 'marketing-discovery':
+      case 'marketing-companies':
+      case 'marketing-email-discovery':
+      case 'marketing-review':
       case 'marketing-indonesia':
       case 'marketing-international':
       case 'marketing-prospects':
@@ -231,6 +276,48 @@ export const AdminLayout: React.FC = () => {
       case 'docs-management':
       case 'docs' as any:
         return <DocsManagementView key={refreshKey} />;
+      case 'blog-articles':
+        return (
+          <ArticlesManagementView
+            key={refreshKey}
+            editArticleId={blogEditId}
+            onOpenEditor={(id) => openBlogEditor(id ?? null)}
+            onCloseEditor={() => closeBlogEditor()}
+          />
+        );
+      case 'blog-seo':
+        return <SeoIntelligenceTab key={refreshKey} onOpenEditor={(id) => openBlogEditor(id)} />;
+      case 'blog-strategy':
+        return <ContentStrategyTab key={refreshKey} onOpenEditor={(id) => openBlogEditor(id)} />;
+      case 'blog-kanban':
+        return <EditorialKanbanTab key={refreshKey} onOpenEditor={(id) => openBlogEditor(id ?? null)} />;
+      case 'blog-technical':
+        return <TechnicalSeoTab key={refreshKey} />;
+      case 'ai-automation':
+      case 'ai-automation-overview':
+      case 'ai-automation-generate':
+      case 'ai-automation-batch':
+      case 'ai-automation-review':
+      case 'ai-automation-scheduler':
+      case 'ai-automation-strategy':
+      case 'ai-automation-published':
+      case 'ai-automation-seo':
+      case 'ai-automation-knowledge':
+      case 'ai-automation-settings': {
+        const sub = (
+          activeTab === 'ai-automation' || activeTab === 'ai-automation-overview'
+            ? 'overview'
+            : activeTab.replace('ai-automation-', '')
+        ) as AutomationSubtabKey;
+        return (
+          <AutomationHubView
+            key={refreshKey}
+            initialSubtab={sub}
+            onNavigateSubtab={(newSub) => handleSelectTab(`ai-automation-${newSub}` as AdminMenuKey)}
+            onOpenBlogEditor={(id) => openBlogEditor(id ?? null)}
+          />
+        );
+      }
       case 'settings':
       case 'general-settings' as any:
         return <GeneralSettingsView key={refreshKey} />;
@@ -249,10 +336,12 @@ export const AdminLayout: React.FC = () => {
     (n) => n.level === 'critical' || n.level === 'warning'
   ).length;
 
+  const isBlogEditorOpen = activeTab === 'blog-articles' && blogEditId !== undefined;
+
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 flex flex-col antialiased selection:bg-zinc-900 selection:text-white">
       {/* Mobile Sidebar Overlay */}
-      {mobileSidebarOpen && (
+      {!isBlogEditorOpen && mobileSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-zinc-900/30 backdrop-blur-xs lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
@@ -260,45 +349,55 @@ export const AdminLayout: React.FC = () => {
       )}
 
       {/* Sidebar Container */}
-      <div
-        className={`admin-sidebar-wrapper print:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <AdminSidebar
-          currentMenu={activeTab}
-          onSelectMenu={handleSelectTab}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          pendingVerificationsCount={pendingVerificationsCount}
-        />
-      </div>
+      {!isBlogEditorOpen && (
+        <div
+          className={`admin-sidebar-wrapper print:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+            mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <AdminSidebar
+            currentMenu={activeTab}
+            onSelectMenu={handleSelectTab}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            pendingVerificationsCount={pendingVerificationsCount}
+          />
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div
         className={`admin-main-wrapper flex-1 flex flex-col transition-all duration-300 print:pl-0 print:m-0 print:w-full ${
-          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+          isBlogEditorOpen ? '' : sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
         {/* Sticky Header */}
-        <div className="admin-header-wrapper print:hidden">
-          <AdminHeader
-            currentMenu={activeTab}
-            onSelectMenu={handleSelectTab}
-            onRefreshData={handleGlobalRefresh}
-            isRefreshing={isRefreshing}
-            onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            adminName={user?.name || 'Administrator'}
-            adminEmail={user?.email || 'admin@1slabs.my.id'}
-            adminRole={user?.role}
-            onLogout={logout}
-            notifications={notifications}
-            unreadNotificationsCount={unreadNotifCount}
-          />
-        </div>
+        {!isBlogEditorOpen && (
+          <div className="admin-header-wrapper print:hidden">
+            <AdminHeader
+              currentMenu={activeTab}
+              onSelectMenu={handleSelectTab}
+              onRefreshData={handleGlobalRefresh}
+              isRefreshing={isRefreshing}
+              onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              adminName={user?.name || 'Administrator'}
+              adminEmail={user?.email || 'admin@1slabs.my.id'}
+              adminRole={user?.role}
+              onLogout={logout}
+              notifications={notifications}
+              unreadNotificationsCount={unreadNotifCount}
+            />
+          </div>
+        )}
 
         {/* View Surface */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
+        <main
+          className={
+            isBlogEditorOpen
+              ? 'flex-1 p-0 m-0 max-w-none w-full'
+              : 'flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full'
+          }
+        >
           {renderActiveView()}
         </main>
       </div>

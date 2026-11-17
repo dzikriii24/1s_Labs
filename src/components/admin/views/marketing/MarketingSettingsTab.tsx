@@ -250,6 +250,54 @@ export const MarketingSettingsTab: React.FC = () => {
           </div>
         </div>
 
+        {/* PaDi UMKM OpenAPI & Lead Source Credentials */}
+        <div className="pt-4 border-t border-zinc-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
+              Kredensial PaDi UMKM OpenAPI & Lead Source
+            </h4>
+            <span className="text-[10px] text-zinc-400 font-mono">BUMN & MSME Ecosystem</span>
+          </div>
+
+          <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-600 leading-relaxed">
+            <p className="font-semibold text-zinc-800 mb-1">Panduan Memperoleh Kredensial Resmi PaDi UMKM:</p>
+            <p className="text-[11px] text-zinc-500 mb-2">
+              PaDi UMKM mewajibkan otentikasi OAuth2 client credentials untuk endpoint pelaporan UMKM. Kredensial dapat diperoleh dengan mengajukan kemitraan developer pada portal dokumentasi resmi:{' '}
+              <a
+                href="https://openapi-docs.padiumkm.id/docs/authentication/credential"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 underline font-bold"
+              >
+                openapi-docs.padiumkm.id/docs/authentication/credential
+              </a>.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-zinc-600 block mb-1">PaDi UMKM Client ID</label>
+              <input
+                type="text"
+                placeholder="Client ID dari portal PaDi"
+                value={settings.padi_client_id || ''}
+                onChange={e => handleSettingChange('padi_client_id', e.target.value)}
+                className="w-full px-3 py-1.5 bg-zinc-50/50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-zinc-600 block mb-1">PaDi UMKM Client Secret</label>
+              <input
+                type="password"
+                placeholder="Client Secret resmi"
+                value={settings.padi_client_secret || ''}
+                onChange={e => handleSettingChange('padi_client_secret', e.target.value)}
+                className="w-full px-3 py-1.5 bg-zinc-50/50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="flex justify-end pt-2">
           <button
             type="submit"

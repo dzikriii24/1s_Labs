@@ -27,3 +27,38 @@ dist-ssr
 *.pem
 *.key
 deploy/
+
+# Build caches & generated outputs
+.next/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+*.pyo
+product_1slabs/**/out/
+product_1slabs/**/*.zip
+marketing-video/**/out/
+
+# Runtime uploads & local scratch scripts
+backend/uploads/
+scratch/
+
+# Heavy media & duplicated image assets (keep lightweight source & docs)
+product_1slabs/clothes-catalog/public/images/
+product_1slabs/docs/assets/
+marketing-video/**/*.mp4
+marketing-video/**/*.mov
+marketing-video/**/*.avi
+marketing-video/**/*.mkv
+marketing-video/**/*.wav
+marketing-video/**/*.mp3
+marketing-video/**/*.aac
+marketing-video/projects/**/deliverables/*.png
+marketing-video/projects/**/previews/
+marketing-video/projects/**/assets/audio/
+marketing-video/projects/**/assets/screenshots/*.png
+marketing-video/projects/**/assets/images/
+marketing-video/projects/**/assets/capture/_tmp/
+marketing-video/projects/**/remotion/public/audio/
+marketing-video/projects/**/remotion/public/shots/*.png
+marketing-video/projects/**/remotion/public/img/
+

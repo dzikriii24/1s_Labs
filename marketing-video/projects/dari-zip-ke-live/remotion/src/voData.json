@@ -1,0 +1,406 @@
+{
+ "voice": "id-ID-ArdiNeural",
+ "rate": "-4%",
+ "lines": [
+  {
+   "id": "l1",
+   "display": "Kodenya sudah jadi.",
+   "spoken": "Kodenya sudah jadi.",
+   "file": "audio/vo_l1.mp3",
+   "words": [
+    {
+     "text": "Kodenya",
+     "start": 0.100541,
+     "end": 0.608332
+    },
+    {
+     "text": "sudah",
+     "start": 0.608333,
+     "end": 0.894791
+    },
+    {
+     "text": "jadi",
+     "start": 0.894791,
+     "end": 1.467707
+    }
+   ],
+   "wordsStart": 0.100541,
+   "wordsEnd": 1.467707
+  },
+  {
+   "id": "l2",
+   "display": "Di laptop, semuanya jalan. Di internet, belum.",
+   "spoken": "Di laptop, semuanya jalan. Di internet, belum.",
+   "file": "audio/vo_l2.mp3",
+   "words": [
+    {
+     "text": "Di",
+     "start": 0.101041,
+     "end": 0.296374
+    },
+    {
+     "text": "laptop",
+     "start": 0.296375,
+     "end": 0.856291
+    },
+    {
+     "text": "semuanya",
+     "start": 1.103666,
+     "end": 1.611457
+    },
+    {
+     "text": "jalan",
+     "start": 1.611458,
+     "end": 2.223458
+    },
+    {
+     "text": "Di",
+     "start": 3.097916,
+     "end": 3.306249
+    },
+    {
+     "text": "internet",
+     "start": 3.30625,
+     "end": 3.957291
+    },
+    {
+     "text": "belum",
+     "start": 4.152625,
+     "end": 4.738583
+    }
+   ],
+   "wordsStart": 0.101041,
+   "wordsEnd": 4.738583
+  },
+  {
+   "id": "l3",
+   "display": "Hosting dari 1sLabs.",
+   "spoken": "Hosting dari Wan Es Labs.",
+   "file": "audio/vo_l3.mp3",
+   "words": [
+    {
+     "text": "Hosting",
+     "start": 0.1,
+     "end": 0.594791
+    },
+    {
+     "text": "dari",
+     "start": 0.594791,
+     "end": 0.803124
+    },
+    {
+     "text": "Wan",
+     "start": 0.803125,
+     "end": 0.998458
+    },
+    {
+     "text": "Es",
+     "start": 0.998458,
+     "end": 1.219791
+    },
+    {
+     "text": "Labs",
+     "start": 1.219791,
+     "end": 1.688541
+    }
+   ],
+   "wordsStart": 0.1,
+   "wordsEnd": 1.688541
+  },
+  {
+   "id": "l4",
+   "display": "Pilih paket, bayar lewat QRIS, kirim bukti. Tim kami yang memverifikasi.",
+   "spoken": "Pilih paket, bayar lewat Kyuris, kirim bukti. Tim kami yang memverifikasi.",
+   "file": "audio/vo_l4.mp3",
+   "words": [
+    {
+     "text": "Pilih",
+     "start": 0.101041,
+     "end": 0.361457
+    },
+    {
+     "text": "paket",
+     "start": 0.361458,
+     "end": 0.908333
+    },
+    {
+     "text": "bayar",
+     "start": 1.16875,
+     "end": 1.520333
+    },
+    {
+     "text": "lewat",
+     "start": 1.520333,
+     "end": 1.793749
+    },
+    {
+     "text": "Kyuris",
+     "start": 1.79375,
+     "end": 2.353666
+    },
+    {
+     "text": "kirim",
+     "start": 2.535958,
+     "end": 2.822416
+    },
+    {
+     "text": "bukti",
+     "start": 2.822416,
+     "end": 3.369291
+    },
+    {
+     "text": "Tim",
+     "start": 4.24325,
+     "end": 4.477625
+    },
+    {
+     "text": "kami",
+     "start": 4.477625,
+     "end": 4.764083
+    },
+    {
+     "text": "yang",
+     "start": 4.764083,
+     "end": 4.868249
+    },
+    {
+     "text": "memverifikasi",
+     "start": 4.86825,
+     "end": 5.844833
+    }
+   ],
+   "wordsStart": 0.101041,
+   "wordsEnd": 5.844833
+  },
+  {
+   "id": "l5",
+   "display": "Setelah aktif, buat aplikasi Node.js dari panel. Pilih versi, jalankan, lihat lognya.",
+   "spoken": "Setelah aktif, buat aplikasi Node J S dari panel. Pilih versi, jalankan, lihat lognya.",
+   "file": "audio/vo_l5.mp3",
+   "words": [
+    {
+     "text": "Setelah",
+     "start": 0.101041,
+     "end": 0.491666
+    },
+    {
+     "text": "aktif",
+     "start": 0.491666,
+     "end": 1.051582
+    },
+    {
+     "text": "buat",
+     "start": 1.312,
+     "end": 1.572416
+    },
+    {
+     "text": "aplikasi",
+     "start": 1.572416,
+     "end": 2.054166
+    },
+    {
+     "text": "Node",
+     "start": 2.054166,
+     "end": 2.340624
+    },
+    {
+     "text": "J",
+     "start": 2.340625,
+     "end": 2.548958
+    },
+    {
+     "text": "S",
+     "start": 2.548958,
+     "end": 2.835416
+    },
+    {
+     "text": "dari",
+     "start": 2.835416,
+     "end": 3.017707
+    },
+    {
+     "text": "panel",
+     "start": 3.017708,
+     "end": 3.577624
+    },
+    {
+     "text": "Pilih",
+     "start": 4.452083,
+     "end": 4.738541
+    },
+    {
+     "text": "versi",
+     "start": 4.738541,
+     "end": 5.363541
+    },
+    {
+     "text": "jalankan",
+     "start": 5.65,
+     "end": 6.43125
+    },
+    {
+     "text": "lihat",
+     "start": 6.704708,
+     "end": 7.082291
+    },
+    {
+     "text": "lognya",
+     "start": 7.082291,
+     "end": 7.681249
+    }
+   ],
+   "wordsStart": 0.101041,
+   "wordsEnd": 7.681249
+  },
+  {
+   "id": "l6",
+   "display": "Unggah ZIP-nya. Edit file langsung di browser.",
+   "spoken": "Unggah zip-nya. Edit file langsung di browser.",
+   "file": "audio/vo_l6.mp3",
+   "words": [
+    {
+     "text": "Unggah",
+     "start": 0.1,
+     "end": 0.594791
+    },
+    {
+     "text": "zip-nya",
+     "start": 0.594791,
+     "end": 1.245832
+    },
+    {
+     "text": "Edit",
+     "start": 2.120833,
+     "end": 2.485416
+    },
+    {
+     "text": "file",
+     "start": 2.485416,
+     "end": 2.745832
+    },
+    {
+     "text": "langsung",
+     "start": 2.745833,
+     "end": 3.110416
+    },
+    {
+     "text": "di",
+     "start": 3.110416,
+     "end": 3.201582
+    },
+    {
+     "text": "browser",
+     "start": 3.201583,
+     "end": 3.865666
+    }
+   ],
+   "wordsStart": 0.1,
+   "wordsEnd": 3.865666
+  },
+  {
+   "id": "l7",
+   "display": "File, FTP, database, analitik. Satu panel.",
+   "spoken": "File, F T P, database, analitik. Satu panel.",
+   "file": "audio/vo_l7.mp3",
+   "words": [
+    {
+     "text": "File",
+     "start": 0.101041,
+     "end": 0.686999
+    },
+    {
+     "text": "F",
+     "start": 0.947416,
+     "end": 1.181791
+    },
+    {
+     "text": "T",
+     "start": 1.181791,
+     "end": 1.377082
+    },
+    {
+     "text": "P",
+     "start": 1.377083,
+     "end": 1.819791
+    },
+    {
+     "text": "database",
+     "start": 2.09325,
+     "end": 2.952625
+    },
+    {
+     "text": "analitik",
+     "start": 3.173958,
+     "end": 3.877083
+    },
+    {
+     "text": "Satu",
+     "start": 4.750541,
+     "end": 5.193249
+    },
+    {
+     "text": "panel",
+     "start": 5.19325,
+     "end": 5.779208
+    }
+   ],
+   "wordsStart": 0.101041,
+   "wordsEnd": 5.779208
+  },
+  {
+   "id": "l8",
+   "display": "Mulai di 1slabs.my.id.",
+   "spoken": "Mulai di Wan Es Labs titik my titik id.",
+   "file": "audio/vo_l8.mp3",
+   "words": [
+    {
+     "text": "Mulai",
+     "start": 0.101041,
+     "end": 0.413541
+    },
+    {
+     "text": "di",
+     "start": 0.413541,
+     "end": 0.517707
+    },
+    {
+     "text": "Wan",
+     "start": 0.517708,
+     "end": 0.673958
+    },
+    {
+     "text": "Es",
+     "start": 0.673958,
+     "end": 0.869291
+    },
+    {
+     "text": "Labs",
+     "start": 0.869291,
+     "end": 1.155749
+    },
+    {
+     "text": "titik",
+     "start": 1.15575,
+     "end": 1.494291
+    },
+    {
+     "text": "my",
+     "start": 1.494291,
+     "end": 1.676582
+    },
+    {
+     "text": "titik",
+     "start": 1.676583,
+     "end": 1.963041
+    },
+    {
+     "text": "id.",
+     "start": 1.963041,
+     "end": 2.496916
+    }
+   ],
+   "wordsStart": 0.101041,
+   "wordsEnd": 2.496916
+  }
+ ]
+}

@@ -111,6 +111,28 @@ apiRouter.use('/admin/docs', docsRoutes);
 apiRouter.use('/admin/hr', hrRoutes);
 apiRouter.use('/hr', hrRoutes);
 
+const blogRoutes = require('./src/routes/blog.routes');
+const seoIntelligenceRoutes = require('./src/routes/seoIntelligence.routes');
+const contentAutomationRoutes = require('./src/routes/contentAutomation.routes');
+const { recoverStaleQueueItems } = require('./src/services/automation/automationQueue.service');
+const { startInternalScheduler } = require('./src/services/automation/automationScheduler.service');
+apiRouter.get(['/blog', '/artikel'], (req, res) => seoIntelligenceRoutes.renderCrawlerMeta(req, res, '/blog'));
+apiRouter.get(['/blog/:slug', '/artikel/:slug'], (req, res, next) => {
+  if (['posts', 'categories', 'tags', 'admin'].includes(req.params.slug)) return next();
+  return seoIntelligenceRoutes.renderCrawlerMeta(req, res, `/blog/${req.params.slug}`);
+});
+apiRouter.use('/blog', blogRoutes);
+apiRouter.use('/seo-intelligence', seoIntelligenceRoutes);
+apiRouter.use('/content-automation', contentAutomationRoutes);
+apiRouter.get('/sitemap.xml', (req, res, next) => {
+  req.url = '/sitemap.xml';
+  seoIntelligenceRoutes(req, res, next);
+});
+apiRouter.get('/robots.txt', (req, res, next) => {
+  req.url = '/robots.txt';
+  seoIntelligenceRoutes(req, res, next);
+});
+
 // Mount router on both '/api' and '/' for Passenger & proxy flexibility
 app.use('/api', apiRouter);
 app.use('/', apiRouter);
@@ -172,10 +194,18 @@ setInterval(() => {
   });
 }, 10 * 60 * 1000);
 
+// AI Content Automation Stale Lock Recovery & Asia/Jakarta Cron Scheduler
+if (process.env.NODE_ENV !== 'test') {
+  setTimeout(() => {
+    recoverStaleQueueItems().catch(() => {});
+  }, 5000).unref();
+  startInternalScheduler(60000);
+}
+
 // Start Server (Passenger and Standalone compatible)
 if (typeof(PhusionPassenger) !== 'undefined') {
   app.listen('passenger');
-} else {
+} else if (process.env.START_HTTP_SERVER !== 'false') {
   app.listen(PORT, () => {
     console.log(`[1sLabs API] Server aktif dan mendengarkan pada port ${PORT}`);
   });

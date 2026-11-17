@@ -143,8 +143,8 @@ async function runDiscoveryJob(sourceId, options = {}) {
       // Insert Company Record
       const compInsert = await query(
         `INSERT INTO marketing_companies 
-         (name, normalized_name, category, business_type, industry, description, province, city, full_address, website_url, normalized_domain, phone, normalized_phone, email, country, is_international, currency, language, timezone, business_scale, whatsapp_number, instagram_url, status, outreach_eligibility, outreach_ineligible_reason, potential_needs_json, recommended_services_json, primary_source_name, first_discovered_at, last_discovered_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New Discovery', ?, ?, ?, ?, ?, NOW(), NOW())`,
+         (name, normalized_name, category, business_type, industry, description, province, city, full_address, website_url, normalized_domain, phone, normalized_phone, email, email_status, country, is_international, currency, language, timezone, business_scale, whatsapp_number, instagram_url, status, outreach_eligibility, outreach_ineligible_reason, potential_needs_json, recommended_services_json, primary_source_name, first_discovered_at, last_discovered_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New Discovery', ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           finalName,
           normName,
@@ -160,6 +160,7 @@ async function runDiscoveryJob(sourceId, options = {}) {
           finalPhone,
           normPhone,
           finalEmail,
+          finalEmail ? 'UNVERIFIED' : 'NO_EMAIL',
           item.country || 'Indonesia',
           item.is_international ? 1 : 0,
           item.currency || 'IDR',

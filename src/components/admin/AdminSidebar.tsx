@@ -43,7 +43,10 @@ import {
   BookOpen,
   Briefcase,
   UserCheck,
-  UserPlus
+  UserPlus,
+  Clock,
+  Compass,
+  FileCheck2
 } from 'lucide-react';
 
 export type AdminMenuKey =
@@ -59,6 +62,10 @@ export type AdminMenuKey =
   | 'hr-positions'
   | 'marketing'
   | 'marketing-overview'
+  | 'marketing-discovery'
+  | 'marketing-companies'
+  | 'marketing-email-discovery'
+  | 'marketing-review'
   | 'marketing-indonesia'
   | 'marketing-international'
   | 'marketing-prospects'
@@ -95,6 +102,22 @@ export type AdminMenuKey =
   | 'emails'
   | 'email-templates'
   | 'docs-management'
+  | 'blog-articles'
+  | 'blog-seo'
+  | 'blog-strategy'
+  | 'blog-kanban'
+  | 'blog-technical'
+  | 'ai-automation'
+  | 'ai-automation-overview'
+  | 'ai-automation-generate'
+  | 'ai-automation-batch'
+  | 'ai-automation-review'
+  | 'ai-automation-scheduler'
+  | 'ai-automation-strategy'
+  | 'ai-automation-published'
+  | 'ai-automation-seo'
+  | 'ai-automation-knowledge'
+  | 'ai-automation-settings'
   | 'settings'
   | 'server-config'
   | 'activity-logs'
@@ -142,8 +165,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const isMarketingMenu = currentMenu.startsWith('marketing');
   const isHrMenu = currentMenu.startsWith('hr');
+  const isAutomationMenu = currentMenu.startsWith('ai-automation');
   const [marketingExpanded, setMarketingExpanded] = useState<boolean>(true);
   const [hrExpanded, setHrExpanded] = useState<boolean>(true);
+  const [automationExpanded, setAutomationExpanded] = useState<boolean>(true);
 
   // Auto-expand submenus if active
   useEffect(() => {
@@ -153,7 +178,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     if (isHrMenu) {
       setHrExpanded(true);
     }
-  }, [isMarketingMenu, isHrMenu]);
+    if (isAutomationMenu) {
+      setAutomationExpanded(true);
+    }
+  }, [isMarketingMenu, isHrMenu, isAutomationMenu]);
 
   const menuGroups: MenuGroup[] = [
     {
@@ -168,19 +196,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           key: 'marketing',
-          label: 'Marketing',
+          label: 'Lead Acquisition',
           icon: Target,
-          badge: 'AI',
+          badge: 'B2B',
           subSections: [
             {
-              sectionTitle: 'SMALL BUSINESS INTELLIGENCE',
+              sectionTitle: 'LEAD ACQUISITION',
               subItems: [
-                { key: 'marketing-overview', label: 'Overview', icon: LayoutDashboard },
-                { key: 'marketing-indonesia', label: 'Indonesia Business', icon: Store, badge: 'UMKM' },
-                { key: 'marketing-international', label: 'International Business', icon: Globe, badge: 'Global' },
-                { key: 'marketing-contacts', label: 'Contact Management', icon: Users },
-                { key: 'marketing-sources', label: 'Scraping & Discovery', icon: Layers },
-                { key: 'marketing-ai-agent', label: 'AI Research', icon: Bot, badge: 'AI' }
+                { key: 'marketing-overview', label: 'Lead Dashboard', icon: LayoutDashboard },
+                { key: 'marketing-discovery', label: 'Lead Discovery', icon: Search, badge: 'OSM' },
+                { key: 'marketing-companies', label: 'Company Database', icon: Database },
+                { key: 'marketing-email-discovery', label: 'Email Discovery', icon: Mail, badge: 'DNS MX' },
+                { key: 'marketing-review', label: 'Lead Review', icon: ShieldCheck }
               ]
             },
             {
@@ -191,8 +218,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               ]
             },
             {
-              sectionTitle: 'CONFIG',
+              sectionTitle: 'CONFIG & DIRECTORIES',
               subItems: [
+                { key: 'marketing-indonesia', label: 'List UMKM (Legacy)', icon: Store },
+                { key: 'marketing-sources', label: 'Data Sources', icon: Layers },
                 { key: 'marketing-settings', label: 'Marketing Settings', icon: Settings }
               ]
             }
@@ -275,6 +304,49 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ]
     },
     {
+      title: 'CONTENT & SEO INTELLIGENCE',
+      items: [
+        {
+          key: 'ai-automation',
+          label: 'AI Content Automation',
+          icon: Bot,
+          badge: 'AI',
+          subSections: [
+            {
+              sectionTitle: 'GENERATION & REVIEW',
+              subItems: [
+                { key: 'ai-automation-overview', label: 'Overview', icon: LayoutDashboard },
+                { key: 'ai-automation-generate', label: 'Automation Center', icon: Sparkles },
+                { key: 'ai-automation-batch', label: 'Generation Queue', icon: Layers },
+                { key: 'ai-automation-review', label: 'Content Review', icon: FileCheck2 }
+              ]
+            },
+            {
+              sectionTitle: 'AUTOMATION & STRATEGY',
+              subItems: [
+                { key: 'ai-automation-scheduler', label: 'Automation Scheduler', icon: Clock },
+                { key: 'ai-automation-strategy', label: 'Content Strategy', icon: Compass },
+                { key: 'ai-automation-knowledge', label: 'Knowledge Base', icon: BookOpen }
+              ]
+            },
+            {
+              sectionTitle: 'PUBLICATION & GSC SEO',
+              subItems: [
+                { key: 'ai-automation-published', label: 'Published Articles', icon: FileText },
+                { key: 'ai-automation-seo', label: 'SEO Performance', icon: TrendingUp },
+                { key: 'ai-automation-settings', label: 'Automation Settings', icon: Settings }
+              ]
+            }
+          ]
+        },
+        { key: 'blog-articles', label: 'Artikel & Editor', icon: BookOpen, badge: 'CMS' },
+        { key: 'blog-seo', label: 'SEO & GEO Analytics', icon: TrendingUp },
+        { key: 'blog-strategy', label: 'Content Strategy', icon: Layers },
+        { key: 'blog-kanban', label: 'Editorial Pipeline', icon: CalendarCheck },
+        { key: 'blog-technical', label: 'Technical SEO', icon: Globe }
+      ]
+    },
+    {
       title: 'COMMUNICATION',
       items: [
         { key: 'feedback', label: 'Feedback & Jadwal Meeting', icon: CalendarCheck },
@@ -298,7 +370,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const { user } = useAuth();
   const isMarketingUser = user?.role === 'marketing';
   const visibleMenuGroups = isMarketingUser
-    ? menuGroups.filter(g => g.title === 'GROWTH & INTELLIGENCE' || g.title === 'COMMUNICATION')
+    ? menuGroups.filter(
+        g =>
+          g.title === 'GROWTH & INTELLIGENCE' ||
+          g.title === 'CONTENT & SEO INTELLIGENCE' ||
+          g.title === 'COMMUNICATION'
+      )
     : menuGroups;
 
   return (
@@ -355,13 +432,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 const hasSub = !!item.subSections && item.subSections.length > 0;
                 const isMarketingRoot = item.key === 'marketing';
                 const isHrRoot = item.key === 'hr';
+                const isAutomationRoot = item.key === 'ai-automation';
                 const isCurrentActive =
                   currentMenu === item.key ||
                   (isMarketingRoot && (currentMenu === 'marketing' || currentMenu === 'marketing-overview')) ||
-                  (isHrRoot && (currentMenu === 'hr' || currentMenu === 'hr-dashboard'));
+                  (isHrRoot && (currentMenu === 'hr' || currentMenu === 'hr-dashboard')) ||
+                  (isAutomationRoot && (currentMenu === 'ai-automation' || currentMenu === 'ai-automation-overview'));
 
-                const isParentActive = (isMarketingRoot && isMarketingMenu) || (isHrRoot && isHrMenu);
-                const isExpanded = isMarketingRoot ? marketingExpanded : isHrRoot ? hrExpanded : false;
+                const isParentActive =
+                  (isMarketingRoot && isMarketingMenu) ||
+                  (isHrRoot && isHrMenu) ||
+                  (isAutomationRoot && isAutomationMenu);
+                const isExpanded = isMarketingRoot
+                  ? marketingExpanded
+                  : isHrRoot
+                    ? hrExpanded
+                    : isAutomationRoot
+                      ? automationExpanded
+                      : false;
 
                 return (
                   <div key={item.key} className="space-y-1">
@@ -372,6 +460,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                           if (isCollapsed) {
                             if (isMarketingRoot) onSelectMenu('marketing-overview');
                             if (isHrRoot) onSelectMenu('hr-dashboard');
+                            if (isAutomationRoot) onSelectMenu('ai-automation-overview');
                           } else {
                             if (isMarketingRoot) {
                               setMarketingExpanded(!marketingExpanded);
@@ -380,6 +469,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                             if (isHrRoot) {
                               setHrExpanded(!hrExpanded);
                               if (!isHrMenu) onSelectMenu('hr-dashboard');
+                            }
+                            if (isAutomationRoot) {
+                              setAutomationExpanded(!automationExpanded);
+                              if (!isAutomationMenu) onSelectMenu('ai-automation-overview');
                             }
                           }
                         } else {
@@ -443,7 +536,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                                 const isSubActive =
                                   currentMenu === sub.key ||
                                   (sub.key === 'marketing-overview' && currentMenu === 'marketing') ||
-                                  (sub.key === 'hr-dashboard' && currentMenu === 'hr');
+                                  (sub.key === 'hr-dashboard' && currentMenu === 'hr') ||
+                                  (sub.key === 'ai-automation-overview' && currentMenu === 'ai-automation');
 
                                 return (
                                   <button

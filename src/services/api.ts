@@ -853,6 +853,9 @@ export interface MarketingCompany {
   normalized_phone?: string | null;
   whatsapp_number?: string | null;
   email?: string | null;
+  email_status?: 'VERIFIED' | 'UNVERIFIED' | 'INVALID' | 'NO_EMAIL';
+  email_verified_at?: string | null;
+  email_source_url?: string | null;
   instagram_url?: string | null;
   facebook_url?: string | null;
   contact_page_url?: string | null;
@@ -898,6 +901,9 @@ export interface MarketingContact {
   position?: string | null;
   role_category: string;
   email?: string | null;
+  email_status?: 'VERIFIED' | 'UNVERIFIED' | 'INVALID' | 'NO_EMAIL';
+  email_verified_at?: string | null;
+  email_source_url?: string | null;
   phone?: string | null;
   channel?: string | null;
   profile_url?: string | null;
@@ -1121,6 +1127,9 @@ export interface MarketingFollowup {
 export interface MarketingSuppression {
   id: number;
   email?: string | null;
+  email_status?: 'VERIFIED' | 'UNVERIFIED' | 'INVALID' | 'NO_EMAIL';
+  email_verified_at?: string | null;
+  email_source_url?: string | null;
   domain?: string | null;
   reason: string;
   notes?: string | null;
@@ -2870,6 +2879,37 @@ export const api = {
     getStats: () =>
       request<MarketingStatsResponse>('/admin/marketing/stats'),
 
+    getLeadDashboard: () =>
+      request<{
+        success: boolean;
+        stats: {
+          total_companies: number;
+          total_umkm: number;
+          total_corporate: number;
+          new_today: number;
+          emails_found: number;
+          emails_verified: number;
+          emails_unverified: number;
+          emails_invalid: number;
+          emails_no_email: number;
+          contact_ready: number;
+          emails_sent: number;
+          replies_received: number;
+          do_not_contact: number;
+        };
+        quota: {
+          date: string;
+          sent_count: number;
+          max_limit: number;
+          remaining_quota: number;
+          is_quota_exhausted: boolean;
+        };
+        byProvince: Array<{ province: string; count: number; verified_emails: number }>;
+        byCategory: Array<{ category: string; count: number; verified_emails: number }>;
+        bySource: Array<{ source: string; count: number; verified_emails: number }>;
+        recentJobs: any[];
+      }>('/admin/marketing/lead-dashboard'),
+
     getCompanies: (params?: {
       search?: string;
       category?: string;
@@ -2880,6 +2920,7 @@ export const api = {
       outreach_eligibility?: string;
       lead_grade?: string;
       has_website?: string | boolean;
+      email_status?: string;
       scope?: string;
       business_scale?: string;
       missing_field?: string;
@@ -2965,6 +3006,80 @@ export const api = {
 
     getRecoveryStats: () =>
       request<{ success: boolean; stats: any }>('/admin/marketing/recovery/stats'),
+
+    // Lead Acquisition & Email Discovery APIs
+    runEmailDiscovery: (payload: { limit?: number; status?: string; email_status?: string; province?: string }) =>
+      request<{
+        success: boolean;
+        results: {
+          totalProcessed: number;
+          verifiedCount: number;
+          unverifiedCount: number;
+          invalidCount: number;
+          noEmailCount: number;
+          failedCount: number;
+          details: any[];
+        };
+      }>('/admin/marketing/email-discovery/run', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+
+    discoverCompanyEmail: (companyId: number) =>
+      request<{
+        success: boolean;
+        result: {
+          companyId: number;
+          companyName: string;
+          website: string;
+          success: boolean;
+          chosenEmail?: string;
+          emailStatus: 'VERIFIED' | 'UNVERIFIED' | 'INVALID' | 'NO_EMAIL';
+          validationReason?: string;
+          sourceUrl?: string;
+          totalDiscovered: number;
+          allDiscovered: string[];
+          mxRecords?: any[];
+          message?: string;
+        };
+      }>(`/admin/marketing/email-discovery/${companyId}`, {
+        method: 'POST'
+      }),
+
+    validateEmailTechnical: (email: string) =>
+      request<{
+        success: boolean;
+        result: {
+          email: string;
+          valid: boolean;
+          status: 'VERIFIED' | 'UNVERIFIED' | 'INVALID';
+          reason: string;
+          domain?: string;
+          mxRecords?: any[];
+          suppressed?: boolean;
+        };
+      }>('/admin/marketing/email-discovery/validate-single', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      }),
+
+    bulkUpdateCompanyStatus: (companyIds: number[], status?: string, outreach_eligibility?: string) =>
+      request<{ success: boolean; message: string }>('/admin/marketing/companies/bulk-status', {
+        method: 'POST',
+        body: JSON.stringify({ companyIds, status, outreach_eligibility })
+      }),
+
+    bulkDeleteCompanies: (companyIds: number[], permanent = false) =>
+      request<{ success: boolean; message: string }>('/admin/marketing/companies/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ companyIds, permanent })
+      }),
+
+    mergeCompanies: (primaryCompanyId: number, duplicateCompanyId: number) =>
+      request<{ success: boolean; message: string }>('/admin/marketing/companies/merge-duplicates', {
+        method: 'POST',
+        body: JSON.stringify({ primaryCompanyId, duplicateCompanyId })
+      }),
 
     auditWebsite: (id: number) =>
       request<{ success: boolean; message: string; audit: any }>(`/admin/marketing/companies/${id}/audit-website`, {

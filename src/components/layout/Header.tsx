@@ -14,6 +14,7 @@ const navigation = [
   { name: 'Services', href: '#services' },
   { name: 'Hosting', href: '#hosting' },
   { name: 'Free Plan', href: '/portal?tab=freeplan' },
+  { name: 'Blog', href: '/blog' },
   { name: 'Docs', href: '/docs' },
   { name: 'Portfolio', href: '#portfolio' },
   { name: 'Contact', href: '#contact' },

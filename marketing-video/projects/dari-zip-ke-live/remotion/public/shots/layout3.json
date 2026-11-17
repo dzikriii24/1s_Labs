@@ -1,0 +1,26 @@
+{
+ "pc_qr": {
+  "w": 628.3,
+  "h": 785.6
+ },
+ "pc_summary_before": {
+  "w": 439.7,
+  "h": 304
+ },
+ "pc_form_before": {
+  "w": 439.7,
+  "h": 641.6
+ },
+ "pc_form_filled": {
+  "w": 439.7,
+  "h": 717.6
+ },
+ "pc_summary_after": {
+  "w": 439.7,
+  "h": 304
+ },
+ "pc_form_after": {
+  "w": 439.7,
+  "h": 775.6
+ }
+}

@@ -50,6 +50,39 @@ import {
 // Curated 1sLabs Official Templates with Branding & Logo
 const OFFICIAL_1SLABS_TEMPLATES = [
   {
+    id: 'tpl-b2b-corporate-it',
+    name: '1sLabs B2B IT Consulting & Custom Web Application',
+    category: 'Indonesia - Corporate & Enterprise',
+    language: 'id',
+    subject: 'Peluang Kolaborasi Digital & Custom Software Development untuk {{business_name}}',
+    body_html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b; line-height: 1.6;">
+  <p>Kepada Yth. Pimpinan & Tim Manajemen <strong>{{business_name}}</strong>,</p>
+
+  <p>Perkenalkan, kami dari <strong>1sLabs</strong> — studio rekayasa perangkat lunak dan konsultan IT yang berfokus mendukung transformasi digital perusahaan dan bisnis berkembang di Indonesia.</p>
+
+  <p>Kami memahami bahwa efisiensi operasional dan kehadiran digital yang handal adalah fondasi pertumbuhan bisnis modern. 1sLabs menyediakan layanan teknologi end-to-end terintegrasi, meliputi:</p>
+
+  <ul style="padding-left: 20px; margin: 16px 0;">
+    <li style="margin-bottom: 8px;"><strong>Custom Web & Mobile Application:</strong> Pembangunan aplikasi bisnis khusus sesuai proses operasional dan workflow unik perusahaan Anda.</li>
+    <li style="margin-bottom: 8px;"><strong>Sistem Manajemen Bisnis & ERP:</strong> Digitalisasi inventaris, manajemen pesanan, approval internal, dan sistem informasi perusahaan.</li>
+    <li style="margin-bottom: 8px;"><strong>Executive Dashboard & Data Analytics:</strong> Visualisasi metrik kinerja, laporan keuangan, dan tren performa secara real-time.</li>
+    <li style="margin-bottom: 8px;"><strong>Integrasi API & Payment Gateway:</strong> Menghubungkan sistem internal dengan perbankan, logistik pihak ketiga, dan ekosistem digital.</li>
+    <li style="margin-bottom: 8px;"><strong>IT Consulting & Architecture:</strong> Perencanaan arsitektur sistem yang aman, scalable, dan hemat biaya infrastruktur.</li>
+    <li style="margin-bottom: 8px;"><strong>Website Maintenance, Cloud Hosting & Domain:</strong> Server cepat dan andal didukung SLA garansi teknis berkelanjutan.</li>
+  </ul>
+
+  <p>Kami sangat terbuka untuk berdiskusi santai terlebih dahulu untuk memetakan kebutuhan teknologi atau pain points di <strong>{{business_name}}</strong> tanpa ikatan komitmen apapun.</p>
+
+  <p>Apabila Bapak/Ibu berkenan, apakah kami dapat menjadwalkan sesi eksplorasi singkat (15 menit via Google Meet)?</p>
+
+  <p style="margin-top: 24px;">Terima kasih atas waktu dan perhatiannya.<br><br>
+  Hormat kami,<br>
+  <strong>Tim Business Development 1sLabs</strong><br>
+  <a href="https://1slabs.my.id" style="color: #059669; text-decoration: none; font-weight: 600;">https://1slabs.my.id/</a> &bull; Email: info@1slabs.my.id
+  </p>
+</div>`
+  },
+  {
     id: 'tpl-umkm-website',
     name: 'Website UMKM & Bisnis Lokal (Profile, WhatsApp & Maps)',
     category: 'Indonesia - Small Business',
